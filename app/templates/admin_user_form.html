@@ -1,0 +1,63 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 16px;">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <i class="layui-icon layui-icon-username"></i>
+            {% if mode == "add" %}新增用户{% else %}编辑用户{% end %}
+        </div>
+        <div class="layui-card-body">
+            <form class="layui-form" action="{% if mode == 'add' %}/admin/user/add{% else %}/admin/user/edit{% end %}" method="post">
+                {% if mode == "edit" %}
+                <input type="hidden" name="id" value="{{ user['id'] }}">
+                {% end %}
+                {% module xsrf_form_html() %}
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">用户名</label>
+                    <div class="layui-input-inline">
+                        {% if mode == "add" %}
+                        <input type="text" name="username" placeholder="请输入用户名" autocomplete="off" class="layui-input" required>
+                        {% else %}
+                        <input type="text" name="username" value="{{ user['username'] }}" disabled autocomplete="off" class="layui-input layui-disabled">
+                        {% end %}
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">{% if mode == "add" %}登录时使用{% else %}用户名不可修改{% end %}</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">密码</label>
+                    <div class="layui-input-inline">
+                        <input type="password" name="password" {% if mode == "edit" %}placeholder="留空则不修改密码"{% else %}placeholder="请设置密码"{% end %} autocomplete="new-password" class="layui-input" {% if mode == "add" %}required{% end %}>
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">{% if mode == "edit" %}留空则不修改{% else %}至少6位{% end %}</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">姓名</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="real_name" value="{% if user %}{{ user['real_name'] }}{% end %}" placeholder="请输入姓名" class="layui-input">
+                    </div>
+                </div>
+
+                {% if mode == "edit" %}
+                <div class="layui-form-item">
+                    <label class="layui-form-label">状态</label>
+                    <div class="layui-input-inline">
+                        <input type="radio" name="status" value="1" title="启用" {% if user['status'] == 1 %}checked{% end %}>
+                        <input type="radio" name="status" value="0" title="禁用" {% if user['status'] == 0 %}checked{% end %}>
+                    </div>
+                </div>
+                {% end %}
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <button type="submit" class="layui-btn">保存</button>
+                        <button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/admin/user/list'">返回</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% end %}

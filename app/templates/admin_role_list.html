@@ -1,0 +1,86 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            角色与权限管理
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-form" style="margin-bottom:20px;">
+                <div class="layui-inline">
+                    <a href="/admin/role/add" class="layui-btn" style="background:#1E9FFF;">
+                        <i class="layui-icon layui-icon-add-1"></i> 新增角色
+                    </a>
+                </div>
+            </div>
+
+            <table class="layui-table" lay-skin="line">
+                <thead>
+                    <tr>
+                        <th style="width:80px;">ID</th>
+                        <th>角色名称</th>
+                        <th>角色标识</th>
+                        <th style="width:260px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in roles %}
+                    <tr>
+                        <td>{{ r['id'] }}</td>
+                        <td>
+                            {% if r['id'] == 1 %}
+                            <span class="layui-badge layui-bg-orange">{{ r['role_name'] }}</span>
+                            {% else %}
+                            {{ r['role_name'] }}
+                            {% end %}
+                        </td>
+                        <td><code>{{ r['role_code'] }}</code></td>
+                        <td>
+                            {% if r['id'] == 1 %}
+                            <span style="color:#999;">系统内置角色不可修改</span>
+                            {% else %}
+                            <a href="/admin/role/edit?id={{ r['id'] }}" class="layui-btn layui-btn-xs" style="background:#FFB800;">
+                                <i class="layui-icon layui-icon-edit"></i> 编辑
+                            </a>
+                            <form action="/admin/role/list" method="post" style="display:inline;" id="roleDelForm{{ r['id'] }}">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="rid" value="{{ r['id'] }}">
+                                {% module xsrf_form_html() %}
+                                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" data-rid="{{ r['id'] }}">
+                                    <i class="layui-icon layui-icon-delete"></i> 删除
+                                </button>
+                            </form>
+                            <a href="/admin/role/edit?id={{ r['id'] }}" class="layui-btn layui-btn-xs" style="background:#1E9FFF;">
+                                <i class="layui-icon layui-icon-template-1"></i> 分配权限(二级联动)
+                            </a>
+                            {% end %}
+                        </td>
+                    </tr>
+                    {% end %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['layer', 'jquery'], function(){
+    var layer = layui.layer;
+    var $ = layui.jquery;
+
+    $('.layui-btn-danger[data-rid]').on('click', function(){
+        var rid = $(this).data('rid');
+        layer.confirm('确认删除该角色吗？', {
+            icon: 3,
+            title: '删除确认',
+            btn: ['确认', '取消']
+        }, function(index){
+            layer.close(index);
+            document.getElementById('roleDelForm' + rid).submit();
+        });
+    });
+});
+</script>
+{% end %}

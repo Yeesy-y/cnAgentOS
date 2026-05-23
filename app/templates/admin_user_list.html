@@ -1,0 +1,114 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            用户管理
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-form" style="margin-bottom:20px;">
+                <div class="layui-inline">
+                    <a href="/admin/user/add" class="layui-btn" style="background:#1E9FFF;">
+                        <i class="layui-icon layui-icon-add-1"></i> 新增用户
+                    </a>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-danger" id="batchDelBtn">
+                        <i class="layui-icon layui-icon-delete"></i> 批量删除
+                    </button>
+                </div>
+            </div>
+
+            <form id="userListForm" action="/admin/user/list" method="post">
+                {% module xsrf_form_html() %}
+                <input type="hidden" name="action" id="userAction" value="">
+                <input type="hidden" name="uids" id="userUids" value="">
+
+                <table class="layui-table" lay-skin="line">
+                    <thead>
+                        <tr>
+                            <th style="width:50px;">
+                                <input type="checkbox" lay-filter="checkAll" lay-skin="primary">
+                            </th>
+                            <th style="width:60px;">ID</th>
+                            <th>用户名</th>
+                            <th style="width:180px;">创建时间</th>
+                            <th style="width:200px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="uid" value="{{ u['id'] }}" lay-skin="primary" class="rowCheck">
+                            </td>
+                            <td>{{ u['id'] }}</td>
+                            <td>{{ u['username'] }}</td>
+                            <td>{{ u['create_at'] }}</td>
+                            <td>
+                                <a href="/admin/user/edit?id={{ u['id'] }}" class="layui-btn layui-btn-xs" style="background:#FFB800;">
+                                    <i class="layui-icon layui-icon-edit"></i> 编辑
+                                </a>
+                                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" data-uid="{{ u['id'] }}">
+                                    <i class="layui-icon layui-icon-delete"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                        {% end %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['layer', 'form', 'jquery'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.jquery;
+
+    form.on('checkbox(checkAll)', function(data){
+        $('.rowCheck').each(function(){
+            this.checked = data.elem.checked;
+        });
+        form.render('checkbox');
+    });
+
+    $('.layui-btn-danger[data-uid]').on('click', function(){
+        var uid = $(this).data('uid');
+        layer.confirm('确认删除该用户吗？', {
+            icon: 3,
+            title: '删除确认',
+            btn: ['确认', '取消']
+        }, function(index){
+            $('#userAction').val('delete');
+            $('#userUids').val(uid);
+            $('#userListForm').submit();
+        });
+    });
+
+    $('#batchDelBtn').on('click', function(){
+        var ids = [];
+        $('.rowCheck:checked').each(function(){
+            ids.push($(this).val());
+        });
+        if(ids.length === 0){
+            layer.msg('请先选择要删除的用户', {icon:2});
+            return;
+        }
+        layer.confirm('确认删除选中的 '+ids.length+' 个用户吗？', {
+            icon: 3,
+            title: '批量删除确认',
+            btn: ['确认', '取消']
+        }, function(index){
+            $('#userAction').val('delete');
+            $('#userUids').val(ids.join(','));
+            $('#userListForm').submit();
+        });
+    });
+});
+</script>
+{% end %}

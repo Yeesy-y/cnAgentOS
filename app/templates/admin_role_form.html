@@ -1,0 +1,80 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 16px;">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <i class="layui-icon layui-icon-user"></i>
+            {% if mode == "add" %}新增角色{% else %}编辑角色{% end %}
+        </div>
+        <div class="layui-card-body">
+            <form class="layui-form" action="{% if mode == 'add' %}/admin/role/add{% else %}/admin/role/edit{% end %}" method="post">
+                {% if mode == "edit" %}
+                <input type="hidden" name="id" value="{{ role['id'] }}">
+                {% end %}
+                {% module xsrf_form_html() %}
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">角色名称</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="role_name" value="{% if role %}{{ role['role_name'] }}{% end %}" placeholder="请输入角色名称" class="layui-input" required>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">角色代码</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="role_code" value="{% if role %}{{ role['role_code'] }}{% end %}" placeholder="如：operator" class="layui-input" required>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">描述</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="description" value="{% if role %}{{ role['description'] }}{% end %}" placeholder="角色描述" class="layui-input">
+                    </div>
+                </div>
+
+                {% if mode == "edit" %}
+                <div class="layui-form-item">
+                    <label class="layui-form-label">状态</label>
+                    <div class="layui-input-inline">
+                        <input type="radio" name="status" value="1" title="启用" {% if role['status'] == 1 %}checked{% end %}>
+                        <input type="radio" name="status" value="0" title="禁用" {% if role['status'] == 0 %}checked{% end %}>
+                    </div>
+                </div>
+                {% end %}
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">权限选择</label>
+                    <div class="layui-input-block" style="max-width:800px;">
+                        <fieldset class="layui-elem-field layui-field-title" style="margin-top:10px;">
+                            <legend>系统权限（二级联动选择）</legend>
+                        </fieldset>
+                        <div style="background:#f8f8f8; padding:16px; border-radius:4px;">
+                            {% for p in permissions %}
+                            <div style="margin-bottom:12px;">
+                                <input type="checkbox" name="perm_ids" value="{{ p['id'] }}" title="{{ p['perm_name'] }}" lay-skin="primary" {% if p['id'] in selected_perms %}checked{% end %}>
+                                {% if p['children'] %}
+                                <div style="margin-left:28px; margin-top:8px;">
+                                    {% for cp in p['children'] %}
+                                    <input type="checkbox" name="perm_ids" value="{{ cp['id'] }}" title="{{ cp['perm_name'] }}" lay-skin="primary" {% if cp['id'] in selected_perms %}checked{% end %}>
+                                    {% end %}
+                                </div>
+                                {% end %}
+                            </div>
+                            {% end %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <button type="submit" class="layui-btn">保存</button>
+                        <button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/admin/role/list'">返回</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% end %}

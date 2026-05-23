@@ -11,6 +11,12 @@ from tornado.httpserver import HTTPServer
 #引入auth-controller层
 from app.controllers.auth import LoginHandler,LogoutHandler
 from app.controllers.home import IndexHandler
+#引入admin-controller层
+from app.controllers.admin_auth import AdminLoginHandler,AdminLogoutHandler
+from app.controllers.admin_home import AdminIndexHandler
+from app.controllers.admin_user import AdminUserListHandler,AdminUserAddHandler,AdminUserEditHandler
+from app.controllers.admin_rbac import AdminPermissionListHandler,AdminPermissionAddHandler,AdminPermissionEditHandler
+from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,AdminRoleEditHandler
 #引入db-model层
 from app.models.db import init_db
 
@@ -77,7 +83,21 @@ def make_app():
 	return tornado.web.Application([
 		(r"/",IndexHandler),
 		(r"/auth/login",LoginHandler),
-		(r"/auth/logout",LogoutHandler)
+		(r"/auth/logout",LogoutHandler),
+		# admin后台路由
+		(r"/admin/login",AdminLoginHandler),
+		(r"/admin/logout",AdminLogoutHandler),
+		(r"/admin/index",AdminIndexHandler),
+		(r"/admin/user/list",AdminUserListHandler),
+		(r"/admin/user/add",AdminUserAddHandler),
+		(r"/admin/user/edit",AdminUserEditHandler),
+		# RBAC路由
+		(r"/admin/perm/list",AdminPermissionListHandler),
+		(r"/admin/perm/add",AdminPermissionAddHandler),
+		(r"/admin/perm/edit",AdminPermissionEditHandler),
+		(r"/admin/role/list",AdminRoleListHandler),
+		(r"/admin/role/add",AdminRoleAddHandler),
+		(r"/admin/role/edit",AdminRoleEditHandler)
 
 		],
 		**settings

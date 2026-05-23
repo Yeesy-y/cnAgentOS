@@ -1,0 +1,179 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            功能管理
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-form" style="margin-bottom:20px;">
+                <div class="layui-inline">
+                    <a href="/admin/perm/add" class="layui-btn" style="background:#1E9FFF;">
+                        <i class="layui-icon layui-icon-add-1"></i> 新增功能菜单
+                    </a>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" id="expandAll">
+                        <i class="layui-icon layui-icon-down"></i> 展开全部
+                    </button>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-primary" id="collapseAll">
+                        <i class="layui-icon layui-icon-right"></i> 折叠全部
+                    </button>
+                </div>
+            </div>
+
+            <table class="layui-table" lay-skin="line">
+                <thead>
+                    <tr>
+                        <th>菜单名称</th>
+                        <th>路径/URL</th>
+                        <th style="width:160px;">图标</th>
+                        <th style="width:80px;">排序</th>
+                        <th style="width:240px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in permissions %}
+                        {% if p['parent_id'] == 0 %}
+                        <tr class="menu-level-1" data-level="1" data-id="{{ p['id'] }}">
+                            <td>
+                                <i class="layui-icon layui-icon-triangle-d expand-btn" data-id="{{ p['id'] }}" style="cursor:pointer; color:#1E9FFF;"></i>
+                                {% if p['perm_name'] == '系统管理' %}
+                                <i class="layui-icon layui-icon-set"></i>
+                                {% elif '用户' in p['perm_name'] %}
+                                <i class="layui-icon layui-icon-user"></i>
+                                {% elif '角色' in p['perm_name'] %}
+                                <i class="layui-icon layui-icon-group"></i>
+                                {% elif '权限' in p['perm_name'] or '功能' in p['perm_name'] %}
+                                <i class="layui-icon layui-icon-app"></i>
+                                {% elif '模型' in p['perm_name'] %}
+                                <i class="layui-icon layui-icon-engine"></i>
+                                {% elif '数据' in p['perm_name'] %}
+                                <i class="layui-icon layui-icon-table"></i>
+                                {% else %}
+                                <i class="layui-icon layui-icon-file"></i>
+                                {% end %}
+                                {{ p['perm_name'] }}
+                            </td>
+                            <td>
+                                {% if p['menu_url'] %}
+                                <a href="{{ p['menu_url'] }}">{{ p['menu_url'] }}</a>
+                                {% else %}
+                                -
+                                {% end %}
+                            </td>
+                            <td><code>layui-icon</code></td>
+                            <td>{{ p['sort_order'] }}</td>
+                            <td>
+                                <a href="/admin/perm/add?parent_id={{ p['id'] }}" class="layui-btn layui-btn-xs" style="background:#1E9FFF;">
+                                    <i class="layui-icon layui-icon-add-1"></i> 新增子级
+                                </a>
+                                <a href="/admin/perm/edit?id={{ p['id'] }}" class="layui-btn layui-btn-xs" style="background:#FFB800;">
+                                    <i class="layui-icon layui-icon-edit"></i> 编辑
+                                </a>
+                                <form action="/admin/perm/list" method="post" style="display:inline;" id="permDelForm{{ p['id'] }}">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="pid" value="{{ p['id'] }}">
+                                    {% module xsrf_form_html() %}
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" data-pid="{{ p['id'] }}">
+                                        <i class="layui-icon layui-icon-delete"></i> 删除
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% for cp in permissions %}
+                            {% if cp['parent_id'] == p['id'] %}
+                            <tr class="menu-level-2 child-of-{{ p['id'] }}" data-level="2" data-id="{{ cp['id'] }}" style="background:#f8f8f8;">
+                                <td style="padding-left:40px;">
+                                    {% if '新增' in cp['perm_name'] %}
+                                    <i class="layui-icon layui-icon-add-1"></i>
+                                    {% elif '编辑' in cp['perm_name'] %}
+                                    <i class="layui-icon layui-icon-edit"></i>
+                                    {% elif '删除' in cp['perm_name'] %}
+                                    <i class="layui-icon layui-icon-delete"></i>
+                                    {% else %}
+                                    <i class="layui-icon layui-icon-template-1"></i>
+                                    {% end %}
+                                    {{ cp['perm_name'] }}
+                                </td>
+                                <td>
+                                    {% if cp['menu_url'] %}
+                                    <a href="{{ cp['menu_url'] }}">{{ cp['menu_url'] }}</a>
+                                    {% else %}
+                                    -
+                                    {% end %}
+                                </td>
+                                <td><code>layui-icon</code></td>
+                                <td>{{ cp['sort_order'] }}</td>
+                                <td>
+                                    <a href="/admin/perm/add?parent_id={{ cp['id'] }}" class="layui-btn layui-btn-xs" style="background:#1E9FFF;">
+                                        <i class="layui-icon layui-icon-add-1"></i> 新增子级
+                                    </a>
+                                    <a href="/admin/perm/edit?id={{ cp['id'] }}" class="layui-btn layui-btn-xs" style="background:#FFB800;">
+                                        <i class="layui-icon layui-icon-edit"></i> 编辑
+                                    </a>
+                                    <form action="/admin/perm/list" method="post" style="display:inline;" id="permDelForm{{ cp['id'] }}">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="pid" value="{{ cp['id'] }}">
+                                        {% module xsrf_form_html() %}
+                                        <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" data-pid="{{ cp['id'] }}">
+                                            <i class="layui-icon layui-icon-delete"></i> 删除
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% end %}
+                        {% end %}
+                        {% end %}
+                    {% end %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['layer', 'jquery'], function(){
+    var layer = layui.layer;
+    var $ = layui.jquery;
+
+    $('.expand-btn').on('click', function(){
+        var pid = $(this).data('id');
+        var $children = $('.child-of-' + pid);
+        if($children.is(':visible')){
+            $children.hide();
+            $(this).removeClass('layui-icon-triangle-d').addClass('layui-icon-triangle-r');
+        } else {
+            $children.show();
+            $(this).removeClass('layui-icon-triangle-r').addClass('layui-icon-triangle-d');
+        }
+    });
+
+    $('#expandAll').on('click', function(){
+        $('.menu-level-2').show();
+        $('.expand-btn').removeClass('layui-icon-triangle-r').addClass('layui-icon-triangle-d');
+    });
+
+    $('#collapseAll').on('click', function(){
+        $('.menu-level-2').hide();
+        $('.expand-btn').removeClass('layui-icon-triangle-d').addClass('layui-icon-triangle-r');
+    });
+
+    $('.layui-btn-danger[data-pid]').on('click', function(){
+        var pid = $(this).data('pid');
+        layer.confirm('确认删除该功能吗？', {
+            icon: 3,
+            title: '删除确认',
+            btn: ['确认', '取消']
+        }, function(index){
+            layer.close(index);
+            document.getElementById('permDelForm' + pid).submit();
+        });
+    });
+});
+</script>
+{% end %}

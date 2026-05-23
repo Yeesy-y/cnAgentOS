@@ -1,0 +1,56 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-row layui-col-space16">
+        <div class="layui-col-md3">
+            <div class="layui-card">
+                <div class="layui-card-header"><i class="layui-icon layui-icon-user" style="color:#1e9fff;"></i> 用户总数</div>
+                <div class="layui-card-body">
+                    <span class="layui-badge layui-bg-blue" style="font-size:24px;padding:8px 16px;">--</span>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md3">
+            <div class="layui-card">
+                <div class="layui-card-header"><i class="layui-icon layui-icon-engine" style="color:#ffb800;"></i> 模型调用</div>
+                <div class="layui-card-body">
+                    <span class="layui-badge layui-bg-orange" style="font-size:24px;padding:8px 16px;">--</span>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md3">
+            <div class="layui-card">
+                <div class="layui-card-header"><i class="layui-icon layui-icon-auz" style="color:#16baaa;"></i> 瞭望任务</div>
+                <div class="layui-card-body">
+                    <span class="layui-badge layui-bg-green" style="font-size:24px;padding:8px 16px;">--</span>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md3">
+            <div class="layui-card">
+                <div class="layui-card-header"><i class="layui-icon layui-icon-release" style="color:#ff5722;"></i> 接口总数</div>
+                <div class="layui-card-body">
+                    <span class="layui-badge layui-bg-red" style="font-size:24px;padding:8px 16px;">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="layui-row layui-col-space16" style="margin-top:16px;">
+        <div class="layui-col-md12">
+            <div class="layui-card">
+                <div class="layui-card-header">
+                    <i class="layui-icon layui-icon-chart"></i> 系统概况
+                </div>
+                <div class="layui-card-body">
+                    <div style="text-align:center; padding: 60px 0; color: #999;">
+                        <i class="layui-icon layui-icon-console" style="font-size:64px; color:#d2d2d2;"></i>
+                        <p style="margin-top:16px; font-size:16px;">功能模块正在开发中，敬请期待...</p>
+                        <p style="margin-top:8px; font-size:13px;">当前版本：v1.0.0-dev</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% end %}

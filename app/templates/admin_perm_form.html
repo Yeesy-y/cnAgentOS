@@ -1,0 +1,66 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 16px;">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <i class="layui-icon layui-icon-list"></i>
+            {% if mode == "add" %}新增权限{% else %}编辑权限{% end %}
+        </div>
+        <div class="layui-card-body">
+            <form class="layui-form" action="{% if mode == 'add' %}/admin/perm/add{% else %}/admin/perm/edit{% end %}" method="post">
+                {% if mode == "edit" %}
+                <input type="hidden" name="id" value="{{ permission['id'] }}">
+                {% end %}
+                {% module xsrf_form_html() %}
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">上级权限</label>
+                    <div class="layui-input-inline">
+                        <select name="parent_id" lay-verify="">
+                            <option value="0">顶级权限</option>
+                            {% for p in permissions %}
+                            <option value="{{ p['id'] }}" {% if parent_id == p['id'] %}selected{% end %}>{{ p['perm_name'] }}</option>
+                            {% end %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">权限名称</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="perm_name" value="{% if permission %}{{ permission['perm_name'] }}{% end %}" placeholder="请输入权限名称" class="layui-input" required>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">权限代码</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="perm_code" value="{% if permission %}{{ permission['perm_code'] }}{% end %}" placeholder="如：admin:xxx" class="layui-input" required>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">菜单地址</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="menu_url" value="{% if permission %}{{ permission['menu_url'] }}{% end %}" placeholder="如：/admin/xxx" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">排序</label>
+                    <div class="layui-input-inline">
+                        <input type="number" name="sort_order" value="{% if permission %}{{ permission['sort_order'] }}{% else %}0{% end %}" placeholder="排序号" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <button type="submit" class="layui-btn">保存</button>
+                        <button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/admin/perm/list'">返回</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% end %}

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title if title else "AI智能瞭望系统 - 管理后台" }}</title>
+    <link rel="stylesheet" href="{{ static_url('dist/layui-v2.13.6/layui/css/layui.css') }}">
+    <link rel="stylesheet" href="{{ static_url('dist/fontawesome-free-5.15.4-web/css/all.min.css') }}">
+    {% block head %}{% end %}
+</head>
+<body class="layui-layout-body">
+<div class="layui-layout layui-layout-admin">
+
+    <div class="layui-header">
+        <div class="layui-logo layui-hide-xs layui-bg-black">
+            <i class="fas fa-eye"></i> 智能瞭望系统
+        </div>
+
+        <ul class="layui-nav layui-layout-left">
+            <li class="layui-nav-item layui-hide-xs" lay-unselect>
+                <a href="javascript:;" lay-event="refresh"><i class="layui-icon layui-icon-refresh"></i></a>
+            </li>
+        </ul>
+
+        <ul class="layui-nav layui-layout-right">
+            <li class="layui-nav-item layui-hide-xs" lay-unselect>
+                <a href="javascript:;">
+                    <i class="layui-icon layui-icon-username" style="font-size:18px;"></i>
+                    管理员：{{ username if username else "Admin" }}
+                </a>
+            </li>
+            <li class="layui-nav-item" lay-unselect>
+                <a href="javascript:;" lay-unselect>
+                    <i class="fas fa-cog"></i>
+                </a>
+                <dl class="layui-nav-child">
+                    <dd><a href="javascript:;">基本资料</a></dd>
+                    <dd><a href="javascript:;">安全设置</a></dd>
+                </dl>
+            </li>
+            <li class="layui-nav-item" lay-unselect>
+                <form action="/admin/logout" method="post" style="display:inline;" id="adminLogoutForm">
+                    {% module xsrf_form_html() %}
+                    <a href="javascript:;" onclick="document.getElementById('adminLogoutForm').submit();">
+                        <i class="layui-icon layui-icon-logout"></i> 退出
+                    </a>
+                </form>
+            </li>
+        </ul>
+    </div>
+
+    <div class="layui-side layui-bg-black">
+        <div class="layui-side-scroll">
+            <ul class="layui-nav layui-nav-tree" lay-filter="adminMenu" lay-shrink="all">
+                {% block menu %}
+                <li class="layui-nav-item layui-nav-itemed">
+                    <a href="javascript:;"><i class="layui-icon layui-icon-set"></i><span>系统管理</span></a>
+                    <dl class="layui-nav-child">
+                        <dd class="{% if active_menu == 'user' %}layui-this{% end %}">
+                            <a href="/admin/user/list" data-url="/admin/user/list">
+                                <i class="layui-icon layui-icon-user"></i> 用户管理
+                            </a>
+                        </dd>
+                        <dd class="{% if active_menu == 'role' %}layui-this{% end %}">
+                            <a href="/admin/role/list" data-url="/admin/role/list">
+                                <i class="layui-icon layui-icon-group"></i> 角色管理
+                            </a>
+                        </dd>
+                        <dd class="{% if active_menu == 'perm' %}layui-this{% end %}">
+                            <a href="/admin/perm/list" data-url="/admin/perm/list">
+                                <i class="layui-icon layui-icon-app"></i> 功能管理
+                            </a>
+                        </dd>
+                    </dl>
+                </li>
+                {% end %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="layui-body">
+        {% block content %}{% end %}
+    </div>
+
+    <div class="layui-footer">
+        &copy; 2026 AI 智能瞭望与智能问数系统 - 管理后台
+    </div>
+</div>
+
+<script src="{{ static_url('dist/layui-v2.13.6/layui/layui.js') }}"></script>
+{% block js %}{% end %}
+<script>
+layui.use(['element', 'layer', 'util'], function(){
+    var element = layui.element;
+    var layer = layui.layer;
+    var util = layui.util;
+
+    util.fixbar({
+        bar1: false,
+        css: {right: 50, bottom: 100}
+    });
+});
+</script>
+</body>
+</html>
