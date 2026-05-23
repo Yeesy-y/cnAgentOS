@@ -17,6 +17,7 @@ from app.controllers.admin_home import AdminIndexHandler
 from app.controllers.admin_user import AdminUserListHandler,AdminUserAddHandler,AdminUserEditHandler
 from app.controllers.admin_rbac import AdminPermissionListHandler,AdminPermissionAddHandler,AdminPermissionEditHandler
 from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,AdminRoleEditHandler
+from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandler,AdminModelEditHandler,AdminModelTestHandler
 #引入db-model层
 from app.models.db import init_db
 
@@ -91,6 +92,11 @@ def make_app():
 		(r"/admin/user/list",AdminUserListHandler),
 		(r"/admin/user/add",AdminUserAddHandler),
 		(r"/admin/user/edit",AdminUserEditHandler),
+		# 模型引擎路由
+		(r"/admin/model/list",AdminModelListHandler),
+		(r"/admin/model/add",AdminModelAddHandler),
+		(r"/admin/model/edit",AdminModelEditHandler),
+		(r"/admin/model/test",AdminModelTestHandler),
 		# RBAC路由
 		(r"/admin/perm/list",AdminPermissionListHandler),
 		(r"/admin/perm/add",AdminPermissionAddHandler),

@@ -73,6 +73,16 @@
                         </dd>
                     </dl>
                 </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;"><i class="layui-icon layui-icon-engine"></i><span>模型引擎</span></a>
+                    <dl class="layui-nav-child">
+                        <dd class="{% if active_menu == 'model' %}layui-this{% end %}">
+                            <a href="/admin/model/list" data-url="/admin/model/list">
+                                <i class="layui-icon layui-icon-engine"></i> 模型服务
+                            </a>
+                        </dd>
+                    </dl>
+                </li>
                 {% end %}
             </ul>
         </div>

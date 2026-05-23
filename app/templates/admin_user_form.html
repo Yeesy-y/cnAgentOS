@@ -4,7 +4,7 @@
     <div class="layui-card">
         <div class="layui-card-header">
             <i class="layui-icon layui-icon-username"></i>
-            {% if mode == "add" %}新增用户{% else %}编辑用户{% end %}
+            {% if user and user['username'] == 'admin' %}修改密码{% elif mode == "add" %}新增用户{% else %}编辑用户{% end %}
         </div>
         <div class="layui-card-body">
             <form class="layui-form" action="{% if mode == 'add' %}/admin/user/add{% else %}/admin/user/edit{% end %}" method="post">
@@ -13,6 +13,7 @@
                 {% end %}
                 {% module xsrf_form_html() %}
 
+                {% if not user or user['username'] != 'admin' %}
                 <div class="layui-form-item">
                     <label class="layui-form-label">用户名</label>
                     <div class="layui-input-inline">
@@ -24,19 +25,30 @@
                     </div>
                     <div class="layui-form-mid layui-word-aux">{% if mode == "add" %}登录时使用{% else %}用户名不可修改{% end %}</div>
                 </div>
+                {% end %}
 
                 <div class="layui-form-item">
                     <label class="layui-form-label">密码</label>
                     <div class="layui-input-inline">
-                        <input type="password" name="password" {% if mode == "edit" %}placeholder="留空则不修改密码"{% else %}placeholder="请设置密码"{% end %} autocomplete="new-password" class="layui-input" {% if mode == "add" %}required{% end %}>
+                        <input type="password" name="password" {% if mode == "edit" %}placeholder="{% if user and user['username'] == 'admin' %}请输入新密码{% else %}留空则不修改密码{% end %}"{% else %}placeholder="请设置密码"{% end %} autocomplete="new-password" class="layui-input" {% if mode == "add" or (user and user['username'] == 'admin') %}required{% end %}>
                     </div>
-                    <div class="layui-form-mid layui-word-aux">{% if mode == "edit" %}留空则不修改{% else %}至少6位{% end %}</div>
+                    <div class="layui-form-mid layui-word-aux">{% if mode == "edit" and user and user['username'] != 'admin' %}留空则不修改{% else %}至少6位{% end %}</div>
                 </div>
 
+                {% if not user or user['username'] != 'admin' %}
                 <div class="layui-form-item">
                     <label class="layui-form-label">姓名</label>
                     <div class="layui-input-inline">
                         <input type="text" name="real_name" value="{% if user %}{{ user['real_name'] }}{% end %}" placeholder="请输入姓名" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">角色</label>
+                    <div class="layui-input-inline">
+                        {% for role in roles %}
+                        <input type="checkbox" name="role_ids" value="{{ role['id'] }}" title="{{ role['role_name'] }}" {% if user_role_ids and role['id'] in user_role_ids %}checked{% end %}>
+                        {% end %}
                     </div>
                 </div>
 
@@ -48,6 +60,7 @@
                         <input type="radio" name="status" value="0" title="禁用" {% if user['status'] == 0 %}checked{% end %}>
                     </div>
                 </div>
+                {% end %}
                 {% end %}
 
                 <div class="layui-form-item">

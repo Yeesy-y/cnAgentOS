@@ -1,0 +1,489 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<style>
+.model-showcase {
+    padding: 20px;
+    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    min-height: calc(100vh - 120px);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.section-title {
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #00d4ff, #7c3aed, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.add-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 12px 28px;
+    border-radius: 50px;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s ease;
+}
+
+.add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.model-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.model-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.model-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #00d4ff, #7c3aed, #f472b6);
+}
+
+.model-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    border-color: rgba(124, 58, 237, 0.5);
+}
+
+.model-card.default {
+    border-color: rgba(0, 212, 255, 0.6);
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+}
+
+.model-card.default::before {
+    background: linear-gradient(90deg, #00d4ff, #00ff88);
+}
+
+.model-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.model-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.model-code {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.default-badge {
+    background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+    color: #000;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.model-info {
+    margin-bottom: 20px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.info-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+}
+
+.info-value {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.token-stat {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(244, 114, 182, 0.2));
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.token-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 8px;
+}
+
+.token-value {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(90deg, #00d4ff, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.model-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-edit {
+    background: rgba(102, 126, 234, 0.3);
+    color: #fff;
+}
+
+.btn-edit:hover {
+    background: rgba(102, 126, 234, 0.5);
+}
+
+.btn-test {
+    background: rgba(0, 212, 255, 0.3);
+    color: #fff;
+}
+
+.btn-test:hover {
+    background: rgba(0, 212, 255, 0.5);
+}
+
+.btn-default {
+    background: rgba(0, 255, 136, 0.3);
+    color: #fff;
+}
+
+.btn-default:hover {
+    background: rgba(0, 255, 136, 0.5);
+}
+
+.btn-delete {
+    background: rgba(239, 68, 68, 0.3);
+    color: #fff;
+}
+
+.btn-delete:hover {
+    background: rgba(239, 68, 68, 0.5);
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 40px;
+}
+
+.page-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.page-btn:hover {
+    background: rgba(102, 126, 234, 0.3);
+    border-color: rgba(102, 126, 234, 0.5);
+}
+
+.page-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+}
+
+.test-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+.test-modal.show {
+    display: flex;
+}
+
+.test-dialog {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 30px;
+    width: 600px;
+    max-width: 90%;
+}
+
+.test-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 20px;
+}
+
+.test-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: #fff;
+    font-size: 14px;
+    margin-bottom: 16px;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.test-input:focus {
+    outline: none;
+    border-color: rgba(102, 126, 234, 0.5);
+}
+
+.test-response {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    color: #fff;
+    font-size: 14px;
+    min-height: 120px;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    margin-bottom: 20px;
+}
+
+.test-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.test-submit {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 12px 28px;
+    border-radius: 10px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.test-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 12px 28px;
+    border-radius: 10px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+</style>
+
+<div class="model-showcase">
+    <div class="section-header">
+        <div class="section-title">🤖 模型引擎</div>
+        <a href="/admin/model/add" class="add-btn">
+            <i class="layui-icon layui-icon-add-1"></i> 新增模型
+        </a>
+    </div>
+
+    <div class="model-grid">
+        {% for m in models %}
+        <div class="model-card {% if m['is_default'] == 1 %}default{% end %}">
+            <div class="model-header">
+                <div>
+                    <div class="model-name">{{ m['model_name'] }}</div>
+                    <div class="model-code">{{ m['model_code'] }}</div>
+                </div>
+                {% if m['is_default'] == 1 %}
+                <div class="default-badge">默认</div>
+                {% end %}
+            </div>
+
+            <div class="model-info">
+                <div class="info-row">
+                    <span class="info-label">模型ID</span>
+                    <span class="info-value">{{ m['model_id'] }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">状态</span>
+                    <span class="info-value" style="color: {% if m['status'] == 1 %}#00ff88{% else %}#ef4444{% end %}">
+                        {% if m['status'] == 1 %}启用{% else %}禁用{% end %}
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">创建时间</span>
+                    <span class="info-value">{{ m['create_at'] }}</span>
+                </div>
+            </div>
+
+            <div class="token-stat">
+                <div class="token-label">Token 使用量</div>
+                <div class="token-value">{{ m['token_used'] }}</div>
+            </div>
+
+            <div class="model-actions">
+                <a href="/admin/model/edit?id={{ m['id'] }}" class="action-btn btn-edit">编辑</a>
+                <button type="button" class="action-btn btn-test" data-id="{{ m['id'] }}">测试</button>
+                {% if m['is_default'] != 1 %}
+                <form action="/admin/model/list" method="post" style="flex:1;">
+                    {% module xsrf_form_html() %}
+                    <input type="hidden" name="action" value="set_default">
+                    <input type="hidden" name="model_id" value="{{ m['id'] }}">
+                    <button type="submit" class="action-btn btn-default" style="width:100%;">设为默认</button>
+                </form>
+                {% end %}
+                <form action="/admin/model/list" method="post" style="flex:1;">
+                    {% module xsrf_form_html() %}
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="model_id" value="{{ m['id'] }}">
+                    <button type="submit" class="action-btn btn-delete" style="width:100%;" onclick="return confirm('确认删除该模型吗？')">删除</button>
+                </form>
+            </div>
+        </div>
+        {% end %}
+    </div>
+
+    {% if total > 6 %}
+    <div class="pagination">
+        {% set total_pages = (total + 6 - 1) // 6 %}
+        {% if page > 1 %}
+        <a href="?page={{ page - 1 }}" class="page-btn">上一页</a>
+        {% end %}
+        {% for p in range(1, total_pages + 1) %}
+        <a href="?page={{ p }}" class="page-btn {% if p == page %}active{% end %}">{{ p }}</a>
+        {% end %}
+        {% if page < total_pages %}
+        <a href="?page={{ page + 1 }}" class="page-btn">下一页</a>
+        {% end %}
+    </div>
+    {% end %}
+</div>
+
+<div class="test-modal" id="testModal">
+    <div class="test-dialog">
+        <div class="test-title">🧪 模型对话测试</div>
+        <textarea class="test-input" id="testInput" placeholder="请输入测试消息..."></textarea>
+        <div class="test-response" id="testResponse">等待测试...</div>
+        <div class="test-actions">
+            <button type="button" class="test-close" id="testClose">关闭</button>
+            <button type="button" class="test-submit" id="testSubmit">发送测试</button>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['layer', 'jquery'], function(){
+    var layer = layui.layer;
+    var $ = layui.jquery;
+    
+    var currentModelId = null;
+
+    $('.btn-test').on('click', function(){
+        currentModelId = $(this).data('id');
+        $('#testModal').addClass('show');
+        $('#testInput').val('');
+        $('#testResponse').text('等待测试...');
+    });
+
+    $('#testClose').on('click', function(){
+        $('#testModal').removeClass('show');
+    });
+
+    $('#testSubmit').on('click', function(){
+        var message = $('#testInput').val();
+        if(!message){
+            layer.msg('请输入测试消息', {icon:2});
+            return;
+        }
+        
+        $('#testResponse').text('正在发送测试...');
+        $('#testSubmit').prop('disabled', true);
+        
+        $.ajax({
+            url: '/admin/model/test',
+            type: 'POST',
+            data: {
+                model_id: currentModelId,
+                test_message: message,
+                _xsrf: getCookie('_xsrf')
+            },
+            success: function(res){
+                var data = JSON.parse(res);
+                if(data.success){
+                    $('#testResponse').text(data.message);
+                    if(data.tokens){
+                        layer.msg('测试成功！消耗 ' + data.tokens + ' tokens', {icon:1});
+                    } else {
+                        layer.msg('测试成功！', {icon:1});
+                    }
+                } else {
+                    $('#testResponse').text('错误: ' + data.message);
+                    layer.msg('测试失败: ' + data.message, {icon:2});
+                }
+            },
+            error: function(){
+                $('#testResponse').text('请求失败');
+                layer.msg('请求失败', {icon:2});
+            },
+            complete: function(){
+                $('#testSubmit').prop('disabled', false);
+            }
+        });
+    });
+
+    function getCookie(name) {
+        var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+        return r ? r[1] : undefined;
+    }
+});
+</script>
+{% end %}

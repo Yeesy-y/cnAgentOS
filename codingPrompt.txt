@@ -27,3 +27,37 @@ admin/admin888)
 开发限制:
 遵循前置任务开发成果及要求完成功能模块的实现,保证开发的一致性。
 
+任务四:
+继续后端-管理侧功能模块的开发
+-模型引擎:
+-- 实现以橱窗列表的页面风格,
+-- 实现动态新增/修改/删除模型服务,
+-- 支持可视化配置满足openai-api范式的模型接入及接口调用服务,
+-- 支持模型token统计(可视化),支持分页一行3列,6条数据为一列,由于设计到AI大模型,风格可以炫酷、高级感强,
+-- 支持对新增的模型进行对话测试功能,
+-- 支持设置模型为系统模式(如果为默认,则全局优先调用该模型)
+-- 模型响应支持SSE（流式响应）
+以下为模型服务代码示例：
+```
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="YOUR_API_KEY",
+    base_url="https://aigc-api.aitoolcore.com/api/v1"
+)
+
+response = client.chat.completions.create(
+    model="deepseek-v3",
+    messages=[{"role": "user", "content": "你好"}]
+)
+print(response.choices[0].message.content)
+```
+以下为APIkey：
+apikey=sk-aigc-f833a78051838cb709373ff911e01f165ce42bc9
+
+
+
+
+
+
+

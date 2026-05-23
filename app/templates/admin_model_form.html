@@ -1,0 +1,219 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<style>
+.model-form-page {
+    padding: 24px;
+    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    min-height: calc(100vh - 120px);
+}
+
+.form-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 36px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.form-title {
+    font-size: 26px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #00d4ff, #7c3aed, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 32px;
+}
+
+.layui-form-label {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-weight: 500;
+}
+
+.layui-input, .layui-textarea, .layui-select {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #fff !important;
+    border-radius: 12px;
+}
+
+.layui-input:focus, .layui-textarea:focus, .layui-select:focus {
+    border-color: rgba(102, 126, 234, 0.6) !important;
+}
+
+.layui-input::placeholder, .layui-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.layui-form-radio>i, .layui-form-checkbox>i {
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.layui-form-radioed>i, .layui-form-checked>i {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border-color: transparent !important;
+}
+
+.layui-form-radio * {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.layui-form-radioed * {
+    color: #fff !important;
+}
+
+.form-actions {
+    margin-top: 36px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 16px;
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 12px 36px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s ease;
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.btn-cancel {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 12px 36px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.3s ease;
+}
+
+.btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.example-box {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 8px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: pre-wrap;
+}
+
+.example-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+</style>
+
+<div class="model-form-page">
+    <div class="form-card">
+        <div class="form-title">
+            {% if mode == "add" %}
+            ➕ 新增模型服务
+            {% else %}
+            ✏️ 编辑模型服务
+            {% end %}
+        </div>
+
+        <form class="layui-form" action="{% if mode == 'add' %}/admin/model/add{% else %}/admin/model/edit{% end %}" method="post">
+            {% if mode == "edit" %}
+            <input type="hidden" name="id" value="{{ model['id'] }}">
+            {% end %}
+            {% module xsrf_form_html() %}
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">模型名称</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="model_name" value="{% if model %}{{ model['model_name'] }}{% end %}" placeholder="例如：DeepSeek V3" class="layui-input" required lay-verify="required">
+                </div>
+                <div class="layui-form-mid layui-word-aux" style="color: rgba(255,255,255,0.5);">模型的显示名称</div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">模型编码</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="model_code" value="{% if model %}{{ model['model_code'] }}{% end %}" placeholder="例如：deepseek_v3" class="layui-input" required lay-verify="required">
+                </div>
+                <div class="layui-form-mid layui-word-aux" style="color: rgba(255,255,255,0.5);">唯一标识，英文下划线</div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">API Key</label>
+                <div class="layui-input-block">
+                    <input type="password" name="api_key" value="{% if model %}{{ model['api_key'] }}{% end %}" placeholder="请输入API Key" class="layui-input" required lay-verify="required">
+                    <div class="example-label">示例：</div>
+                    <div class="example-box">sk-aigc-f833a78051838cb709373ff911e01f165ce42bc9</div>
+                </div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">Base URL</label>
+                <div class="layui-input-block">
+                    <input type="text" name="base_url" value="{% if model %}{{ model['base_url'] }}{% end %}" placeholder="请输入Base URL" class="layui-input" required lay-verify="required">
+                    <div class="example-label">示例：</div>
+                    <div class="example-box">https://aigc-api.aitoolcore.com/api/v1</div>
+                </div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">模型ID</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="model_id" value="{% if model %}{{ model['model_id'] }}{% end %}" placeholder="例如：deepseek-v3" class="layui-input" required lay-verify="required">
+                </div>
+                <div class="layui-form-mid layui-word-aux" style="color: rgba(255,255,255,0.5);">API调用时使用的模型名称</div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">设为默认</label>
+                <div class="layui-input-inline">
+                    <input type="radio" name="is_default" value="1" title="是" {% if model and model['is_default'] == 1 %}checked{% end %}>
+                    <input type="radio" name="is_default" value="0" title="否" {% if not model or model['is_default'] == 0 %}checked{% end %}>
+                </div>
+                <div class="layui-form-mid layui-word-aux" style="color: rgba(255,255,255,0.5);">设为默认后全局优先调用</div>
+            </div>
+
+            {% if mode == "edit" %}
+            <div class="layui-form-item">
+                <label class="layui-form-label">状态</label>
+                <div class="layui-input-inline">
+                    <input type="radio" name="status" value="1" title="启用" {% if model['status'] == 1 %}checked{% end %}>
+                    <input type="radio" name="status" value="0" title="禁用" {% if model['status'] == 0 %}checked{% end %}>
+                </div>
+            </div>
+            {% end %}
+
+            <div class="form-actions">
+                <button type="button" class="btn-cancel" onclick="location.href='/admin/model/list'">返回</button>
+                <button type="submit" class="btn-submit">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['form'], function(){
+    var form = layui.form;
+    form.render();
+});
+</script>
+{% end %}

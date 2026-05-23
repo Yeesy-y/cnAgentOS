@@ -96,6 +96,23 @@ def init_db():
 			)
 			"""
 		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS model_services(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				model_name TEXT NOT NULL,
+				model_code TEXT NOT NULL,
+				api_key TEXT NOT NULL,
+				base_url TEXT NOT NULL,
+				model_id TEXT NOT NULL,
+				is_default INTEGER DEFAULT 0,
+				status INTEGER DEFAULT 1,
+				token_used INTEGER DEFAULT 0,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				update_at TEXT NOT NULL DEFAULT(datetime('now'))
+			)
+			"""
+		)
 		init_default_data(conn)
 
 def _ensure_columns_exist():

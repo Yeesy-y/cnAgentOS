@@ -10,7 +10,7 @@ def _hash_password(password:str, salt:bytes) -> str:
 
 class AdminUserRepository:
 	@staticmethod
-	def create_user(username:str, password:str, real_name:str="", email:str="", phone:str="") -> bool:
+	def create_user(username:str, password:str, real_name:str="", email:str="", phone:str="") -> int:
 		salt = secrets.token_bytes(16)
 		password_hash = _hash_password(password, salt)
 		try:
@@ -28,13 +28,13 @@ class AdminUserRepository:
 				if "phone" in existing_cols:
 					cols.append("phone")
 					vals.append(phone)
-				conn.execute(
+				cursor = conn.execute(
 					f"INSERT INTO users({','.join(cols)}) VALUES({','.join(['?']*len(vals))})",
 					tuple(vals)
 				)
-			return True
+				return cursor.lastrowid
 		except sqlite3.IntegrityError:
-			return False
+			return 0
 
 	@staticmethod
 	def get_user_by_id(user_id:int):
@@ -189,6 +189,15 @@ class AdminUserRepository:
 				).fetchall()
 			
 			data_list = [safe_dict(row) for row in rows]
+			
+			for user in data_list:
+				roles = conn.execute(
+					"""SELECT r.id, r.role_name, r.role_code FROM roles r
+					   INNER JOIN user_roles ur ON r.id = ur.role_id
+					   WHERE ur.user_id=?""",
+					(user["id"],)
+				).fetchall()
+				user["roles"] = [dict(r) for r in roles]
 		
 		return {"total": total, "page": page, "page_size": page_size, "data": data_list}
 

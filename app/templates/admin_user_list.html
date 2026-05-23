@@ -32,6 +32,7 @@
                             </th>
                             <th style="width:60px;">ID</th>
                             <th>用户名</th>
+                            <th style="width:200px;">角色</th>
                             <th style="width:180px;">创建时间</th>
                             <th style="width:200px;">操作</th>
                         </tr>
@@ -40,18 +41,36 @@
                         {% for u in users %}
                         <tr>
                             <td>
-                                <input type="checkbox" name="uid" value="{{ u['id'] }}" lay-skin="primary" class="rowCheck">
+                                <input type="checkbox" name="uid" value="{{ u['id'] }}" lay-skin="primary" class="rowCheck" {% if u['username'] == 'admin' %}disabled{% end %}>
                             </td>
                             <td>{{ u['id'] }}</td>
                             <td>{{ u['username'] }}</td>
+                            <td>
+                                {% if u['roles'] %}
+                                    {% for r in u['roles'] %}
+                                        <span class="layui-badge layui-bg-blue" style="margin-right:5px;">{{ r['role_name'] }}</span>
+                                    {% end %}
+                                {% else %}
+                                    <span class="layui-badge layui-bg-gray">无</span>
+                                {% end %}
+                            </td>
                             <td>{{ u['create_at'] }}</td>
                             <td>
-                                <a href="/admin/user/edit?id={{ u['id'] }}" class="layui-btn layui-btn-xs" style="background:#FFB800;">
-                                    <i class="layui-icon layui-icon-edit"></i> 编辑
-                                </a>
-                                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" data-uid="{{ u['id'] }}">
-                                    <i class="layui-icon layui-icon-delete"></i> 删除
-                                </button>
+                                {% if u['username'] == 'admin' %}
+                                    <a href="/admin/user/edit?id={{ u['id'] }}" class="layui-btn layui-btn-xs" style="background:#1E9FFF;">
+                                        <i class="layui-icon layui-icon-password"></i> 改密码
+                                    </a>
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-disabled" disabled>
+                                        <i class="layui-icon layui-icon-delete"></i> 删除
+                                    </button>
+                                {% else %}
+                                    <a href="/admin/user/edit?id={{ u['id'] }}" class="layui-btn layui-btn-xs" style="background:#FFB800;">
+                                        <i class="layui-icon layui-icon-edit"></i> 编辑
+                                    </a>
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" data-uid="{{ u['id'] }}">
+                                        <i class="layui-icon layui-icon-delete"></i> 删除
+                                    </button>
+                                {% end %}
                             </td>
                         </tr>
                         {% end %}
