@@ -13,9 +13,9 @@
 
     .watch-collect-container {
         padding: 20px;
-        background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
+        background: linear-gradient(135deg, #efe4e9 0%, #a2a1a4 50%, #5f5f5f 100%);
         min-height: 100vh;
-        color: #fff;
+        color: #5f5f5f;
         position: relative;
     }
 
@@ -33,7 +33,7 @@
         position: absolute;
         width: 2px;
         height: 2px;
-        background: #fff;
+        background: rgba(95, 95, 95, 0.3);
         border-radius: 50%;
         animation: twinkle 3s infinite;
     }
@@ -59,7 +59,7 @@
     .logo {
         font-size: 42px;
         font-weight: 800;
-        background: linear-gradient(135deg, #00d4ff 0%, #7c3aed 50%, #f472b6 100%);
+        background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 50%, #bdbbbf 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -69,19 +69,19 @@
 
     .subtitle {
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(95, 95, 95, 0.6);
         letter-spacing: 3px;
         text-transform: uppercase;
     }
 
     .search-box {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.4);
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(95, 95, 95, 0.15);
         border-radius: 24px;
         padding: 40px;
         margin-bottom: 40px;
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 25px 50px rgba(95, 95, 95, 0.15);
     }
 
     .search-input-wrapper {
@@ -91,19 +91,19 @@
 
     .search-input {
         width: 100%;
-        background: rgba(0, 0, 0, 0.3);
-        border: 2px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.5);
+        border: 2px solid rgba(95, 95, 95, 0.15);
         border-radius: 16px;
         padding: 20px 60px 20px 24px;
         font-size: 18px;
-        color: #fff;
+        color: #5f5f5f;
         transition: all 0.3s ease;
         outline: none;
     }
 
     .search-input:focus {
-        border-color: rgba(0, 212, 255, 0.6);
-        box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+        border-color: rgba(95, 95, 95, 0.4);
+        box-shadow: 0 0 30px rgba(95, 95, 95, 0.1);
     }
 
     .search-icon {
@@ -112,13 +112,13 @@
         top: 50%;
         transform: translateY(-50%);
         font-size: 24px;
-        color: rgba(255, 255, 255, 0.4);
+        color: rgba(95, 95, 95, 0.4);
         cursor: pointer;
         transition: all 0.3s ease;
     }
 
     .search-icon:hover {
-        color: #00d4ff;
+        color: #5f5f5f;
         transform: translateY(-50%) scale(1.1);
     }
 
@@ -128,7 +128,7 @@
 
     .section-title {
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(95, 95, 95, 0.6);
         margin-bottom: 16px;
         letter-spacing: 2px;
         text-transform: uppercase;
@@ -144,8 +144,8 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.35);
+        border: 1px solid rgba(95, 95, 95, 0.15);
         border-radius: 12px;
         padding: 12px 20px;
         cursor: pointer;
@@ -153,19 +153,19 @@
     }
 
     .source-item:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.5);
+        border-color: rgba(95, 95, 95, 0.25);
     }
 
     .source-item.active {
-        background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(124, 58, 237, 0.2));
-        border-color: rgba(0, 212, 255, 0.5);
+        background: linear-gradient(135deg, rgba(95, 95, 95, 0.15), rgba(189, 187, 191, 0.2));
+        border-color: rgba(95, 95, 95, 0.35);
     }
 
     .source-checkbox {
         width: 20px;
         height: 20px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
+        border: 2px solid rgba(95, 95, 95, 0.3);
         border-radius: 6px;
         display: flex;
         align-items: center;
@@ -174,12 +174,12 @@
     }
 
     .source-item.active .source-checkbox {
-        background: linear-gradient(135deg, #00d4ff, #7c3aed);
+        background: linear-gradient(135deg, #5f5f5f, #8a8a8a);
         border-color: transparent;
     }
 
     .source-checkmark {
-        color: #000;
+        color: #efe4e9;
         font-size: 12px;
         font-weight: bold;
         opacity: 0;
@@ -193,7 +193,7 @@
     .source-name {
         font-size: 15px;
         font-weight: 500;
-        color: rgba(255, 255, 255, 0.9);
+        color: rgba(95, 95, 95, 0.85);
     }
 
     .params-section {
@@ -203,51 +203,51 @@
     }
 
     .param-item {
-        background: rgba(0, 0, 0, 0.2);
+        background: rgba(255, 255, 255, 0.35);
         border-radius: 12px;
         padding: 20px;
     }
 
     .param-label {
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(95, 95, 95, 0.6);
         margin-bottom: 10px;
     }
 
     .param-input {
         width: 100%;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(95, 95, 95, 0.15);
         border-radius: 8px;
         padding: 12px 16px;
         font-size: 15px;
-        color: #fff;
+        color: #5f5f5f;
         outline: none;
         transition: all 0.3s ease;
     }
 
     .param-input:focus {
-        border-color: rgba(0, 212, 255, 0.5);
+        border-color: rgba(95, 95, 95, 0.4);
     }
 
     .collect-btn {
         width: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%);
         border: none;
         border-radius: 16px;
         padding: 18px;
         font-size: 18px;
         font-weight: 600;
-        color: #fff;
+        color: #efe4e9;
         cursor: pointer;
         transition: all 0.3s ease;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 10px 30px rgba(95, 95, 95, 0.3);
         margin-top: 10px;
     }
 
     .collect-btn:hover {
         transform: translateY(-3px);
-        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        box-shadow: 0 15px 40px rgba(95, 95, 95, 0.4);
     }
 
     .collect-btn:active {
@@ -261,9 +261,9 @@
     }
 
     .results-box {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.4);
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(95, 95, 95, 0.15);
         border-radius: 24px;
         padding: 40px;
         display: none;
@@ -277,11 +277,11 @@
         font-size: 20px;
         font-weight: 600;
         margin-bottom: 24px;
-        color: rgba(255, 255, 255, 0.9);
+        color: rgba(95, 95, 95, 0.85);
     }
 
     .result-item {
-        background: rgba(0, 0, 0, 0.2);
+        background: rgba(255, 255, 255, 0.35);
         border-radius: 12px;
         padding: 16px 20px;
         margin-bottom: 12px;
@@ -296,13 +296,13 @@
 
     .result-source {
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(95, 95, 95, 0.6);
         margin-bottom: 4px;
     }
 
     .result-page {
         font-size: 15px;
-        color: rgba(255, 255, 255, 0.9);
+        color: rgba(95, 95, 95, 0.85);
     }
 
     .result-status {
@@ -313,13 +313,13 @@
     }
 
     .result-status.success {
-        background: rgba(0, 255, 136, 0.2);
-        color: #00ff88;
+        background: rgba(189, 187, 191, 0.3);
+        color: #5f5f5f;
     }
 
     .result-status.error {
         background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
+        color: #C74545;
     }
 </style>
 
@@ -474,7 +474,7 @@ function showResults(results) {
             <div class="result-info">
                 <div class="result-source">${r.source}</div>
                 <div class="result-page">第 ${r.page} 页</div>
-                ${r.message ? `<div style="color: rgba(255,100,100,0.7); font-size: 12px; margin-top: 4px;">${r.message}</div>` : ''}
+                ${r.message ? `<div style="color: rgba(199, 69, 69, 0.7); font-size: 12px; margin-top: 4px;">${r.message}</div>` : ''}
             </div>
             <span class="result-status ${r.status}">${statusText}</span>
         `;

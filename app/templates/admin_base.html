@@ -6,6 +6,131 @@
     <title>{{ title if title else "AI智能瞭望系统 - 管理后台" }}</title>
     <link rel="stylesheet" href="{{ static_url('dist/layui-v2.13.6/layui/css/layui.css') }}">
     <link rel="stylesheet" href="{{ static_url('dist/fontawesome-free-5.15.4-web/css/all.min.css') }}">
+    <style>
+        .layui-header {
+            background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%) !important;
+        }
+        .layui-logo {
+            background: transparent !important;
+            color: #efe4e9 !important;
+        }
+        .layui-side {
+            background: linear-gradient(180deg, #efe4e9 0%, #a2a1a4 100%) !important;
+        }
+        .layui-nav-tree {
+            background: transparent !important;
+        }
+        .layui-nav-tree .layui-nav-item > a {
+            color: #5f5f5f !important;
+        }
+        .layui-nav-tree .layui-nav-item > a:hover {
+            background: rgba(189, 187, 191, 0.5) !important;
+        }
+        .layui-nav-tree .layui-nav-itemed > a {
+            background: rgba(189, 187, 191, 0.6) !important;
+        }
+        .layui-nav-tree .layui-nav-child {
+            background: rgba(255, 255, 255, 0.6) !important;
+        }
+        .layui-nav-tree .layui-nav-child a {
+            color: rgba(95, 95, 95, 0.8) !important;
+        }
+        .layui-nav-tree .layui-nav-child a:hover {
+            background: rgba(189, 187, 191, 0.4) !important;
+        }
+        .layui-nav-tree .layui-this a {
+            background: linear-gradient(135deg, rgba(189, 187, 191, 0.7), rgba(162, 161, 164, 0.7)) !important;
+            color: #5f5f5f !important;
+        }
+        .layui-body {
+            background: linear-gradient(135deg, #efe4e9 0%, #f5f0f5 100%) !important;
+        }
+        .layui-card {
+            background: rgba(255, 255, 255, 0.7) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 8px 32px rgba(95, 95, 95, 0.08) !important;
+            border: 1px solid rgba(95, 95, 95, 0.05) !important;
+        }
+        .layui-card-header {
+            background: transparent !important;
+            border-bottom: 1px solid rgba(95, 95, 95, 0.08) !important;
+            border-radius: 20px 20px 0 0 !important;
+            color: #5f5f5f !important;
+        }
+        .layui-btn {
+            border-radius: 12px !important;
+        }
+        .layui-btn-primary {
+            background: rgba(189, 187, 191, 0.4) !important;
+            color: #5f5f5f !important;
+            border: 1px solid rgba(189, 187, 191, 0.6) !important;
+        }
+        .layui-btn-normal {
+            background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%) !important;
+        }
+        .layui-btn-warm {
+            background: linear-gradient(135deg, #bdbbbf 0%, #a2a1a4 100%) !important;
+            color: #5f5f5f !important;
+        }
+        .layui-btn-danger {
+            background: linear-gradient(135deg, #c75a5a 0%, #a84545 100%) !important;
+        }
+        .layui-input, .layui-select, .layui-textarea {
+            border-radius: 12px !important;
+            border: 1.5px solid rgba(95, 95, 95, 0.15) !important;
+            background: rgba(255, 255, 255, 0.8) !important;
+            color: #5f5f5f !important;
+        }
+        .layui-input:focus, .layui-select:focus, .layui-textarea:focus {
+            border-color: #5f5f5f !important;
+            box-shadow: 0 0 0 3px rgba(95, 95, 95, 0.1) !important;
+        }
+        .layui-table {
+            border-radius: 16px !important;
+            overflow: hidden !important;
+            background: rgba(255, 255, 255, 0.9) !important;
+        }
+        .layui-table th {
+            background: rgba(95, 95, 95, 0.08) !important;
+            color: #5f5f5f !important;
+        }
+        .layui-table tr:hover {
+            background: rgba(95, 95, 95, 0.04) !important;
+        }
+        .layui-badge {
+            border-radius: 8px !important;
+        }
+        .layui-badge-blue {
+            background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%) !important;
+        }
+        .layui-badge-green {
+            background: linear-gradient(135deg, #bdbbbf 0%, #a8a6ab 100%) !important;
+            color: #5f5f5f !important;
+        }
+        .layui-form-onswitch {
+            background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%) !important;
+            border-color: #5f5f5f !important;
+        }
+        .layui-footer {
+            background: rgba(95, 95, 95, 0.95) !important;
+            color: #efe4e9 !important;
+        }
+        .layui-colla-item {
+            background: rgba(255, 255, 255, 0.85) !important;
+            border-radius: 16px !important;
+            margin-bottom: 12px !important;
+            border: 1px solid rgba(95, 95, 95, 0.1) !important;
+            overflow: hidden !important;
+        }
+        .layui-colla-title {
+            background: rgba(95, 95, 95, 0.06) !important;
+            color: #5f5f5f !important;
+            border-radius: 16px 16px 0 0 !important;
+        }
+        .layui-colla-content {
+            background: transparent !important;
+        }
+    </style>
     {% block head %}{% end %}
 </head>
 <body class="layui-layout-body">
