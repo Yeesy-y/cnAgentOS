@@ -144,6 +144,24 @@ def init_db():
 			)
 			"""
 		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS api_endpoints(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				api_name TEXT NOT NULL,
+				api_code TEXT NOT NULL UNIQUE,
+				api_url TEXT NOT NULL,
+				request_method TEXT NOT NULL DEFAULT 'GET',
+				response_format TEXT NOT NULL DEFAULT 'JSON',
+				qps_limit TEXT DEFAULT '',
+				token TEXT DEFAULT '',
+				remark TEXT DEFAULT '',
+				status INTEGER NOT NULL DEFAULT 1,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				update_at TEXT NOT NULL DEFAULT(datetime('now'))
+			)
+			"""
+		)
 		init_default_data(conn)
 
 def _ensure_columns_exist():
@@ -208,6 +226,18 @@ def init_default_data(conn):
 		conn.execute(
 			"INSERT INTO watch_sources(source_name, source_code, url_template, headers_json, status) VALUES(?, ?, ?, ?, ?)",
 			("百度新闻", "baidu_news", "https://www.baidu.com/s?ie=utf-8&bsst=1&rsv_dl=news_b_pn&tn=news&cl=2&medium=0&rtt=1&wd={keyword}&pn={pn}", headers_json, 1)
+		)
+	cursor = conn.execute("SELECT COUNT(*) FROM api_endpoints")
+	if cursor.fetchone()[0] == 0:
+		conn.executemany(
+			"""
+			INSERT INTO api_endpoints(api_name, api_code, api_url, request_method, response_format, qps_limit, token, remark, status)
+			VALUES(?,?,?,?,?,?,?,?,?)
+			""",
+			[
+				("网易云随机音乐", "music_wy_rand", "https://api.52vmy.cn/api/music/wy/rand", "GET", "JSON", "每2秒最多4次（携带Token可无视限制）", "", "", 1),
+				("三日天气查询", "query_tian", "https://api.52vmy.cn/api/query/tian?city=北京市", "GET", "JSON", "每2秒最多4次（携带Token可无视限制）", "", "点击前往三日天气API", 1),
+			]
 		)
 	cursor = conn.execute("SELECT COUNT(*) FROM permissions")
 	if cursor.fetchone()[0] == 0:
