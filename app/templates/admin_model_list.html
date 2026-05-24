@@ -132,6 +132,14 @@
     font-weight: 500;
 }
 
+.info-value.status-enabled {
+    color: #5f5f5f;
+}
+
+.info-value.status-disabled {
+    color: #c75a5a;
+}
+
 .token-stat {
     background: linear-gradient(135deg, rgba(189, 187, 191, 0.3), rgba(162, 161, 164, 0.3));
     border-radius: 12px;
@@ -161,11 +169,15 @@
 
 .action-btn {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 10px 0;
     border: none;
     border-radius: 10px;
     font-size: 13px;
     font-weight: 600;
+    text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
 }
@@ -354,7 +366,7 @@
                 </div>
                 <div class="info-row">
                     <span class="info-label">状态</span>
-                    <span class="info-value" style="color: {% if m['status'] == 1 %}#5f5f5f{% else %}#c75a5a{% end %}">
+                    <span class="info-value {% if m['status'] == 1 %}status-enabled{% else %}status-disabled{% end %}">
                         {% if m['status'] == 1 %}启用{% else %}禁用{% end %}
                     </span>
                 </div>
