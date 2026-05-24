@@ -9,7 +9,7 @@ class ModelServiceRepository:
 				if is_default == 1:
 					conn.execute("UPDATE model_services SET is_default = 0 WHERE is_default = 1")
 				cursor = conn.execute(
-					"INSERT INTO model_services(model_name, model_code, api_key, base_url, model_id, is_default) VALUES(?,?,?,?,?,?)",
+					"INSERT INTO model_services(model_name, model_code, api_key, base_url, model_id, is_default, token_used) VALUES(?,?,?,?,?,?,0)",
 					(model_name, model_code, api_key, base_url, model_id, is_default)
 				)
 				return cursor.lastrowid

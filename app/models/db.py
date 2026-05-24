@@ -177,7 +177,8 @@ def _ensure_columns_exist():
 				pass
 		if "update_at" not in existing_cols:
 			try:
-				conn.execute("ALTER TABLE users ADD COLUMN update_at TEXT DEFAULT datetime('now')")
+				conn.execute("ALTER TABLE users ADD COLUMN update_at TEXT")
+				conn.execute("UPDATE users SET update_at = datetime('now')")
 				conn.commit()
 			except Exception:
 				pass

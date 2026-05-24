@@ -1,5 +1,153 @@
 {% extends "admin_base.html" %}
 {% block content %}
+<style>
+    .dw-item {
+        background: rgba(255,255,255,0.85);
+        border: 1px solid rgba(95,95,95,0.1);
+        border-radius: 16px;
+        margin-bottom: 14px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    .dw-header {
+        display: flex;
+        align-items: flex-start;
+        padding: 14px 48px 14px 14px;
+        cursor: pointer;
+        position: relative;
+        min-height: 60px;
+        user-select: none;
+    }
+    .dw-header:hover {
+        background: rgba(162,161,164,0.08);
+    }
+    .dw-arrow {
+        position: absolute;
+        right: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 14px;
+        color: #8a8a8a;
+        transition: transform 0.3s ease;
+    }
+    .dw-item.open .dw-arrow {
+        transform: translateY(-50%) rotate(180deg);
+    }
+    .dw-check {
+        flex-shrink: 0;
+        width: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-top: 2px;
+    }
+    .dw-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .dw-meta {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+    }
+    .dw-meta .dw-source {
+        color: #666;
+    }
+    .dw-meta .dw-time {
+        color: #999;
+        margin-left: auto;
+        white-space: nowrap;
+    }
+    .dw-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #222;
+        margin-bottom: 6px;
+        line-height: 1.5;
+    }
+    .dw-summary {
+        font-size: 13px;
+        color: #555;
+        line-height: 1.6;
+    }
+    .dw-body {
+        display: none;
+        padding: 0 14px 16px 54px;
+        border-top: 1px solid rgba(95,95,95,0.06);
+        background: rgba(239,228,233,0.3);
+    }
+    .dw-item.open .dw-body {
+        display: block;
+    }
+    .dw-detail-section {
+        padding: 12px 0;
+        border-bottom: 1px dashed rgba(95,95,95,0.08);
+    }
+    .dw-detail-section:last-child {
+        border-bottom: none;
+    }
+    .dw-detail-label {
+        font-size: 12px;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 6px;
+    }
+    .dw-detail-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #222;
+        margin-bottom: 4px;
+    }
+    .dw-detail-url {
+        word-break: break-all;
+        color: #5f5f5f;
+        font-size: 13px;
+        background: rgba(255,255,255,0.6);
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin: 8px 0;
+    }
+    .dw-detail-time {
+        font-size: 13px;
+        color: #888;
+    }
+    .dw-open-link {
+        display: inline-block;
+        margin-top: 10px;
+        background: linear-gradient(135deg, #5f5f5f, #8a8a8a);
+        color: #efe4e9;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    .dw-open-link:hover {
+        box-shadow: 0 4px 15px rgba(95,95,95,0.3);
+        transform: translateY(-1px);
+        color: #efe4e9;
+    }
+    .dw-delete {
+        background: rgba(199,90,90,0.15);
+        color: #5f5f5f;
+        border: none;
+        padding: 6px 16px;
+        border-radius: 8px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .dw-delete:hover {
+        background: rgba(199,90,90,0.35);
+    }
+</style>
+
 <div style="padding: 20px;">
     <div class="layui-card">
         <div class="layui-card-header" style="font-size:18px; font-weight:600;">
@@ -9,7 +157,7 @@
         <div class="layui-card-body">
             <div class="layui-form" style="margin-bottom:20px;">
                 <div class="layui-inline">
-                    <button type="button" class="layui-btn layui-btn-danger" id="batchDelBtn">
+                    <button type="button" class="layui-btn" style="background:rgba(199,90,90,0.8);" id="batchDelBtn">
                         <i class="layui-icon layui-icon-delete"></i> 批量删除
                     </button>
                 </div>
@@ -20,58 +168,63 @@
                 <input type="hidden" name="action" id="dataAction" value="">
                 <input type="hidden" name="ids" id="dataIds" value="">
 
-                <div class="layui-collapse" lay-accordion>
-                    {% for d in data_list %}
-                    <div class="layui-colla-item">
-                        <h2 class="layui-colla-title" style="padding-left: 60px; position: relative;">
-                            <span style="position: absolute; left: 15px; top: 13px;">
-                                <input type="checkbox" name="did" value="{{ d['id'] }}" lay-skin="primary" class="rowCheck">
-                            </span>
-                            <span style="color: #1E9FFF; font-weight: 500;">ID: {{ d['id'] }}</span>
-                            <span style="margin: 0 10px;">|</span>
-                            <span style="background: #009688; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 12px;">{{ d['keyword'] }}</span>
-                            <span style="margin-left: 15px; color: #666;">{{ d['source_name'] or '-' }}</span>
-                            <span style="float: right; color: #999; font-size: 12px;">{{ d['create_at'] }}</span>
-                        </h2>
-                        <div class="layui-colla-content">
-                            <div style="padding: 15px;">
-                                <div style="margin-bottom: 10px;">
-                                    <span style="color: #666;">标题：</span>
-                                    <strong>{{ d['title'] or '-' }}</strong>
-                                </div>
-                                {% if d['url'] %}
-                                <div style="margin-bottom: 10px;">
-                                    <span style="color: #666;">链接：</span>
-                                    <a href="{{ d['url'] }}" target="_blank" style="color: #1E9FFF;">{{ d['url'][:80] }}{% if len(d['url']) > 80 %}...{% end %}</a>
-                                </div>
-                                {% end %}
+                {% for d in data_list %}
+                <div class="dw-item" data-did="{{ d['id'] }}">
+                    <div class="dw-header" onclick="toggleItem(this.parentNode)">
+                        <div class="dw-check" onclick="event.stopPropagation();">
+                            <input type="checkbox" name="did" value="{{ d['id'] }}" lay-skin="primary" class="rowCheck">
+                        </div>
+                        <div class="dw-info">
+                            <div class="dw-meta">
+                                <span style="background: #5f5f5f; color: #efe4e9; padding: 2px 10px; border-radius: 12px; font-size: 12px;">关键词: {{ d['keyword'] }}</span>
+                                <span class="dw-source">来源: {{ d['source_name'] or '-' }}</span>
+                                <span class="dw-time">{{ d['create_at'] }}</span>
+                            </div>
+                            <div class="dw-title">{{ d['title'] or '未识别标题' }}</div>
+                            <div class="dw-summary">
                                 {% if d['content'] %}
-                                <div style="margin-bottom: 10px;">
-                                    <span style="color: #666;">内容：</span>
-                                    <p style="margin-top: 5px; color: #333; line-height: 1.8; background: #f5f5f5; padding: 10px; border-radius: 4px;">{{ d['content'] }}</p>
-                                </div>
+                                {{ d['content'][:150] }}{% if len(d['content']) > 150 %}...{% end %}
+                                {% else %}
+                                暂无正文摘要，点击展开查看详情
                                 {% end %}
-                                {% if d['publish_time'] %}
-                                <div>
-                                    <span style="color: #666;">发布时间：</span>
-                                    <span>{{ d['publish_time'] }}</span>
-                                </div>
-                                {% end %}
-                                <div style="margin-top: 15px;">
-                                    <form action="/admin/watch/data/list" method="post" style="display:inline;">
-                                        {% module xsrf_form_html() %}
-                                        <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="ids" value="{{ d['id'] }}">
-                                        <button type="submit" class="layui-btn layui-btn-xs layui-btn-danger" onclick="return confirm('确认删除该数据吗？')">
-                                            <i class="layui-icon layui-icon-delete"></i> 删除
-                                        </button>
-                                    </form>
-                                </div>
                             </div>
                         </div>
+                        <span class="dw-arrow">▼</span>
                     </div>
-                    {% end %}
+                    <div class="dw-body">
+                        <div class="dw-detail-section">
+                            <div class="dw-detail-label">标题</div>
+                            <div class="dw-detail-title">{{ d['title'] or '未识别标题' }}</div>
+                        </div>
+
+                        {% if d['url'] %}
+                        <div class="dw-detail-section">
+                            <div class="dw-detail-label">原文链接</div>
+                            <div class="dw-detail-url">{{ d['url'] }}</div>
+                            <a href="{{ d['url'] }}" target="_blank" class="dw-open-link">🔗 打开原文</a>
+                        </div>
+                        {% end %}
+
+                        {% if d['publish_time'] %}
+                        <div class="dw-detail-section">
+                            <div class="dw-detail-label">发布时间</div>
+                            <div class="dw-detail-time">{{ d['publish_time'] }}</div>
+                        </div>
+                        {% end %}
+
+                        <div style="margin-top: 12px;">
+                            <form action="/admin/watch/data/list" method="post" style="display:inline;">
+                                {% module xsrf_form_html() %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="ids" value="{{ d['id'] }}">
+                                <button type="submit" class="dw-delete" onclick="return confirm('确认删除该数据吗？')">
+                                    <i class="layui-icon layui-icon-delete"></i> 删除此条
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
+                {% end %}
             </form>
 
             {% if total > 20 %}
@@ -95,14 +248,20 @@
 
 {% block js %}
 <script>
-layui.use(['layer', 'form', 'jquery', 'element'], function(){
+function toggleItem(el) {
+    el.classList.toggle('open');
+}
+
+layui.use(['layer', 'form', 'jquery'], function(){
     var layer = layui.layer;
     var form = layui.form;
     var $ = layui.jquery;
-    var element = layui.element;
+
+    form.render();
 
     $('.rowCheck').on('click', function(e){
         e.stopPropagation();
+        form.render();
     });
 
     $('#batchDelBtn').on('click', function(){

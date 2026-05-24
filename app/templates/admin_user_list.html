@@ -8,7 +8,7 @@
         <div class="layui-card-body">
             <div class="layui-form" style="margin-bottom:20px;">
                 <div class="layui-inline">
-                    <a href="/admin/user/add" class="layui-btn" style="background:#1E9FFF;">
+                    <a href="/admin/user/add" class="layui-btn layui-btn-normal">
                         <i class="layui-icon layui-icon-add-1"></i> 新增用户
                     </a>
                 </div>
@@ -57,14 +57,14 @@
                             <td>{{ u['create_at'] }}</td>
                             <td>
                                 {% if u['username'] == 'admin' %}
-                                    <a href="/admin/user/edit?id={{ u['id'] }}" class="layui-btn layui-btn-xs" style="background:#1E9FFF;">
+                                    <a href="/admin/user/edit?id={{ u['id'] }}" class="layui-btn layui-btn-xs layui-btn-normal">
                                         <i class="layui-icon layui-icon-password"></i> 改密码
                                     </a>
                                     <button type="button" class="layui-btn layui-btn-xs layui-btn-disabled" disabled>
                                         <i class="layui-icon layui-icon-delete"></i> 删除
                                     </button>
                                 {% else %}
-                                    <a href="/admin/user/edit?id={{ u['id'] }}" class="layui-btn layui-btn-xs" style="background:#FFB800;">
+                                    <a href="/admin/user/edit?id={{ u['id'] }}" class="layui-btn layui-btn-xs layui-btn-warm">
                                         <i class="layui-icon layui-icon-edit"></i> 编辑
                                     </a>
                                     <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" data-uid="{{ u['id'] }}">

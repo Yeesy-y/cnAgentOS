@@ -30,14 +30,15 @@
                     <label class="layui-form-label">URL模板</label>
                     <div class="layui-input-block">
                         <textarea name="url_template" placeholder="例如：https://www.baidu.com/s?wd={keyword}&pn={pn}" class="layui-textarea" rows="3" required lay-verify="required">{% if source %}{{ source['url_template'] }}{% end %}</textarea>
-                        <div class="layui-form-mid layui-word-aux">支持 {keyword} 和 {pn} 占位符</div>
+                        <div class="layui-form-mid layui-word-aux">支持 {keyword}、{keyword_raw}、{pn}、{page} 占位符</div>
                     </div>
                 </div>
 
                 <div class="layui-form-item">
                     <label class="layui-form-label">请求头JSON</label>
                     <div class="layui-input-block">
-                        <textarea name="headers_json" placeholder='{"User-Agent": "Mozilla/5.0..."}' class="layui-textarea" rows="4">{% if source and source['headers_json'] %}{{ source['headers_json'] }}{% end %}</textarea>
+                        <textarea name="headers_json" placeholder='{"User-Agent": "Mozilla/5.0...", "Referer": "https://www.baidu.com/s?wd={keyword}&pn={pn}"}' class="layui-textarea" rows="4">{% if source and source['headers_json'] %}{{ source['headers_json'] }}{% end %}</textarea>
+                        <div class="layui-form-mid layui-word-aux">支持在请求头中动态使用 {keyword}、{keyword_raw}、{pn}、{page}</div>
                     </div>
                 </div>
 

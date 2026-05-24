@@ -17,8 +17,10 @@ class AdminUserRepository:
 			with get_connection() as conn:
 				cursor = conn.execute("PRAGMA table_info(users)")
 				existing_cols = {row[1] for row in cursor.fetchall()}
-				cols = ["username", "password_hash", "salt"]
-				vals = [username, password_hash, salt.hex()]
+				next_id_row = conn.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM users").fetchone()
+				next_id = next_id_row[0]
+				cols = ["id", "username", "password_hash", "salt"]
+				vals = [next_id, username, password_hash, salt.hex()]
 				if "real_name" in existing_cols:
 					cols.append("real_name")
 					vals.append(real_name)
@@ -32,6 +34,10 @@ class AdminUserRepository:
 					f"INSERT INTO users({','.join(cols)}) VALUES({','.join(['?']*len(vals))})",
 					tuple(vals)
 				)
+				try:
+					conn.execute("UPDATE sqlite_sequence SET seq=? WHERE name='users'", (next_id,))
+				except Exception:
+					pass
 				return cursor.lastrowid
 		except sqlite3.IntegrityError:
 			return 0

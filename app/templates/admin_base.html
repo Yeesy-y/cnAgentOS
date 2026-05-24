@@ -24,23 +24,45 @@
             color: #5f5f5f !important;
         }
         .layui-nav-tree .layui-nav-item > a:hover {
-            background: rgba(189, 187, 191, 0.5) !important;
+            background: rgba(162, 161, 164, 0.4) !important;
+            color: #5f5f5f !important;
         }
         .layui-nav-tree .layui-nav-itemed > a {
-            background: rgba(189, 187, 191, 0.6) !important;
+            background: linear-gradient(135deg, #a2a1a4, #5f5f5f) !important;
+            color: #efe4e9 !important;
         }
         .layui-nav-tree .layui-nav-child {
-            background: rgba(255, 255, 255, 0.6) !important;
+            background: rgba(255, 255, 255, 0.7) !important;
         }
         .layui-nav-tree .layui-nav-child a {
-            color: rgba(95, 95, 95, 0.8) !important;
+            color: rgba(95, 95, 95, 0.85) !important;
         }
         .layui-nav-tree .layui-nav-child a:hover {
-            background: rgba(189, 187, 191, 0.4) !important;
-        }
-        .layui-nav-tree .layui-this a {
-            background: linear-gradient(135deg, rgba(189, 187, 191, 0.7), rgba(162, 161, 164, 0.7)) !important;
+            background: rgba(162, 161, 164, 0.4) !important;
             color: #5f5f5f !important;
+        }
+        .layui-nav-tree .layui-this > a,
+        .layui-nav-tree .layui-this a {
+            background: linear-gradient(135deg, #5f5f5f, #a2a1a4) !important;
+            color: #efe4e9 !important;
+        }
+        .layui-nav-tree .layui-this > a:hover,
+        .layui-nav-tree .layui-this a:hover {
+            background: linear-gradient(135deg, #5f5f5f, #8a8a8a) !important;
+            color: #efe4e9 !important;
+        }
+        .layui-nav-tree .layui-nav-more {
+            border-color: #5f5f5f transparent transparent !important;
+        }
+        .layui-nav-itemed > a .layui-nav-more {
+            border-color: transparent transparent #efe4e9 !important;
+        }
+        .layui-nav-tree .layui-this::after,
+        .layui-nav .layui-this::after {
+            display: none !important;
+        }
+        .layui-nav-tree .layui-nav-bar {
+            background-color: transparent !important;
         }
         .layui-body {
             background: linear-gradient(135deg, #efe4e9 0%, #f5f0f5 100%) !important;
@@ -208,7 +230,7 @@
                         </dd>
                     </dl>
                 </li>
-                <li class="layui-nav-item {% if active_menu in ['watch_source', 'watch_collect', 'watch_data'] %}layui-nav-itemed{% end %}">
+                <li class="layui-nav-item {% if active_menu in ['watch_source', 'watch_collect'] %}layui-nav-itemed{% end %}">
                     <a href="javascript:;"><i class="layui-icon layui-icon-eye"></i><span>瞭望管理</span></a>
                     <dl class="layui-nav-child">
                         <dd class="{% if active_menu == 'watch_source' %}layui-this{% end %}">
@@ -221,12 +243,10 @@
                                 <i class="layui-icon layui-icon-ok-circle"></i> 瞭望采集
                             </a>
                         </dd>
-                        <dd class="{% if active_menu == 'watch_data' %}layui-this{% end %}">
-                            <a href="/admin/watch/data/list">
-                                <i class="layui-icon layui-icon-database"></i> 数据仓库
-                            </a>
-                        </dd>
                     </dl>
+                </li>
+                <li class="layui-nav-item {% if active_menu == 'watch_data' %}layui-this{% end %}">
+                    <a href="/admin/watch/data/list"><i class="layui-icon layui-icon-database"></i><span>数据仓库</span></a>
                 </li>
                 {% end %}
             </ul>

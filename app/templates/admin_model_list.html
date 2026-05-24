@@ -360,13 +360,13 @@
                 </div>
                 <div class="info-row">
                     <span class="info-label">创建时间</span>
-                    <span class="info-value">{{ m['create_at'] }}</span>
+                    <span class="info-value">{{ m['create_at'] or '-' }}</span>
                 </div>
             </div>
 
             <div class="token-stat">
                 <div class="token-label">Token 使用量</div>
-                <div class="token-value">{{ m['token_used'] }}</div>
+                <div class="token-value">{{ m['token_used'] or 0 }}</div>
             </div>
 
             <div class="model-actions">
@@ -393,11 +393,13 @@
 
     {% if total > 6 %}
     <div class="pagination">
-        {% set total_pages = (total + 6 - 1) // 6 %}
+        {% set total_pages = (total + 5) // 6 %}
         {% if page > 1 %}
         <a href="?page={{ page - 1 }}" class="page-btn">上一页</a>
         {% end %}
-        {% for p in range(1, total_pages + 1) %}
+        {% set p_start = max(1, page - 2) %}
+        {% set p_end = min(total_pages, page + 2) %}
+        {% for p in range(p_start, p_end + 1) %}
         <a href="?page={{ p }}" class="page-btn {% if p == page %}active{% end %}">{{ p }}</a>
         {% end %}
         {% if page < total_pages %}
@@ -449,16 +451,19 @@ layui.use(['layer', 'jquery'], function(){
         $('#testResponse').text('正在发送测试...');
         $('#testSubmit').prop('disabled', true);
         
+        var xsrf = $('input[name="_xsrf"]').val();
+        
         $.ajax({
             url: '/admin/model/test',
             type: 'POST',
-            data: {
+            contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+            data: $.param({
                 model_id: currentModelId,
                 test_message: message,
-                _xsrf: getCookie('_xsrf')
-            },
-            success: function(res){
-                var data = JSON.parse(res);
+                _xsrf: xsrf
+            }),
+            dataType: 'json',
+            success: function(data){
                 if(data.success){
                     $('#testResponse').text(data.message);
                     if(data.tokens){
@@ -471,8 +476,8 @@ layui.use(['layer', 'jquery'], function(){
                     layer.msg('测试失败: ' + data.message, {icon:2});
                 }
             },
-            error: function(){
-                $('#testResponse').text('请求失败');
+            error: function(xhr, status, error){
+                $('#testResponse').text('请求失败: ' + status + ' ' + error);
                 layer.msg('请求失败', {icon:2});
             },
             complete: function(){
@@ -480,11 +485,6 @@ layui.use(['layer', 'jquery'], function(){
             }
         });
     });
-
-    function getCookie(name) {
-        var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
-        return r ? r[1] : undefined;
-    }
 });
 </script>
 {% end %}

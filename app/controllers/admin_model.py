@@ -122,11 +122,20 @@ class AdminModelTestHandler(AdminBaseHandler):
 			
 			data = {
 				"model": model["model_id"],
-				"messages": [{"role": "user", "content": test_message}]
+				"messages": [{"role": "user", "content": test_message}],
+				"stream": False
 			}
 			
+			base = model['base_url'].rstrip('/')
+			if base.endswith('/chat/completions'):
+				url = base
+			elif base.endswith('/v1'):
+				url = base + '/chat/completions'
+			else:
+				url = base + '/v1/chat/completions'
+			
 			response = requests.post(
-				f"{model['base_url'].rstrip('/')}/chat/completions",
+				url,
 				headers=headers,
 				json=data,
 				timeout=60
@@ -142,6 +151,14 @@ class AdminModelTestHandler(AdminBaseHandler):
 				ModelServiceRepository.increment_token_usage(model_id, tokens_used)
 			
 			self.write(json.dumps({"success": True, "message": result, "tokens": tokens_used}))
+		except requests.exceptions.HTTPError as e:
+			err_text = ""
+			try:
+				err_json = e.response.json()
+				err_text = err_json.get("error", {}).get("message", "") or str(err_json)
+			except Exception:
+				err_text = e.response.text if e.response is not None else str(e)
+			self.write(json.dumps({"success": False, "message": f"请求失败: {e}. 详情: {err_text}"}))
 		except requests.exceptions.RequestException as e:
 			self.write(json.dumps({"success": False, "message": f"请求失败: {str(e)}"}))
 		except Exception as e:

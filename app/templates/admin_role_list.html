@@ -8,7 +8,7 @@
         <div class="layui-card-body">
             <div class="layui-form" style="margin-bottom:20px;">
                 <div class="layui-inline">
-                    <a href="/admin/role/add" class="layui-btn" style="background:#1E9FFF;">
+                    <a href="/admin/role/add" class="layui-btn layui-btn-normal">
                         <i class="layui-icon layui-icon-add-1"></i> 新增角色
                     </a>
                 </div>
@@ -29,7 +29,7 @@
                         <td>{{ r['id'] }}</td>
                         <td>
                             {% if r['id'] == 1 %}
-                            <span class="layui-badge layui-bg-orange">{{ r['role_name'] }}</span>
+                            <span class="layui-badge" style="background: linear-gradient(135deg, #bdbbbf, #a2a1a4); color: #5f5f5f;">{{ r['role_name'] }}</span>
                             {% else %}
                             {{ r['role_name'] }}
                             {% end %}
@@ -39,7 +39,7 @@
                             {% if r['id'] == 1 %}
                             <span style="color:#999;">系统内置角色不可修改</span>
                             {% else %}
-                            <a href="/admin/role/edit?id={{ r['id'] }}" class="layui-btn layui-btn-xs" style="background:#FFB800;">
+                            <a href="/admin/role/edit?id={{ r['id'] }}" class="layui-btn layui-btn-xs layui-btn-warm">
                                 <i class="layui-icon layui-icon-edit"></i> 编辑
                             </a>
                             <form action="/admin/role/list" method="post" style="display:inline;" id="roleDelForm{{ r['id'] }}">
@@ -50,7 +50,7 @@
                                     <i class="layui-icon layui-icon-delete"></i> 删除
                                 </button>
                             </form>
-                            <a href="/admin/role/edit?id={{ r['id'] }}" class="layui-btn layui-btn-xs" style="background:#1E9FFF;">
+                            <a href="/admin/role/edit?id={{ r['id'] }}" class="layui-btn layui-btn-xs layui-btn-normal">
                                 <i class="layui-icon layui-icon-template-1"></i> 分配权限(二级联动)
                             </a>
                             {% end %}
