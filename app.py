@@ -7,10 +7,6 @@ import tornado.ioloop
 import tornado.web
 from tornado.httpserver import HTTPServer
 
-#from app.controllers.base import BaseHandler
-#引入auth-controller层
-from app.controllers.auth import LoginHandler,LogoutHandler
-from app.controllers.home import IndexHandler
 #引入admin-controller层
 from app.controllers.admin_auth import AdminLoginHandler,AdminLogoutHandler
 from app.controllers.admin_home import AdminIndexHandler
@@ -84,9 +80,6 @@ def make_app():
 		autoreload=True
 	)
 	return tornado.web.Application([
-		(r"/",IndexHandler),
-		(r"/auth/login",LoginHandler),
-		(r"/auth/logout",LogoutHandler),
 		# admin后台路由
 		(r"/admin/login",AdminLoginHandler),
 		(r"/admin/logout",AdminLogoutHandler),
