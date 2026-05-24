@@ -3,6 +3,7 @@ import os
 import sqlite3
 import hashlib
 import secrets
+import json
 
 # 获得项目根路径的方法
 def _project_root():
@@ -113,6 +114,36 @@ def init_db():
 			)
 			"""
 		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS watch_sources(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				source_name TEXT NOT NULL,
+				source_code TEXT NOT NULL,
+				url_template TEXT NOT NULL,
+				headers_json TEXT,
+				cookie TEXT,
+				status INTEGER DEFAULT 1,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				update_at TEXT NOT NULL DEFAULT(datetime('now'))
+			)
+			"""
+		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS watch_data(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				source_id INTEGER NOT NULL,
+				keyword TEXT NOT NULL,
+				title TEXT,
+				content TEXT,
+				url TEXT,
+				publish_time TEXT,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				FOREIGN KEY(source_id) REFERENCES watch_sources(id)
+			)
+			"""
+		)
 		init_default_data(conn)
 
 def _ensure_columns_exist():
@@ -159,6 +190,23 @@ def init_default_data(conn):
 		conn.execute(
 			"INSERT INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
 			("超级管理员", "super_admin", "系统最高权限角色")
+		)
+	
+	cursor = conn.execute("SELECT COUNT(*) FROM watch_sources")
+	if cursor.fetchone()[0] == 0:
+		headers_json = json.dumps({
+			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0",
+			"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+			"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+			"Connection": "keep-alive",
+			"Sec-Fetch-Dest": "document",
+			"Sec-Fetch-Mode": "navigate",
+			"Sec-Fetch-Site": "same-origin",
+			"Upgrade-Insecure-Requests": "1"
+		})
+		conn.execute(
+			"INSERT INTO watch_sources(source_name, source_code, url_template, headers_json, status) VALUES(?, ?, ?, ?, ?)",
+			("百度新闻", "baidu_news", "https://www.baidu.com/s?ie=utf-8&bsst=1&rsv_dl=news_b_pn&tn=news&cl=2&medium=0&rtt=1&wd={keyword}&pn={pn}", headers_json, 1)
 		)
 	cursor = conn.execute("SELECT COUNT(*) FROM permissions")
 	if cursor.fetchone()[0] == 0:

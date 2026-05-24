@@ -1,0 +1,80 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            {% if mode == "add" %}新增采集源{% else %}编辑采集源{% end %}
+        </div>
+        <div class="layui-card-body">
+            <form class="layui-form" action="{% if mode == 'add' %}/admin/watch/source/add{% else %}/admin/watch/source/edit{% end %}" method="post">
+                {% if mode == "edit" %}
+                <input type="hidden" name="id" value="{{ source['id'] }}">
+                {% end %}
+                {% module xsrf_form_html() %}
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">采集源名称</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="source_name" value="{% if source %}{{ source['source_name'] }}{% end %}" placeholder="例如：百度新闻" class="layui-input" required lay-verify="required">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">采集源编码</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="source_code" value="{% if source %}{{ source['source_code'] }}{% end %}" placeholder="例如：baidu_news" class="layui-input" required lay-verify="required">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">URL模板</label>
+                    <div class="layui-input-block">
+                        <textarea name="url_template" placeholder="例如：https://www.baidu.com/s?wd={keyword}&pn={pn}" class="layui-textarea" rows="3" required lay-verify="required">{% if source %}{{ source['url_template'] }}{% end %}</textarea>
+                        <div class="layui-form-mid layui-word-aux">支持 {keyword} 和 {pn} 占位符</div>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">请求头JSON</label>
+                    <div class="layui-input-block">
+                        <textarea name="headers_json" placeholder='{"User-Agent": "Mozilla/5.0..."}' class="layui-textarea" rows="4">{% if source and source['headers_json'] %}{{ source['headers_json'] }}{% end %}</textarea>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">Cookie</label>
+                    <div class="layui-input-block">
+                        <textarea name="cookie" placeholder="key1=value1; key2=value2" class="layui-textarea" rows="2">{% if source and source['cookie'] %}{{ source['cookie'] }}{% end %}</textarea>
+                    </div>
+                </div>
+
+                {% if mode == "edit" %}
+                <div class="layui-form-item">
+                    <label class="layui-form-label">状态</label>
+                    <div class="layui-input-inline">
+                        <input type="radio" name="status" value="1" title="启用" {% if source['status'] == 1 %}checked{% end %}>
+                        <input type="radio" name="status" value="0" title="禁用" {% if source['status'] == 0 %}checked{% end %}>
+                    </div>
+                </div>
+                {% end %}
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <button type="submit" class="layui-btn">保存</button>
+                        <button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/admin/watch/source/list'">返回</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['form'], function(){
+    var form = layui.form;
+    form.render();
+});
+</script>
+{% end %}

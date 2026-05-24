@@ -56,7 +56,42 @@ print(response.choices[0].message.content)
 apikey=sk-aigc-f833a78051838cb709373ff911e01f165ce42bc9
 
 
+任务五:
+继续后端-管理侧功能模块的开发
+-瞭望管理:这是一个通过大模型+AI实现的智能数据采集模块,支持新增瞭望数据源管理和采集功能,以下为具体功能需求或要求:
+-- 瞭望数据源管理:该功能是一个动态可视化规则配置功能,支持新增/删除/修改采集源的规则,我这里给你提供一个采集源,你通过分析实现动态管理,如下:
+```
+百度新闻采集源:
+1、采集入口URL:
+https://www.baidu.com/s?ie=utf-8&bsst=1&rsv_dl=news_b_pn&tn=news&cl=2&medium=0&rtt=1&wd={关键字}
+https://www.baidu.com/s?ie=utf-8&bsst=1&rsv_dl=news_b_pn&tn=news&cl=2&medium=0&rtt=1&wd={关键字}&pn={分页步进，默认0=第一页，10=第二页，20=第三页......}
+2、采集requestheader:
+GET /s?ie=utf-8&bsst=1&rsv_dl=news_t_sk&tn=news&cl=2&medium=0&rtt=1&wd=%E5%9B%9B%E5%B7%9D%E5%86%9C%E4%B8%9A%E5%A4%A7%E5%AD%A6 HTTP/1.1
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+Accept-Encoding: gzip, deflate, br, zstd
+Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6
+Connection: keep-alive
+Cookie: __bid_n=193a41d38c24608412373f; BAIDUID=02E849BDD56C1F2501648F231C61E10B:FG=1; BAIDUID_BFESS=02E849BDD56C1F2501648F231C61E10B:FG=1; BIDUPSID=02E849BDD56C1F2501648F231C61E10B; PSTM=1778980802; BD_HOME=1; BD_UPN=12314753; ZFY=XW:BN5gu21KH9BgUJyJgm7jChBaJB8kp7:ASXnKocCRm8:C; H_PS_PSSID=63142_67861_68166_69004_69200_69294_69590_69617_69621_69765_69800_69840_69921_69900_69962_70005_70088_70037_70117_70133_70148_70156_70259_70188_70252_70208_70283_68735_70322_70142_70388_70357_70439_70419_70451_70474_70472_70478; BA_HECTOR=052h2h2g25a52k0h0525a4852g8k0l1l14kaq28; BD_CK_SAM=1; PSINO=6; delPer=0; H_PS_645EC=6229Vjr3GxEpX3NhSdePE4vVbkUorP98CqACXjL7dzhc%2FYydGlbrblm08RA; BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; minjie_card=1; BDRCVFR[C0p6oIjvx-c]=rJZwba6_rOCfAF9pywd; arialoadData=false; BDSVRTM=829
+Host: www.baidu.com
+Referer: https://www.baidu.com/s?ie=utf-8&bsst=1&rsv_dl=news_b_pn&tn=news&cl=2&medium=0&rtt=1&wd=%E5%9B%9B%E5%B7%9D%E5%86%9C%E4%B8%9A%E5%A4%A7%E5%AD%A6&x_bfe_rqs=03E80&x_bfe_tjscore=0.100000&tngroupname=organic_news&newVideo=12&goods_entry_switch=1&pn=10
+Sec-Fetch-Dest: document
+Sec-Fetch-Mode: navigate
+Sec-Fetch-Site: same-origin
+Sec-Fetch-User: ?1
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0
+sec-ch-ua: "Chromium";v="148", "Microsoft Edge";v="148", "Not/A)Brand";v="99"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "Windows"
+```
 
+根据以上采集源,你需要开发一套可动态接收参数的功能模块,以提供后续批量采集功能时调用。
+-- 瞭望采集:开发一个类似搜索引擎的界面,输入框下方提供采集源的动态选择功能(开关样式),该界面要求独立设计风格,不与layui风格同步,炫酷,好看,用户交
+互体验简单,另外在采集源的选择面板下,提供参数配置:一次有效采集数量和页数(与URL中的参数同步)
+-- 瞭望采集到的数据,保存到sqlite数据库表中
+-数据仓库:以列表显示通过瞭望采集到的数据,一页20条分页,功能:
+-- 删除/批量删除
+-- AI深度采集(后续单独任务完成)
 
 
 

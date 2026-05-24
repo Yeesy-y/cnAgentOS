@@ -18,6 +18,8 @@ from app.controllers.admin_user import AdminUserListHandler,AdminUserAddHandler,
 from app.controllers.admin_rbac import AdminPermissionListHandler,AdminPermissionAddHandler,AdminPermissionEditHandler
 from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,AdminRoleEditHandler
 from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandler,AdminModelEditHandler,AdminModelTestHandler
+from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSourceAddHandler,AdminWatchSourceEditHandler
+from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler
 #引入db-model层
 from app.models.db import init_db
 
@@ -97,6 +99,12 @@ def make_app():
 		(r"/admin/model/add",AdminModelAddHandler),
 		(r"/admin/model/edit",AdminModelEditHandler),
 		(r"/admin/model/test",AdminModelTestHandler),
+		# 瞭望管理路由
+		(r"/admin/watch/source/list",AdminWatchSourceListHandler),
+		(r"/admin/watch/source/add",AdminWatchSourceAddHandler),
+		(r"/admin/watch/source/edit",AdminWatchSourceEditHandler),
+		(r"/admin/watch/collect",AdminWatchCollectHandler),
+		(r"/admin/watch/data/list",AdminWatchDataListHandler),
 		# RBAC路由
 		(r"/admin/perm/list",AdminPermissionListHandler),
 		(r"/admin/perm/add",AdminPermissionAddHandler),

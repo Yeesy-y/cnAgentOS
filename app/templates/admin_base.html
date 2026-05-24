@@ -51,34 +51,54 @@
 
     <div class="layui-side layui-bg-black">
         <div class="layui-side-scroll">
-            <ul class="layui-nav layui-nav-tree" lay-filter="adminMenu" lay-shrink="all">
+            <ul class="layui-nav layui-nav-tree" lay-filter="adminMenu" lay-shrink="other">
                 {% block menu %}
-                <li class="layui-nav-item layui-nav-itemed">
+                <li class="layui-nav-item {% if active_menu in ['user', 'role', 'perm'] %}layui-nav-itemed{% end %}">
                     <a href="javascript:;"><i class="layui-icon layui-icon-set"></i><span>系统管理</span></a>
                     <dl class="layui-nav-child">
                         <dd class="{% if active_menu == 'user' %}layui-this{% end %}">
-                            <a href="/admin/user/list" data-url="/admin/user/list">
+                            <a href="/admin/user/list">
                                 <i class="layui-icon layui-icon-user"></i> 用户管理
                             </a>
                         </dd>
                         <dd class="{% if active_menu == 'role' %}layui-this{% end %}">
-                            <a href="/admin/role/list" data-url="/admin/role/list">
+                            <a href="/admin/role/list">
                                 <i class="layui-icon layui-icon-group"></i> 角色管理
                             </a>
                         </dd>
                         <dd class="{% if active_menu == 'perm' %}layui-this{% end %}">
-                            <a href="/admin/perm/list" data-url="/admin/perm/list">
+                            <a href="/admin/perm/list">
                                 <i class="layui-icon layui-icon-app"></i> 功能管理
                             </a>
                         </dd>
                     </dl>
                 </li>
-                <li class="layui-nav-item">
+                <li class="layui-nav-item {% if active_menu == 'model' %}layui-nav-itemed{% end %}">
                     <a href="javascript:;"><i class="layui-icon layui-icon-engine"></i><span>模型引擎</span></a>
                     <dl class="layui-nav-child">
                         <dd class="{% if active_menu == 'model' %}layui-this{% end %}">
-                            <a href="/admin/model/list" data-url="/admin/model/list">
+                            <a href="/admin/model/list">
                                 <i class="layui-icon layui-icon-engine"></i> 模型服务
+                            </a>
+                        </dd>
+                    </dl>
+                </li>
+                <li class="layui-nav-item {% if active_menu in ['watch_source', 'watch_collect', 'watch_data'] %}layui-nav-itemed{% end %}">
+                    <a href="javascript:;"><i class="layui-icon layui-icon-eye"></i><span>瞭望管理</span></a>
+                    <dl class="layui-nav-child">
+                        <dd class="{% if active_menu == 'watch_source' %}layui-this{% end %}">
+                            <a href="/admin/watch/source/list">
+                                <i class="layui-icon layui-icon-list"></i> 采集源管理
+                            </a>
+                        </dd>
+                        <dd class="{% if active_menu == 'watch_collect' %}layui-this{% end %}">
+                            <a href="/admin/watch/collect">
+                                <i class="layui-icon layui-icon-ok-circle"></i> 瞭望采集
+                            </a>
+                        </dd>
+                        <dd class="{% if active_menu == 'watch_data' %}layui-this{% end %}">
+                            <a href="/admin/watch/data/list">
+                                <i class="layui-icon layui-icon-database"></i> 数据仓库
                             </a>
                         </dd>
                     </dl>

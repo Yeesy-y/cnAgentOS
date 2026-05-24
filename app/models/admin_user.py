@@ -192,7 +192,7 @@ class AdminUserRepository:
 			
 			for user in data_list:
 				roles = conn.execute(
-					"""SELECT r.id, r.role_name, r.role_code FROM roles r
+					"""SELECT DISTINCT r.id, r.role_name, r.role_code FROM roles r
 					   INNER JOIN user_roles ur ON r.id = ur.role_id
 					   WHERE ur.user_id=?""",
 					(user["id"],)
@@ -205,7 +205,7 @@ class AdminUserRepository:
 	def get_user_roles(user_id:int) -> list:
 		with get_connection() as conn:
 			rows = conn.execute(
-				"""SELECT r.id, r.role_name, r.role_code FROM roles r
+				"""SELECT DISTINCT r.id, r.role_name, r.role_code FROM roles r
 				   INNER JOIN user_roles ur ON r.id = ur.role_id
 				   WHERE ur.user_id=?""",
 				(user_id,)

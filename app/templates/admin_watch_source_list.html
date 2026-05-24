@@ -1,0 +1,77 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            采集源管理
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-form" style="margin-bottom:20px;">
+                <div class="layui-inline">
+                    <a href="/admin/watch/source/add" class="layui-btn" style="background:#1E9FFF;">
+                        <i class="layui-icon layui-icon-add-1"></i> 新增采集源
+                    </a>
+                </div>
+            </div>
+
+            <table class="layui-table" lay-skin="line">
+                <thead>
+                    <tr>
+                        <th style="width:60px;">ID</th>
+                        <th>采集源名称</th>
+                        <th>采集源编码</th>
+                        <th>状态</th>
+                        <th style="width:180px;">创建时间</th>
+                        <th style="width:200px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in sources %}
+                    <tr>
+                        <td>{{ s['id'] }}</td>
+                        <td>{{ s['source_name'] }}</td>
+                        <td>{{ s['source_code'] }}</td>
+                        <td>
+                            {% if s['status'] == 1 %}
+                            <span class="layui-badge layui-bg-green">启用</span>
+                            {% else %}
+                            <span class="layui-badge layui-bg-gray">禁用</span>
+                            {% end %}
+                        </td>
+                        <td>{{ s['create_at'] }}</td>
+                        <td>
+                            <a href="/admin/watch/source/edit?id={{ s['id'] }}" class="layui-btn layui-btn-xs" style="background:#FFB800;">
+                                <i class="layui-icon layui-icon-edit"></i> 编辑
+                            </a>
+                            <form action="/admin/watch/source/list" method="post" style="display:inline;">
+                                {% module xsrf_form_html() %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="source_id" value="{{ s['id'] }}">
+                                <button type="submit" class="layui-btn layui-btn-xs layui-btn-danger" onclick="return confirm('确认删除该采集源吗？')">
+                                    <i class="layui-icon layui-icon-delete"></i> 删除
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% end %}
+                </tbody>
+            </table>
+
+            {% if total > 20 %}
+            <div class="layui-box layui-laypage layui-laypage-default" style="margin-top:20px;">
+                {% set total_pages = (total + 20 - 1) // 20 %}
+                {% if page > 1 %}
+                <a href="?page={{ page - 1 }}" class="layui-laypage-prev">上一页</a>
+                {% end %}
+                {% for p in range(1, total_pages + 1) %}
+                <a href="?page={{ p }}" class="layui-laypage-num {% if p == page %}layui-laypage-curr{% end %}">{{ p }}</a>
+                {% end %}
+                {% if page < total_pages %}
+                <a href="?page={{ page + 1 }}" class="layui-laypage-next">下一页</a>
+                {% end %}
+            </div>
+            {% end %}
+        </div>
+    </div>
+</div>
+{% end %}

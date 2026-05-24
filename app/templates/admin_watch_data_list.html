@@ -1,0 +1,129 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            数据仓库
+            <span style="font-size:14px; color:#999; margin-left:10px;">共 {{ total }} 条数据</span>
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-form" style="margin-bottom:20px;">
+                <div class="layui-inline">
+                    <button type="button" class="layui-btn layui-btn-danger" id="batchDelBtn">
+                        <i class="layui-icon layui-icon-delete"></i> 批量删除
+                    </button>
+                </div>
+            </div>
+
+            <form id="dataListForm" action="/admin/watch/data/list" method="post">
+                {% module xsrf_form_html() %}
+                <input type="hidden" name="action" id="dataAction" value="">
+                <input type="hidden" name="ids" id="dataIds" value="">
+
+                <div class="layui-collapse" lay-accordion>
+                    {% for d in data_list %}
+                    <div class="layui-colla-item">
+                        <h2 class="layui-colla-title" style="padding-left: 60px; position: relative;">
+                            <span style="position: absolute; left: 15px; top: 13px;">
+                                <input type="checkbox" name="did" value="{{ d['id'] }}" lay-skin="primary" class="rowCheck">
+                            </span>
+                            <span style="color: #1E9FFF; font-weight: 500;">ID: {{ d['id'] }}</span>
+                            <span style="margin: 0 10px;">|</span>
+                            <span style="background: #009688; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 12px;">{{ d['keyword'] }}</span>
+                            <span style="margin-left: 15px; color: #666;">{{ d['source_name'] or '-' }}</span>
+                            <span style="float: right; color: #999; font-size: 12px;">{{ d['create_at'] }}</span>
+                        </h2>
+                        <div class="layui-colla-content">
+                            <div style="padding: 15px;">
+                                <div style="margin-bottom: 10px;">
+                                    <span style="color: #666;">标题：</span>
+                                    <strong>{{ d['title'] or '-' }}</strong>
+                                </div>
+                                {% if d['url'] %}
+                                <div style="margin-bottom: 10px;">
+                                    <span style="color: #666;">链接：</span>
+                                    <a href="{{ d['url'] }}" target="_blank" style="color: #1E9FFF;">{{ d['url'][:80] }}{% if len(d['url']) > 80 %}...{% end %}</a>
+                                </div>
+                                {% end %}
+                                {% if d['content'] %}
+                                <div style="margin-bottom: 10px;">
+                                    <span style="color: #666;">内容：</span>
+                                    <p style="margin-top: 5px; color: #333; line-height: 1.8; background: #f5f5f5; padding: 10px; border-radius: 4px;">{{ d['content'] }}</p>
+                                </div>
+                                {% end %}
+                                {% if d['publish_time'] %}
+                                <div>
+                                    <span style="color: #666;">发布时间：</span>
+                                    <span>{{ d['publish_time'] }}</span>
+                                </div>
+                                {% end %}
+                                <div style="margin-top: 15px;">
+                                    <form action="/admin/watch/data/list" method="post" style="display:inline;">
+                                        {% module xsrf_form_html() %}
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="ids" value="{{ d['id'] }}">
+                                        <button type="submit" class="layui-btn layui-btn-xs layui-btn-danger" onclick="return confirm('确认删除该数据吗？')">
+                                            <i class="layui-icon layui-icon-delete"></i> 删除
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% end %}
+                </div>
+            </form>
+
+            {% if total > 20 %}
+            <div class="layui-box layui-laypage layui-laypage-default" style="margin-top:20px;">
+                {% set total_pages = (total + 20 - 1) // 20 %}
+                {% if page > 1 %}
+                <a href="?page={{ page - 1 }}" class="layui-laypage-prev">上一页</a>
+                {% end %}
+                {% for p in range(1, total_pages + 1) %}
+                <a href="?page={{ p }}" class="layui-laypage-num {% if p == page %}layui-laypage-curr{% end %}">{{ p }}</a>
+                {% end %}
+                {% if page < total_pages %}
+                <a href="?page={{ page + 1 }}" class="layui-laypage-next">下一页</a>
+                {% end %}
+            </div>
+            {% end %}
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['layer', 'form', 'jquery', 'element'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.jquery;
+    var element = layui.element;
+
+    $('.rowCheck').on('click', function(e){
+        e.stopPropagation();
+    });
+
+    $('#batchDelBtn').on('click', function(){
+        var ids = [];
+        $('.rowCheck:checked').each(function(){
+            ids.push($(this).val());
+        });
+        if(ids.length === 0){
+            layer.msg('请先选择要删除的数据', {icon:2});
+            return;
+        }
+        layer.confirm('确认删除选中的 '+ids.length+' 条数据吗？', {
+            icon: 3,
+            title: '批量删除确认',
+            btn: ['确认', '取消']
+        }, function(index){
+            $('#dataAction').val('delete');
+            $('#dataIds').val(ids.join(','));
+            $('#dataListForm').submit();
+        });
+    });
+});
+</script>
+{% end %}
