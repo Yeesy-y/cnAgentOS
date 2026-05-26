@@ -16,7 +16,7 @@ from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,
 from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandler,AdminModelEditHandler,AdminModelTestHandler
 from app.controllers.admin_employee import AdminEmployeeListHandler,AdminEmployeeAddHandler,AdminEmployeeEditHandler
 from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSourceAddHandler,AdminWatchSourceEditHandler
-from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler
+from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler,AdminWatchDeepCollectHandler
 from app.controllers.admin_api import AdminApiListHandler,AdminApiAddHandler,AdminApiEditHandler,AdminApiTestHandler
 from app.controllers.user_auth import UserLoginHandler,UserLogoutHandler,UserRegisterHandler
 from app.controllers.user_chat import UserChatPageHandler
@@ -118,6 +118,7 @@ def make_app():
 		(r"/admin/watch/source/edit",AdminWatchSourceEditHandler),
 		(r"/admin/watch/collect",AdminWatchCollectHandler),
 		(r"/admin/watch/data/list",AdminWatchDataListHandler),
+		(r"/admin/watch/deep/collect",AdminWatchDeepCollectHandler),
 		# RBAC路由
 		(r"/admin/perm/list",AdminPermissionListHandler),
 		(r"/admin/perm/add",AdminPermissionAddHandler),

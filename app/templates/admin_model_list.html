@@ -267,74 +267,290 @@
     background: linear-gradient(135deg, #efe4e9 0%, #f5f0f5 100%);
     border: 1px solid rgba(95, 95, 95, 0.15);
     border-radius: 20px;
-    padding: 30px;
-    width: 600px;
-    max-width: 90%;
+    padding: 0;
+    width: 780px;
+    max-width: 94vw;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(95, 95, 95, 0.25);
+}
+
+.test-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid rgba(95, 95, 95, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
 }
 
 .test-title {
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 700;
     color: #5f5f5f;
-    margin-bottom: 20px;
 }
 
-.test-input {
+.test-model-badge {
+    display: inline-block;
+    background: rgba(95,95,95,0.1);
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #8a8a8a;
+    margin-left: 10px;
+    font-weight: 400;
+}
+
+.test-close-btn {
+    background: rgba(189, 187, 191, 0.4);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: #5f5f5f;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.test-close-btn:hover {
+    background: rgba(189, 187, 191, 0.7);
+}
+
+.test-chat-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 200px;
+    max-height: 55vh;
+}
+
+.chat-bubble {
+    max-width: 80%;
+    padding: 12px 18px;
+    border-radius: 18px;
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    position: relative;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-bubble.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%);
+    color: #efe4e9;
+    border-bottom-right-radius: 6px;
+}
+
+.chat-bubble.ai {
+    align-self: flex-start;
+    background: rgba(255, 255, 255, 0.75);
+    color: #5f5f5f;
+    border: 1px solid rgba(95, 95, 95, 0.1);
+    border-bottom-left-radius: 6px;
+}
+
+.chat-bubble.ai.streaming::after {
+    content: '|';
+    animation: blink 0.6s infinite;
+    color: #8a8a8a;
+    font-weight: 700;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+.chat-bubble-label {
+    font-size: 11px;
+    color: #999;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.chat-bubble.user .chat-bubble-label {
+    text-align: right;
+    color: rgba(239, 228, 233, 0.7);
+}
+
+.chat-bubble.ai .chat-bubble-label {
+    text-align: left;
+}
+
+.chat-bubble.ai .chat-bubble-text {
+    text-align: left;
+}
+
+.chat-bubble-text h1, .chat-bubble-text h2, .chat-bubble-text h3, .chat-bubble-text h4 {
+    margin: 8px 0 4px 0;
+    font-weight: 700;
+    color: #4a4a4a;
+}
+
+.chat-bubble-text h1 { font-size: 1.3em; }
+.chat-bubble-text h2 { font-size: 1.15em; }
+.chat-bubble-text h3 { font-size: 1.05em; }
+
+.chat-bubble-text p { margin: 4px 0; }
+
+.chat-bubble-text strong { color: #4a4a4a; }
+
+.chat-bubble-text code {
+    background: rgba(95,95,95,0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    font-family: 'Consolas', 'Courier New', monospace;
+    word-break: break-all;
+}
+
+.chat-bubble-text pre {
+    background: rgba(95,95,95,0.06);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+    font-size: 0.9em;
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.chat-bubble-text pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+    word-break: normal;
+}
+
+.chat-bubble-text ul, .chat-bubble-text ol {
+    margin: 4px 0;
+    padding-left: 20px;
+}
+
+.chat-bubble-text li { margin: 2px 0; }
+
+.chat-bubble-text a {
+    color: #5f5f5f;
+    text-decoration: underline;
+    word-break: break-all;
+}
+
+.chat-bubble-text blockquote {
+    border-left: 3px solid rgba(95,95,95,0.2);
+    padding-left: 12px;
+    margin: 8px 0;
+    color: #777;
+}
+
+.chat-bubble-text hr {
+    border: none;
+    border-top: 1px solid rgba(95,95,95,0.1);
+    margin: 10px 0;
+}
+
+.chat-bubble-text table {
+    border-collapse: collapse;
     width: 100%;
+    margin: 8px 0;
+    font-size: 0.92em;
+}
+
+.chat-bubble-text th, .chat-bubble-text td {
+    border: 1px solid rgba(95,95,95,0.15);
+    padding: 6px 10px;
+    text-align: left;
+}
+
+.chat-bubble-text th {
+    background: rgba(95,95,95,0.06);
+    font-weight: 600;
+}
+
+.chat-empty {
+    text-align: center;
+    color: #bbb;
+    font-size: 14px;
+    margin: auto;
+}
+
+.test-input-row {
+    padding: 14px 24px;
+    border-top: 1px solid rgba(95, 95, 95, 0.1);
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.test-input-row textarea {
+    flex: 1;
     background: rgba(255, 255, 255, 0.7);
     border: 1px solid rgba(95, 95, 95, 0.15);
     border-radius: 12px;
-    padding: 14px 16px;
+    padding: 10px 14px;
     color: #5f5f5f;
     font-size: 14px;
-    margin-bottom: 16px;
-    resize: vertical;
-    min-height: 80px;
+    resize: none;
+    min-height: 40px;
+    max-height: 100px;
+    box-sizing: border-box;
+    outline: none;
+    font-family: inherit;
 }
 
-.test-input:focus {
-    outline: none;
+.test-input-row textarea:focus {
     border-color: rgba(189, 187, 191, 0.5);
 }
 
-.test-response {
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(95, 95, 95, 0.15);
-    border-radius: 12px;
-    padding: 16px;
-    color: #5f5f5f;
-    font-size: 14px;
-    min-height: 120px;
-    max-height: 300px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    margin-bottom: 20px;
-}
-
-.test-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-}
-
-.test-submit {
+.test-send-btn {
     background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%);
     border: none;
-    padding: 12px 28px;
-    border-radius: 10px;
+    border-radius: 12px;
     color: #efe4e9;
     font-weight: 600;
+    padding: 10px 22px;
     cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    font-size: 14px;
+    white-space: nowrap;
 }
 
-.test-close {
-    background: rgba(189, 187, 191, 0.4);
-    border: 1px solid rgba(95, 95, 95, 0.15);
-    padding: 12px 28px;
-    border-radius: 10px;
+.test-send-btn:hover {
+    box-shadow: 0 4px 15px rgba(95,95,95,0.3);
+}
+
+.test-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.test-status {
+    padding: 4px 24px;
+    font-size: 12px;
+    color: #999;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.test-status.streaming {
     color: #5f5f5f;
-    font-weight: 600;
-    cursor: pointer;
 }
 </style>
 
@@ -423,12 +639,17 @@
 
 <div class="test-modal" id="testModal">
     <div class="test-dialog">
-        <div class="test-title">🧪 模型对话测试</div>
-        <textarea class="test-input" id="testInput" placeholder="请输入测试消息..."></textarea>
-        <div class="test-response" id="testResponse">等待测试...</div>
-        <div class="test-actions">
-            <button type="button" class="test-close" id="testClose">关闭</button>
-            <button type="button" class="test-submit" id="testSubmit">发送测试</button>
+        <div class="test-header">
+            <div class="test-title">🧪 模型对话测试<span class="test-model-badge" id="testModelName"></span></div>
+            <button type="button" class="test-close-btn" id="testClose">✕</button>
+        </div>
+        <div class="test-chat-body" id="testChatBody">
+            <div class="chat-empty">输入消息开始对话...</div>
+        </div>
+        <div class="test-status" id="testStatus"></div>
+        <div class="test-input-row">
+            <textarea id="testInput" placeholder="输入消息，Enter 发送，Shift+Enter 换行..." rows="1"></textarea>
+            <button type="button" class="test-send-btn" id="testSubmit">发送</button>
         </div>
     </div>
 </div>
@@ -441,62 +662,239 @@ layui.use(['layer', 'jquery'], function(){
     var $ = layui.jquery;
     
     var currentModelId = null;
+    var currentModelName = '';
+    var streamAbortController = null;
 
     $('.btn-test').on('click', function(){
         currentModelId = $(this).data('id');
+        currentModelName = $(this).closest('.model-card').find('.model-name').text() || '';
         $('#testModal').addClass('show');
+        $('#testChatBody').html('<div class="chat-empty">输入消息开始对话...</div>');
         $('#testInput').val('');
-        $('#testResponse').text('等待测试...');
+        $('#testStatus').text('').removeClass('streaming');
+        $('#testModelName').text(currentModelName ? '(' + currentModelName + ')' : '');
+        $('#testSubmit').prop('disabled', false);
+        setTimeout(function(){ $('#testInput').focus(); }, 100);
     });
 
-    $('#testClose').on('click', function(){
+    function closeTestModal() {
+        if (streamAbortController) {
+            streamAbortController.abort();
+            streamAbortController = null;
+        }
         $('#testModal').removeClass('show');
+    }
+
+    $('#testClose').on('click', closeTestModal);
+
+    $('#testModal').on('click', function(e){
+        if (e.target === this) closeTestModal();
     });
+
+    $('#testInput').on('keydown', function(e){
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            $('#testSubmit').trigger('click');
+        }
+    });
+
+    function addUserBubble(text) {
+        $('#testChatBody').find('.chat-empty').remove();
+        var bubble = $(
+            '<div class="chat-bubble user">' +
+            '<div class="chat-bubble-label">你</div>' +
+            '<div class="chat-bubble-text">' + escapeHtml(text) + '</div>' +
+            '</div>'
+        );
+        $('#testChatBody').append(bubble);
+        scrollChatBottom();
+    }
+
+    function addAiBubble() {
+        var bubble = $(
+            '<div class="chat-bubble ai streaming">' +
+            '<div class="chat-bubble-label">AI</div>' +
+            '<div class="chat-bubble-text"></div>' +
+            '</div>'
+        );
+        $('#testChatBody').append(bubble);
+        scrollChatBottom();
+        return bubble;
+    }
+
+    function escapeHtml(text) {
+        var d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML;
+    }
+
+    function scrollChatBottom() {
+        var el = document.getElementById('testChatBody');
+        requestAnimationFrame(function(){
+            el.scrollTop = el.scrollHeight;
+        });
+    }
 
     $('#testSubmit').on('click', function(){
-        var message = $('#testInput').val();
-        if(!message){
-            layer.msg('请输入测试消息', {icon:2});
-            return;
-        }
-        
-        $('#testResponse').text('正在发送测试...');
+        var message = $('#testInput').val().trim();
+        if (!message) { layer.msg('请输入消息', {icon:2}); return; }
+
         $('#testSubmit').prop('disabled', true);
-        
+        $('#testStatus').text('⏳ AI 思考中...').addClass('streaming');
+
+        addUserBubble(message);
+        $('#testInput').val('');
+
+        var aiBubble = addAiBubble();
+        var aiTextEl = aiBubble.find('.chat-bubble-text');
+        var rawMarkdown = '';
+
         var xsrf = $('input[name="_xsrf"]').val();
-        
-        $.ajax({
-            url: '/admin/model/test',
-            type: 'POST',
-            contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
-            data: $.param({
-                model_id: currentModelId,
-                test_message: message,
-                _xsrf: xsrf
-            }),
-            dataType: 'json',
-            success: function(data){
-                if(data.success){
-                    $('#testResponse').text(data.message);
-                    if(data.tokens){
-                        layer.msg('测试成功！消耗 ' + data.tokens + ' tokens', {icon:1});
-                    } else {
-                        layer.msg('测试成功！', {icon:1});
-                    }
-                } else {
-                    $('#testResponse').text('错误: ' + data.message);
-                    layer.msg('测试失败: ' + data.message, {icon:2});
-                }
-            },
-            error: function(xhr, status, error){
-                $('#testResponse').text('请求失败: ' + status + ' ' + error);
-                layer.msg('请求失败', {icon:2});
-            },
-            complete: function(){
-                $('#testSubmit').prop('disabled', false);
+        var formBody = '_xsrf=' + encodeURIComponent(xsrf)
+            + '&model_id=' + encodeURIComponent(currentModelId)
+            + '&test_message=' + encodeURIComponent(message)
+            + '&stream=1';
+
+        streamAbortController = new AbortController();
+
+        fetch('/admin/model/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: formBody,
+            signal: streamAbortController.signal
+        }).then(function(response){
+            if (!response.ok) {
+                return response.text().then(function(t){ throw new Error(t); });
             }
+            var contentType = response.headers.get('content-type') || '';
+            if (contentType.indexOf('text/event-stream') !== -1) {
+                return readSSEStream(response, aiTextEl, aiBubble, rawMarkdown);
+            } else {
+                return response.json().then(function(data){
+                    if (data.success) {
+                        aiBubble.removeClass('streaming');
+                        aiTextEl.html(renderMarkdown(data.message));
+                        finishStream(aiBubble, data.tokens || 0);
+                    } else {
+                        aiBubble.removeClass('streaming');
+                        aiTextEl.text('错误: ' + data.message);
+                        $('#testStatus').text('❌ 失败').removeClass('streaming');
+                    }
+                });
+            }
+        }).catch(function(err){
+            if (err.name === 'AbortError') return;
+            aiBubble.removeClass('streaming');
+            aiTextEl.text('请求失败: ' + err.message);
+            $('#testStatus').text('❌ 连接失败').removeClass('streaming');
+        }).finally(function(){
+            $('#testSubmit').prop('disabled', false);
+            streamAbortController = null;
         });
     });
+
+    async function readSSEStream(response, textEl, bubbleEl, rawMarkdown) {
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = '';
+        var finalTokens = 0;
+        var contentReceived = false;
+
+        try {
+            while (true) {
+                var result = await reader.read();
+                if (result.done) break;
+
+                buffer += decoder.decode(result.value, { stream: true });
+                var lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i];
+                    if (line.startsWith('event: ')) {
+                        var eventType = line.substring(7).trim();
+                        var dataLine = '';
+                        if (i + 1 < lines.length && lines[i + 1].startsWith('data: ')) {
+                            dataLine = lines[i + 1].substring(6);
+                            i++;
+                        }
+                        if (!dataLine) continue;
+
+                        try {
+                            var data = JSON.parse(dataLine);
+                            if (eventType === 'chunk') {
+                                if (!contentReceived) {
+                                    contentReceived = true;
+                                    $('#testStatus').text('💬 流式输出中...').addClass('streaming');
+                                }
+                                rawMarkdown += data.content;
+                                textEl.html(escapeHtml(rawMarkdown).replace(/\n/g, '<br>'));
+                                scrollChatBottom();
+                            } else if (eventType === 'done') {
+                                finalTokens = data.tokens || 0;
+                                textEl.html(renderMarkdown(rawMarkdown));
+                                finishStream(bubbleEl, finalTokens);
+                            } else if (eventType === 'error') {
+                                bubbleEl.removeClass('streaming');
+                                textEl.html(escapeHtml('错误: ' + data.message));
+                                $('#testStatus').text('❌ 失败').removeClass('streaming');
+                            }
+                        } catch(e) {}
+                    }
+                }
+            }
+        } catch(err) {
+            if (err.name !== 'AbortError') {
+                bubbleEl.removeClass('streaming');
+                textEl.html(escapeHtml('读取中断: ' + err.message));
+            }
+        }
+    }
+
+    function cleanMarkdownForRender(text) {
+        var lines = text.split('\n');
+        var result = [];
+        var prevEmpty = false;
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].replace(/\s+$/, '');
+            if (/^\*{2,}$/.test(line)) {
+                if (!prevEmpty) { result.push(''); prevEmpty = true; }
+                continue;
+            }
+            if (line === '' && prevEmpty) continue;
+            prevEmpty = (line === '');
+            result.push(line);
+        }
+        while (result.length > 0 && result[0] === '') result.shift();
+        while (result.length > 0 && result[result.length - 1] === '') result.pop();
+        return result.join('\n');
+    }
+
+    function renderMarkdown(text) {
+        var cleaned = cleanMarkdownForRender(text);
+        var plainFallback = escapeHtml(cleaned || text).replace(/\n/g, '<br>');
+        if (!cleaned) return plainFallback;
+        if (typeof marked !== 'undefined' && marked.parse) {
+            try {
+                var html = marked.parse(cleaned, { breaks: true, gfm: true });
+                var textChars = cleaned.replace(/\s/g, '');
+                var htmlChars = html.replace(/<[^>]+>/g, '').replace(/\s/g, '');
+                if (textChars.length > 8 && htmlChars.length < textChars.length * 0.4) {
+                    return plainFallback;
+                }
+                return html;
+            } catch(e) {
+                return plainFallback;
+            }
+        }
+        return plainFallback;
+    }
+
+    function finishStream(bubbleEl, tokens) {
+        bubbleEl.removeClass('streaming');
+        $('#testStatus').text('✅ 完成 · 消耗 ' + tokens + ' tokens').removeClass('streaming');
+        scrollChatBottom();
+    }
 });
 </script>
 {% end %}

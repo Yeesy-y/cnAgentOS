@@ -1,4 +1,5 @@
 import tornado.web
+import tornado.gen
 import json
 import requests
 from app.controllers.admin_base import AdminBaseHandler
@@ -101,31 +102,142 @@ class AdminModelEditHandler(AdminBaseHandler):
 
 class AdminModelTestHandler(AdminBaseHandler):
 	@tornado.web.authenticated
-	def post(self):
+	async def post(self):
 		model_id = int(self.get_body_argument("model_id", "0"))
 		test_message = (self.get_body_argument("test_message", "") or "").strip()
-		
+		stream = self.get_body_argument("stream", "0") == "1"
+
 		if not model_id or not test_message:
+			self.set_header("Content-Type", "application/json")
 			self.write(json.dumps({"success": False, "message": "参数错误"}))
 			return
-		
+
 		model = ModelServiceRepository.get_model_by_id(model_id)
 		if not model:
+			self.set_header("Content-Type", "application/json")
 			self.write(json.dumps({"success": False, "message": "模型不存在"}))
 			return
-		
+
+		if not stream:
+			self._do_sync_test(model, model_id, test_message)
+			return
+
+		self.set_header("Content-Type", "text/event-stream")
+		self.set_header("Cache-Control", "no-cache")
+		self.set_header("Connection", "keep-alive")
+		self.set_header("X-Accel-Buffering", "no")
+
+		headers = {
+			"Content-Type": "application/json",
+			"Authorization": f"Bearer {model['api_key']}"
+		}
+		data = {
+			"model": model["model_id"],
+			"messages": [{"role": "user", "content": test_message}],
+			"stream": True,
+			"temperature": 0.7
+		}
+
+		base = model['base_url'].rstrip('/')
+		if base.endswith('/chat/completions'):
+			url = base
+		elif base.endswith('/v1'):
+			url = base + '/chat/completions'
+		else:
+			url = base + '/v1/chat/completions'
+
+		total_tokens = 0
+		response = None
+		try:
+			response = requests.post(
+				url,
+				headers=headers,
+				json=data,
+				timeout=120,
+				stream=True
+			)
+			response.raise_for_status()
+
+			line_buf = ""
+			chunks_since_flush = 0
+			for raw_bytes in response.iter_content(chunk_size=1):
+				if not raw_bytes:
+					continue
+				try:
+					line_buf += raw_bytes.decode("utf-8")
+				except UnicodeDecodeError:
+					continue
+
+				while "\n" in line_buf:
+					line, line_buf = line_buf.split("\n", 1)
+					line = line.rstrip("\r")
+					if not line:
+						continue
+					if line.startswith("data: "):
+						chunk_str = line[6:]
+						if chunk_str.strip() == "[DONE]":
+							break
+						try:
+							chunk = json.loads(chunk_str)
+							choices = chunk.get("choices", [])
+							if choices:
+								delta = choices[0].get("delta", {})
+								content = delta.get("content", "")
+								if content:
+									self._sse("chunk", {"content": content})
+									chunks_since_flush += 1
+									if chunks_since_flush >= 3:
+										self.flush()
+										await tornado.gen.sleep(0)
+										chunks_since_flush = 0
+							usage = chunk.get("usage")
+							if usage:
+								total_tokens = usage.get("total_tokens", 0)
+						except json.JSONDecodeError:
+							continue
+
+			if chunks_since_flush > 0:
+				self.flush()
+
+			if total_tokens > 0:
+				ModelServiceRepository.increment_token_usage(model_id, total_tokens)
+			self._sse("done", {"tokens": total_tokens})
+			self.flush()
+		except requests.exceptions.HTTPError as e:
+			err_text = ""
+			try:
+				err_json = e.response.json()
+				err_text = err_json.get("error", {}).get("message", "") or str(err_json)
+			except Exception:
+				err_text = e.response.text[:300] if e.response is not None else str(e)
+			self._sse("error", {"message": f"请求失败: {err_text}"})
+			self.flush()
+		except Exception as e:
+			self._sse("error", {"message": str(e)})
+			self.flush()
+		finally:
+			if response is not None:
+				try:
+					response.close()
+				except Exception:
+					pass
+		self.finish()
+
+	def _sse(self, event_type: str, data: dict):
+		self.write(f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n")
+
+	def _do_sync_test(self, model, model_id, test_message):
+		self.set_header("Content-Type", "application/json")
 		try:
 			headers = {
 				"Content-Type": "application/json",
 				"Authorization": f"Bearer {model['api_key']}"
 			}
-			
 			data = {
 				"model": model["model_id"],
 				"messages": [{"role": "user", "content": test_message}],
 				"stream": False
 			}
-			
 			base = model['base_url'].rstrip('/')
 			if base.endswith('/chat/completions'):
 				url = base
@@ -133,23 +245,14 @@ class AdminModelTestHandler(AdminBaseHandler):
 				url = base + '/chat/completions'
 			else:
 				url = base + '/v1/chat/completions'
-			
-			response = requests.post(
-				url,
-				headers=headers,
-				json=data,
-				timeout=60
-			)
-			
+
+			response = requests.post(url, headers=headers, json=data, timeout=60)
 			response.raise_for_status()
 			result_data = response.json()
-			
 			result = result_data["choices"][0]["message"]["content"]
 			tokens_used = result_data.get("usage", {}).get("total_tokens", 0)
-			
 			if tokens_used > 0:
 				ModelServiceRepository.increment_token_usage(model_id, tokens_used)
-			
 			self.write(json.dumps({"success": True, "message": result, "tokens": tokens_used}))
 		except requests.exceptions.HTTPError as e:
 			err_text = ""

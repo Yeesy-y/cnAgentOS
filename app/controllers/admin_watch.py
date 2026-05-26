@@ -4,7 +4,7 @@ import requests
 import re
 from urllib.parse import quote
 from app.controllers.admin_base import AdminBaseHandler
-from app.models.watch_service import WatchSourceRepository, WatchDataRepository
+from app.models.watch_service import WatchSourceRepository, WatchDataRepository, WatchDataDetailRepository
 
 ABNORMAL_PAGE_MARKERS = ["问题反馈", "安全验证", "请输入验证码", "访问受限", "百度安全验证", "network-error"]
 DEFAULT_SOURCE_HEADERS = {
@@ -404,6 +404,254 @@ class AdminWatchCollectHandler(AdminBaseHandler):
 		except Exception as e:
 			self.set_header("Content-Type", "application/json")
 			self.write(json.dumps({"success": False, "message": str(e)}))
+
+class AdminWatchDeepCollectHandler(AdminBaseHandler):
+	@tornado.web.authenticated
+	def get(self):
+		ids_str = (self.get_argument("ids", "") or "").strip()
+		if not ids_str:
+			self.set_header("Content-Type", "application/json")
+			self.write(json.dumps({"success": False, "message": "请选择要深度采集的数据"}))
+			return
+
+		data_ids = [int(x.strip()) for x in ids_str.split(",") if x.strip().isdigit()]
+		if not data_ids:
+			self.set_header("Content-Type", "application/json")
+			self.write(json.dumps({"success": False, "message": "未找到有效数据ID"}))
+			return
+
+		self.set_header("Content-Type", "text/event-stream")
+		self.set_header("Cache-Control", "no-cache")
+		self.set_header("Connection", "keep-alive")
+		self.set_header("X-Accel-Buffering", "no")
+
+		default_model = self._get_default_model()
+		if not default_model:
+			self._sse_event("error", {"message": "未找到默认模型服务，请先在模型引擎中设置默认模型"})
+			self._sse_event("done", {"total": len(data_ids), "completed": 0, "failed": len(data_ids), "total_tokens": 0})
+			self.finish()
+			return
+
+		total = len(data_ids)
+		completed = 0
+		failed = 0
+		total_tokens = 0
+
+		self._sse_event("start", {"total": total, "model": default_model.get("model_name", "未知模型")})
+
+		for idx, data_id in enumerate(data_ids):
+			current = idx + 1
+			self._sse_event("progress", {
+				"current": current,
+				"total": total,
+				"data_id": data_id,
+				"message": f"正在深度采集 ({current}/{total}) ..."
+			})
+			self.flush()
+
+			try:
+				data_item = WatchDataRepository.get_data_by_id(data_id)
+				if not data_item:
+					self._sse_event("item_log", {"data_id": data_id, "status": "failed", "message": f"#{data_id}: 数据不存在"})
+					failed += 1
+					continue
+
+				target_url = data_item.get("url", "") or ""
+				existing_title = data_item.get("title", "") or ""
+				existing_content = data_item.get("content", "") or ""
+
+				self._sse_event("item_log", {"data_id": data_id, "status": "crawling", "message": f"#{data_id}: 正在抓取网页内容..."})
+				self.flush()
+
+				crawled_content = self._crawl_url(target_url)
+
+				page_text = crawled_content if crawled_content else existing_content
+
+				self._sse_event("item_log", {"data_id": data_id, "status": "analyzing", "message": f"#{data_id}: 正在用AI模型深度解析..."})
+				self.flush()
+
+				ai_result = self._deep_analyze(default_model, existing_title, existing_content, page_text, target_url)
+
+				if ai_result.get("success"):
+					source_id = data_item.get("source_id", 0)
+					detail_id = WatchDataDetailRepository.create_detail(
+						data_id=data_id,
+						source_id=source_id,
+						detail_title=ai_result.get("title", existing_title),
+						detail_content=ai_result.get("content", page_text),
+						detail_summary=ai_result.get("summary", ""),
+						detail_keywords=ai_result.get("keywords", ""),
+						source_url=target_url,
+						ai_model=default_model.get("model_id", ""),
+						tokens_used=ai_result.get("tokens", 0)
+					)
+					WatchDataDetailRepository.update_detail(detail_id, deep_status=2)
+					tokens_used = ai_result.get("tokens", 0)
+					total_tokens += tokens_used
+					if tokens_used and default_model.get("id"):
+						try:
+							from app.models.model_service import ModelServiceRepository
+							ModelServiceRepository.increment_token_usage(default_model["id"], tokens_used)
+						except Exception:
+							pass
+					completed += 1
+					self._sse_event("item_log", {"data_id": data_id, "status": "completed", "message": f"#{data_id}: 深度采集完成 (tokens: {tokens_used})"})
+				else:
+					detail_id = WatchDataDetailRepository.create_detail(
+						data_id=data_id,
+						source_id=data_item.get("source_id", 0),
+						detail_title=existing_title,
+						detail_content=page_text,
+						source_url=target_url,
+						ai_model=default_model.get("model_id", ""),
+						tokens_used=0
+					)
+					WatchDataDetailRepository.update_detail(detail_id, deep_status=3, error_msg=ai_result.get("message", "AI解析失败"))
+					failed += 1
+					self._sse_event("item_log", {"data_id": data_id, "status": "failed", "message": f"#{data_id}: AI解析失败 - {ai_result.get('message', '')}"})
+			except Exception as e:
+				failed += 1
+				self._sse_event("item_log", {"data_id": data_id, "status": "failed", "message": f"#{data_id}: 异常 - {str(e)}"})
+
+			self.flush()
+
+		stats = {"total": total, "completed": completed, "failed": failed, "total_tokens": total_tokens}
+		self._sse_event("summary", stats)
+		self._sse_event("done", stats)
+		self.finish()
+
+	def _sse_event(self, event_type: str, data: dict):
+		line = f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+		self.write(line)
+
+	def _get_default_model(self):
+		try:
+			from app.models.model_service import ModelServiceRepository
+			return ModelServiceRepository.get_default_model()
+		except Exception:
+			return None
+
+	def _crawl_url(self, url: str) -> str:
+		if not url:
+			return ""
+		try:
+			headers = {
+				"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+				"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+				"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+			}
+			resp = requests.get(url, headers=headers, timeout=15)
+			resp.raise_for_status()
+			resp.encoding = resp.apparent_encoding or "utf-8"
+			html = resp.text
+
+			from bs4 import BeautifulSoup
+			soup = BeautifulSoup(html, "lxml")
+			for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+				tag.decompose()
+
+			body = soup.find("body")
+			if not body:
+				body = soup
+
+			text_parts = []
+			for tag in body.find_all(["h1", "h2", "h3", "h4", "p", "li", "span", "div"]):
+				txt = tag.get_text(strip=True)
+				if txt and len(txt) > 3:
+					text_parts.append(txt)
+
+			full_text = "\n".join(text_parts)
+			if len(full_text) > 6000:
+				full_text = full_text[:6000]
+			return full_text
+		except Exception:
+			return ""
+
+	def _deep_analyze(self, model: dict, title: str, original_content: str, page_content: str, source_url: str) -> dict:
+		try:
+			prompt = f"""请对以下采集到的网页内容进行深度解析，并以JSON格式返回结果。
+解析要求：
+1. 提取文章的准确标题
+2. 对全文内容进行深度摘要（300字以内）
+3. 提取5-10个关键词（逗号分隔）
+4. 保留原文核心内容（精简至2000字以内）
+
+原始标题: {title[:200] if title else '无'}
+原文URL: {source_url[:200] if source_url else '无'}
+
+网页正文内容:
+{page_content[:5000] if page_content else ''}
+
+原始摘要:
+{original_content[:1000] if original_content else '无'}
+
+请严格按照以下JSON格式返回（不要包含markdown标记）：
+{{"title":"提取的标题","summary":"深度摘要内容","keywords":"关键词1,关键词2,关键词3","content":"精简后的核心内容"}}"""
+
+			headers = {
+				"Content-Type": "application/json",
+				"Authorization": f"Bearer {model['api_key']}"
+			}
+			data = {
+				"model": model["model_id"],
+				"messages": [{"role": "user", "content": prompt}],
+				"stream": False,
+				"temperature": 0.3,
+				"max_tokens": 3000
+			}
+
+			base = model['base_url'].rstrip('/')
+			if base.endswith('/chat/completions'):
+				url = base
+			elif base.endswith('/v1'):
+				url = base + '/chat/completions'
+			else:
+				url = base + '/v1/chat/completions'
+
+			response = requests.post(url, headers=headers, json=data, timeout=120)
+			response.raise_for_status()
+			result_data = response.json()
+
+			ai_content = result_data["choices"][0]["message"]["content"]
+			tokens = result_data.get("usage", {}).get("total_tokens", 0)
+
+			json_match = re.search(r'\{[^{}]*\}', ai_content, re.DOTALL)
+			if json_match:
+				parsed = json.loads(json_match.group())
+				return {
+					"success": True,
+					"title": parsed.get("title", title),
+					"summary": parsed.get("summary", ""),
+					"keywords": parsed.get("keywords", ""),
+					"content": parsed.get("content", page_content[:2000]),
+					"tokens": tokens
+				}
+
+			if len(ai_content) > 20:
+				return {
+					"success": True,
+					"title": title,
+					"summary": ai_content[:600],
+					"keywords": "",
+					"content": ai_content[:2000],
+					"tokens": tokens
+				}
+
+			return {"success": False, "message": "AI返回内容为空"}
+
+		except requests.exceptions.HTTPError as e:
+			err_text = ""
+			try:
+				err_json = e.response.json()
+				err_text = err_json.get("error", {}).get("message", "") or str(err_json)
+			except Exception:
+				err_text = e.response.text[:300] if e.response is not None else str(e)
+			return {"success": False, "message": f"模型API错误: {err_text}"}
+		except requests.exceptions.RequestException as e:
+			return {"success": False, "message": f"网络请求失败: {str(e)}"}
+		except Exception as e:
+			return {"success": False, "message": str(e)}
+
 
 class AdminWatchDataListHandler(AdminBaseHandler):
 	@tornado.web.authenticated
