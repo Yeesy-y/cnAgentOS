@@ -15,7 +15,7 @@ from app.controllers.admin_rbac import AdminPermissionListHandler,AdminPermissio
 from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,AdminRoleEditHandler
 from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandler,AdminModelEditHandler,AdminModelTestHandler
 from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSourceAddHandler,AdminWatchSourceEditHandler
-from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler
+from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler,AdminWatchDeepCollectHandler
 #引入db-model层
 from app.models.db import init_db
 
@@ -98,6 +98,7 @@ def make_app():
 		(r"/admin/watch/source/edit",AdminWatchSourceEditHandler),
 		(r"/admin/watch/collect",AdminWatchCollectHandler),
 		(r"/admin/watch/data/list",AdminWatchDataListHandler),
+		(r"/admin/watch/deep/collect",AdminWatchDeepCollectHandler),
 		# RBAC路由
 		(r"/admin/perm/list",AdminPermissionListHandler),
 		(r"/admin/perm/add",AdminPermissionAddHandler),

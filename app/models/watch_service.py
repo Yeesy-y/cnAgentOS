@@ -198,19 +198,21 @@ class WatchDataRepository:
 				).fetchone()
 				total = count_row[0]
 				rows = conn.execute("""
-					SELECT wd.*, ws.source_name 
-					FROM watch_data wd 
-					LEFT JOIN watch_sources ws ON wd.source_id = ws.id 
-					WHERE wd.keyword LIKE ? OR wd.title LIKE ? OR wd.content LIKE ? 
+					SELECT wd.*, ws.source_name, wdd.deep_status, wdd.detail_title, wdd.detail_summary, wdd.detail_keywords, wdd.detail_content
+					FROM watch_data wd
+					LEFT JOIN watch_sources ws ON wd.source_id = ws.id
+					LEFT JOIN watch_data_detail wdd ON wd.id = wdd.data_id
+					WHERE wd.keyword LIKE ? OR wd.title LIKE ? OR wd.content LIKE ?
 					ORDER BY wd.id DESC LIMIT ? OFFSET ?
 				""", (f"%{keyword}%", f"%{keyword}%", f"%{keyword}%", page_size, offset)).fetchall()
 			else:
 				count_row = conn.execute("SELECT COUNT(*) FROM watch_data").fetchone()
 				total = count_row[0]
 				rows = conn.execute("""
-					SELECT wd.*, ws.source_name 
-					FROM watch_data wd 
-					LEFT JOIN watch_sources ws ON wd.source_id = ws.id 
+					SELECT wd.*, ws.source_name, wdd.deep_status, wdd.detail_title, wdd.detail_summary, wdd.detail_keywords, wdd.detail_content
+					FROM watch_data wd
+					LEFT JOIN watch_sources ws ON wd.source_id = ws.id
+					LEFT JOIN watch_data_detail wdd ON wd.id = wdd.data_id
 					ORDER BY wd.id DESC LIMIT ? OFFSET ?
 				""", (page_size, offset)).fetchall()
 			
@@ -222,6 +224,7 @@ class WatchDataRepository:
 	def delete_data(data_id: int) -> bool:
 		try:
 			with get_connection() as conn:
+				conn.execute("DELETE FROM watch_data_detail WHERE data_id=?", (data_id,))
 				conn.execute("DELETE FROM watch_data WHERE id=?", (data_id,))
 			return True
 		except sqlite3.IntegrityError:
@@ -233,8 +236,106 @@ class WatchDataRepository:
 		with get_connection() as conn:
 			for did in data_ids:
 				try:
+					conn.execute("DELETE FROM watch_data_detail WHERE data_id=?", (did,))
 					conn.execute("DELETE FROM watch_data WHERE id=?", (did,))
 					count += 1
 				except sqlite3.IntegrityError:
 					pass
 		return count
+
+
+class WatchDataDetailRepository:
+	@staticmethod
+	def create_detail(data_id: int, source_id: int, detail_title: str = None, detail_content: str = None,
+	                  detail_summary: str = None, detail_keywords: str = None, source_url: str = None,
+	                  ai_model: str = None, tokens_used: int = 0) -> int:
+		with get_connection() as conn:
+			cursor = conn.execute(
+				"INSERT INTO watch_data_detail(data_id, source_id, detail_title, detail_content, detail_summary, detail_keywords, source_url, ai_model, tokens_used) VALUES(?,?,?,?,?,?,?,?,?)",
+				(data_id, source_id, detail_title, detail_content, detail_summary, detail_keywords, source_url, ai_model, tokens_used)
+			)
+			return cursor.lastrowid
+
+	@staticmethod
+	def update_detail(detail_id: int, detail_title: str = None, detail_content: str = None,
+	                  detail_summary: str = None, detail_keywords: str = None,
+	                  deep_status: int = None, error_msg: str = None, tokens_used: int = None) -> bool:
+		fields = []
+		values = []
+		if detail_title is not None:
+			fields.append("detail_title=?"); values.append(detail_title)
+		if detail_content is not None:
+			fields.append("detail_content=?"); values.append(detail_content)
+		if detail_summary is not None:
+			fields.append("detail_summary=?"); values.append(detail_summary)
+		if detail_keywords is not None:
+			fields.append("detail_keywords=?"); values.append(detail_keywords)
+		if deep_status is not None:
+			fields.append("deep_status=?"); values.append(deep_status)
+		if error_msg is not None:
+			fields.append("error_msg=?"); values.append(error_msg)
+		if tokens_used is not None:
+			fields.append("tokens_used=?"); values.append(tokens_used)
+		if not fields:
+			return False
+		values.append(detail_id)
+		with get_connection() as conn:
+			conn.execute(f"UPDATE watch_data_detail SET {','.join(fields)} WHERE id=?", values)
+		return True
+
+	@staticmethod
+	def get_detail_by_data_id(data_id: int):
+		with get_connection() as conn:
+			row = conn.execute(
+				"SELECT * FROM watch_data_detail WHERE data_id=? ORDER BY id DESC LIMIT 1",
+				(data_id,)
+			).fetchone()
+		return dict(row) if row else None
+
+	@staticmethod
+	def get_details_by_data_ids(data_ids: list) -> dict:
+		result = {}
+		if not data_ids:
+			return result
+		placeholders = ",".join("?" for _ in data_ids)
+		with get_connection() as conn:
+			rows = conn.execute(
+				f"SELECT * FROM watch_data_detail WHERE data_id IN ({placeholders}) ORDER BY id DESC",
+				data_ids
+			).fetchall()
+		for row in rows:
+			d = dict(row)
+			did = d["data_id"]
+			if did not in result:
+				result[did] = d
+		return result
+
+	@staticmethod
+	def delete_detail_by_data_id(data_id: int) -> bool:
+		with get_connection() as conn:
+			conn.execute("DELETE FROM watch_data_detail WHERE data_id=?", (data_id,))
+		return True
+
+	@staticmethod
+	def get_deep_statistics() -> dict:
+		with get_connection() as conn:
+			total = conn.execute("SELECT COUNT(*) FROM watch_data_detail").fetchone()[0]
+			completed = conn.execute(
+				"SELECT COUNT(*) FROM watch_data_detail WHERE deep_status=2"
+			).fetchone()[0]
+			failed = conn.execute(
+				"SELECT COUNT(*) FROM watch_data_detail WHERE deep_status=3"
+			).fetchone()[0]
+			pending = conn.execute(
+				"SELECT COUNT(*) FROM watch_data_detail WHERE deep_status=0"
+			).fetchone()[0]
+			total_tokens = conn.execute(
+				"SELECT COALESCE(SUM(tokens_used), 0) FROM watch_data_detail"
+			).fetchone()[0]
+		return {
+			"total": total,
+			"completed": completed,
+			"failed": failed,
+			"pending": pending,
+			"total_tokens": total_tokens
+		}

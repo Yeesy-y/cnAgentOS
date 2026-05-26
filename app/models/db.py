@@ -144,6 +144,27 @@ def init_db():
 			)
 			"""
 		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS watch_data_detail(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				data_id INTEGER NOT NULL,
+				source_id INTEGER NOT NULL,
+				detail_title TEXT,
+				detail_content TEXT,
+				detail_summary TEXT,
+				detail_keywords TEXT,
+				source_url TEXT,
+				ai_model TEXT,
+				tokens_used INTEGER DEFAULT 0,
+				deep_status INTEGER DEFAULT 0,
+				error_msg TEXT,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				FOREIGN KEY(data_id) REFERENCES watch_data(id),
+				FOREIGN KEY(source_id) REFERENCES watch_sources(id)
+			)
+			"""
+		)
 		init_default_data(conn)
 
 def _ensure_columns_exist():
