@@ -17,6 +17,9 @@ from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandl
 from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSourceAddHandler,AdminWatchSourceEditHandler
 from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler
 from app.controllers.admin_api import AdminApiListHandler,AdminApiAddHandler,AdminApiEditHandler,AdminApiTestHandler
+from app.controllers.user_auth import UserLoginHandler,UserLogoutHandler,UserRegisterHandler
+from app.controllers.user_chat import UserChatPageHandler
+from app.controllers.user_api import UserModelsHandler,UserConversationsHandler,UserMessagesHandler,UserSendHandler,UserStreamHandler
 #引入db-model层
 from app.models.db import init_db
 
@@ -81,6 +84,16 @@ def make_app():
 		autoreload=True
 	)
 	return tornado.web.Application([
+		# 用户侧路由
+		(r"/login",UserLoginHandler),
+		(r"/register",UserRegisterHandler),
+		(r"/logout",UserLogoutHandler),
+		(r"/chat",UserChatPageHandler),
+		(r"/user/api/models",UserModelsHandler),
+		(r"/user/api/conversations",UserConversationsHandler),
+		(r"/user/api/messages",UserMessagesHandler),
+		(r"/user/api/send",UserSendHandler),
+		(r"/user/api/stream",UserStreamHandler),
 		# admin后台路由
 		(r"/admin/login",AdminLoginHandler),
 		(r"/admin/logout",AdminLogoutHandler),

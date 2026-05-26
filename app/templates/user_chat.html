@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>{{ title if title else "智能问数" }}</title>
+	<link rel="stylesheet" href="{{ static_url('dist/layui-v2.13.6/layui/css/layui.css') }}">
+	<link rel="stylesheet" href="{{ static_url('dist/fontawesome-free-5.15.4-web/css/all.min.css') }}">
+	<style>
+		html,body{height:100%;margin:0;}
+		.page{height:100%;display:flex;background:linear-gradient(135deg,#efe4e9 0%,#f5f0f5 100%);}
+		.sidebar{width:320px;min-width:280px;max-width:360px;background:linear-gradient(180deg,#efe4e9 0%,#a2a1a4 100%);border-right:1px solid rgba(95,95,95,0.12);display:flex;flex-direction:column;}
+		.brand{padding:18px 16px;display:flex;align-items:center;gap:10px;color:#5f5f5f;font-weight:800;}
+		.brand i{font-size:20px;}
+		.sidebar-section{padding:0 16px 14px;}
+		.sidebar-card{background:rgba(255,255,255,0.65);border:1px solid rgba(95,95,95,0.08);border-radius:16px;padding:12px;}
+		.sidebar-title{font-size:12px;color:rgba(95,95,95,0.7);margin-bottom:8px;}
+		.history{margin-top:10px;}
+		.history-item{padding:10px 10px;border-radius:12px;cursor:pointer;color:#5f5f5f;background:rgba(255,255,255,0.4);border:1px solid rgba(95,95,95,0.06);margin-bottom:8px;}
+		.history-item:hover{background:rgba(189,187,191,0.35);}
+		.history-item.active{background:linear-gradient(135deg,#5f5f5f 0%,#8a8a8a 100%);color:#efe4e9;border-color:transparent;}
+		.main{flex:1;display:flex;flex-direction:column;}
+		.topbar{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(95,95,95,0.08);backdrop-filter:blur(10px);}
+		.topbar .user{color:#5f5f5f;}
+		.chat{flex:1;overflow:auto;padding:20px;}
+		.msg{display:flex;gap:12px;margin-bottom:16px;}
+		.avatar{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#efe4e9;flex:0 0 auto;}
+		.avatar.user{background:linear-gradient(135deg,#5f5f5f 0%,#8a8a8a 100%);}
+		.avatar.ai{background:linear-gradient(135deg,#bdbbbf 0%,#a2a1a4 100%);color:#5f5f5f;}
+		.bubble{max-width:820px;background:rgba(255,255,255,0.72);border:1px solid rgba(95,95,95,0.08);border-radius:16px;padding:12px 14px;color:#333;white-space:pre-wrap;word-break:break-word;}
+		.bubble.user{background:rgba(255,255,255,0.55);}
+		.composer{padding:16px 18px;border-top:1px solid rgba(95,95,95,0.08);background:rgba(255,255,255,0.55);backdrop-filter:blur(10px);}
+		.composer-row{display:flex;gap:10px;align-items:flex-end;}
+		.input{flex:1;min-height:44px;max-height:160px;resize:vertical;border-radius:14px;border:1.5px solid rgba(95,95,95,0.15);background:rgba(255,255,255,0.8);padding:10px 12px;color:#5f5f5f;}
+		.send{height:44px;border:none;border-radius:14px;padding:0 18px;background:linear-gradient(135deg,#5f5f5f 0%,#8a8a8a 100%);color:#efe4e9;font-weight:700;cursor:pointer;}
+		.send:disabled{opacity:0.6;cursor:not-allowed;}
+		.small-tip{margin-top:8px;color:rgba(95,95,95,0.65);font-size:12px;}
+		pre code{display:block;overflow:auto;background:rgba(95,95,95,0.06);padding:10px;border-radius:12px;}
+		code{background:rgba(95,95,95,0.06);padding:2px 6px;border-radius:8px;}
+	</style>
+</head>
+<body>
+<div class="page">
+	<div class="sidebar">
+		<div class="brand"><i class="fas fa-eye"></i> 智能问数</div>
+		<div class="sidebar-section">
+			<div class="sidebar-card">
+				<div class="sidebar-title">模型服务（后端模型引擎）</div>
+				<select class="layui-select" id="modelSelect" style="width:100%; border-radius:12px;">
+					<option value="">加载中...</option>
+				</select>
+				<div class="sidebar-title" style="margin-top:12px;">历史对话（任务）</div>
+				<div class="history" id="historyList">
+					<div style="color:rgba(95,95,95,0.65); font-size:12px;">暂无</div>
+				</div>
+				<button type="button" class="layui-btn layui-btn-primary" id="newChatBtn" style="width:100%;margin-top:10px;border-radius:12px;">新建对话</button>
+			</div>
+		</div>
+		<div class="sidebar-section" style="margin-top:auto;">
+			<form action="/logout" method="post">
+				{% module xsrf_form_html() %}
+				<button type="submit" class="layui-btn layui-btn-danger" style="width:100%;border-radius:12px;">退出登录</button>
+			</form>
+		</div>
+	</div>
+
+	<div class="main">
+		<div class="topbar">
+			<div style="color:#5f5f5f;font-weight:700;">ChatGPT/豆包风格对话（流式 + Markdown）</div>
+			<div class="user">你好，{{ username }}</div>
+		</div>
+		<div class="chat" id="chatArea"></div>
+		<div class="composer">
+			<div class="composer-row">
+				<textarea class="input" id="chatInput" placeholder="输入问题，支持 @数字员工（预留）..."></textarea>
+				<button class="send" id="sendBtn">发送</button>
+			</div>
+			<div class="small-tip">提示：需要“智能问数”时可问「最新一条数据是什么？」；@xxx 数字员工将后续接入。</div>
+		</div>
+	</div>
+</div>
+
+<div style="display:none;">{% module xsrf_form_html() %}</div>
+
+<script src="{{ static_url('dist/layui-v2.13.6/layui/layui.js') }}"></script>
+<script>
+layui.use(['layer', 'jquery'], function(){
+	var layer = layui.layer;
+	var $ = layui.jquery;
+
+	var currentConversationId = 0;
+	var currentAssistantEl = null;
+	var activeEventSource = null;
+
+	function escapeHtml(s){
+		return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+	}
+
+	function renderMarkdown(md){
+		var text = String(md || '');
+		text = text.replace(/```([\s\S]*?)```/g, function(_, code){
+			return '<pre><code>' + escapeHtml(code) + '</code></pre>';
+		});
+		text = text.replace(/`([^`]+)`/g, function(_, code){
+			return '<code>' + escapeHtml(code) + '</code>';
+		});
+		text = text.replace(/^###\s(.+)$/gm, '<h3>$1</h3>');
+		text = text.replace(/^##\s(.+)$/gm, '<h2>$1</h2>');
+		text = text.replace(/^#\s(.+)$/gm, '<h1>$1</h1>');
+		text = text.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+		text = text.replace(/\n/g, '<br>');
+		return text;
+	}
+
+	function addMessage(role, content){
+		var isUser = role === 'user';
+		var $msg = $('<div class="msg"></div>');
+		var $avatar = $('<div class="avatar"></div>');
+		$avatar.addClass(isUser ? 'user' : 'ai');
+		$avatar.html(isUser ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>');
+		var $bubble = $('<div class="bubble"></div>');
+		$bubble.addClass(isUser ? 'user' : 'ai');
+		$bubble.html(isUser ? escapeHtml(content) : renderMarkdown(content));
+		$msg.append($avatar).append($bubble);
+		$('#chatArea').append($msg);
+		$('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
+		return $bubble;
+	}
+
+	function setSendDisabled(disabled){
+		$('#sendBtn').prop('disabled', disabled);
+	}
+
+	function loadModels(){
+		$.getJSON('/user/api/models', function(resp){
+			if(!resp || !resp.success){
+				layer.msg('模型列表加载失败', {icon:2});
+				return;
+			}
+			var $sel = $('#modelSelect');
+			$sel.empty();
+			(resp.data || []).forEach(function(m){
+				var name = m.model_name + ' (' + m.model_code + ')';
+				var opt = $('<option></option>').attr('value', m.id).text(name);
+				if(m.is_default === 1){
+					opt.attr('selected', 'selected');
+				}
+				$sel.append(opt);
+			});
+		});
+	}
+
+	function loadHistory(){
+		$.getJSON('/user/api/conversations', function(resp){
+			var $list = $('#historyList');
+			$list.empty();
+			if(!resp || !resp.success){
+				$list.append('<div style="color:rgba(95,95,95,0.65); font-size:12px;">加载失败</div>');
+				return;
+			}
+			var data = resp.data || [];
+			if(data.length === 0){
+				$list.append('<div style="color:rgba(95,95,95,0.65); font-size:12px;">暂无</div>');
+				return;
+			}
+			data.forEach(function(item){
+				var $it = $('<div class="history-item"></div>');
+				$it.text(item.title || ('对话 #' + item.id));
+				$it.attr('data-id', item.id);
+				if(item.id === currentConversationId){
+					$it.addClass('active');
+				}
+				$list.append($it);
+			});
+		});
+	}
+
+	function loadMessages(cid){
+		$.getJSON('/user/api/messages?conversation_id=' + cid, function(resp){
+			$('#chatArea').empty();
+			if(!resp || !resp.success){
+				addMessage('assistant', '加载失败');
+				return;
+			}
+			(resp.data || []).forEach(function(m){
+				addMessage(m.role, m.content);
+			});
+		});
+	}
+
+	function newChat(){
+		currentConversationId = 0;
+		$('#chatArea').empty();
+		addMessage('assistant', '你好，我是你的AI助手。你可以直接提问，也可以使用 @数字员工（预留）。');
+		loadHistory();
+	}
+
+	function stopStream(){
+		if(activeEventSource){
+			activeEventSource.close();
+			activeEventSource = null;
+		}
+	}
+
+	function sendMessage(){
+		var text = ($('#chatInput').val() || '').trim();
+		if(!text){
+			layer.msg('请输入内容', {icon:2});
+			return;
+		}
+		stopStream();
+		setSendDisabled(true);
+		$('#chatInput').val('');
+		addMessage('user', text);
+		currentAssistantEl = addMessage('assistant', '思考中...');
+
+		var xsrf = $('input[name="_xsrf"]').val();
+		var modelId = $('#modelSelect').val() || '';
+
+		$.ajax({
+			url: '/user/api/send',
+			type: 'POST',
+			contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+			dataType: 'text',
+			headers: {"X-XSRFToken": xsrf},
+			data: $.param({
+				message: text,
+				conversation_id: currentConversationId,
+				model_service_id: modelId,
+				_xsrf: xsrf
+			}),
+			success: function(raw){
+				var resp = null;
+				try{
+					resp = JSON.parse(raw || '{}');
+				}catch(e){
+					var preview = String(raw || '').slice(0, 200);
+					currentAssistantEl.html(renderMarkdown('发送失败：接口返回非JSON\\n\\n' + '```\\n' + preview + '\\n```'));
+					setSendDisabled(false);
+					return;
+				}
+				if(!resp || !resp.success){
+					currentAssistantEl.html(renderMarkdown('发送失败：' + (resp && resp.message ? resp.message : '未知错误')));
+					setSendDisabled(false);
+					return;
+				}
+				currentConversationId = resp.conversation_id || 0;
+				loadHistory();
+				var streamUrl = resp.stream_url;
+				if(!streamUrl){
+					currentAssistantEl.html(renderMarkdown('未返回stream_url'));
+					setSendDisabled(false);
+					return;
+				}
+				var fullText = '';
+				activeEventSource = new EventSource(streamUrl);
+				activeEventSource.onmessage = function(ev){
+					if(!ev || !ev.data){
+						return;
+					}
+					if(ev.data === '[DONE]'){
+						stopStream();
+						setSendDisabled(false);
+						loadHistory();
+						return;
+					}
+					fullText += ev.data;
+					currentAssistantEl.html(renderMarkdown(fullText));
+					$('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
+				};
+				activeEventSource.onerror = function(){
+					stopStream();
+					setSendDisabled(false);
+				};
+			},
+			error: function(xhr, status, error){
+				var statusCode = xhr && xhr.status ? xhr.status : 0;
+				var respText = xhr && xhr.responseText ? String(xhr.responseText).slice(0, 200) : '';
+				var msg = '发送失败：' + (status || 'error') + ' ' + (error || '') + ' (HTTP ' + statusCode + ')';
+				if(respText){
+					msg += '\\n\\n```\\n' + respText + '\\n```';
+				}
+				currentAssistantEl.html(renderMarkdown(msg));
+				setSendDisabled(false);
+			}
+		});
+	}
+
+	$(document).on('click', '.history-item', function(){
+		var cid = parseInt($(this).attr('data-id') || '0', 10);
+		if(!cid){
+			return;
+		}
+		stopStream();
+		currentConversationId = cid;
+		loadHistory();
+		loadMessages(cid);
+	});
+
+	$('#newChatBtn').on('click', function(){
+		stopStream();
+		newChat();
+	});
+
+	$('#sendBtn').on('click', function(){
+		sendMessage();
+	});
+
+	$('#chatInput').on('keydown', function(e){
+		if(e.key === 'Enter' && !e.shiftKey){
+			e.preventDefault();
+			sendMessage();
+		}
+	});
+
+	loadModels();
+	loadHistory();
+	newChat();
+});
+</script>
+</body>
+</html>

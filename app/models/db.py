@@ -162,6 +162,31 @@ def init_db():
 			)
 			"""
 		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS chat_conversations(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL,
+				title TEXT DEFAULT '',
+				model_service_id INTEGER DEFAULT 0,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				update_at TEXT NOT NULL DEFAULT(datetime('now')),
+				FOREIGN KEY(user_id) REFERENCES users(id)
+			)
+			"""
+		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS chat_messages(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				conversation_id INTEGER NOT NULL,
+				role TEXT NOT NULL,
+				content TEXT NOT NULL,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				FOREIGN KEY(conversation_id) REFERENCES chat_conversations(id)
+			)
+			"""
+		)
 		init_default_data(conn)
 
 def _ensure_columns_exist():
@@ -207,8 +232,20 @@ def init_default_data(conn):
 	cursor = conn.execute("SELECT COUNT(*) FROM roles")
 	if cursor.fetchone()[0] == 0:
 		conn.execute(
-			"INSERT INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
+			"INSERT OR IGNORE INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
 			("超级管理员", "super_admin", "系统最高权限角色")
+		)
+	cursor = conn.execute("SELECT COUNT(*) FROM roles WHERE role_code='super_admin'")
+	if cursor.fetchone()[0] == 0:
+		conn.execute(
+			"INSERT OR IGNORE INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
+			("超级管理员", "super_admin", "系统最高权限角色")
+		)
+	cursor = conn.execute("SELECT COUNT(*) FROM roles WHERE role_code='normal_user'")
+	if cursor.fetchone()[0] == 0:
+		conn.execute(
+			"INSERT OR IGNORE INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
+			("普通用户", "normal_user", "前端普通用户角色")
 		)
 	
 	cursor = conn.execute("SELECT COUNT(*) FROM watch_sources")
