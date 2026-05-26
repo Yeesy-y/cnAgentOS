@@ -230,6 +230,16 @@
                         </dd>
                     </dl>
                 </li>
+                <li class="layui-nav-item {% if active_menu in ['employee'] %}layui-nav-itemed{% end %}">
+                    <a href="javascript:;"><i class="layui-icon layui-icon-star"></i><span>智能服务</span></a>
+                    <dl class="layui-nav-child">
+                        <dd class="{% if active_menu == 'employee' %}layui-this{% end %}">
+                            <a href="/admin/employee/list">
+                                <i class="layui-icon layui-icon-user"></i> 数字员工
+                            </a>
+                        </dd>
+                    </dl>
+                </li>
                 <li class="layui-nav-item {% if active_menu in ['watch_source', 'watch_collect'] %}layui-nav-itemed{% end %}">
                     <a href="javascript:;"><i class="layui-icon layui-icon-eye"></i><span>瞭望管理</span></a>
                     <dl class="layui-nav-child">

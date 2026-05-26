@@ -164,44 +164,25 @@ def init_db():
 		)
 		conn.execute(
 			"""
-			CREATE TABLE IF NOT EXISTS chat_conversations(
+			CREATE TABLE IF NOT EXISTS digital_employees(
 				id integer PRIMARY KEY AUTOINCREMENT,
-				user_id INTEGER NOT NULL,
-				title TEXT DEFAULT '',
-				model_service_id INTEGER DEFAULT 0,
+				employee_name TEXT NOT NULL,
+				employee_code TEXT NOT NULL UNIQUE,
+				at_alias TEXT NOT NULL UNIQUE,
+				category INTEGER NOT NULL DEFAULT 1,
+				service_type TEXT NOT NULL DEFAULT 'LLM',
+				description TEXT DEFAULT '',
+				model_code TEXT DEFAULT '',
+				prompt TEXT DEFAULT '',
+				api_code TEXT DEFAULT '',
+				config_json TEXT DEFAULT '',
+				status INTEGER NOT NULL DEFAULT 1,
 				create_at TEXT NOT NULL DEFAULT(datetime('now')),
-				update_at TEXT NOT NULL DEFAULT(datetime('now')),
-				FOREIGN KEY(user_id) REFERENCES users(id)
+				update_at TEXT NOT NULL DEFAULT(datetime('now'))
 			)
 			"""
 		)
-		conn.execute(
-			"""
-			CREATE TABLE IF NOT EXISTS chat_messages(
-				id integer PRIMARY KEY AUTOINCREMENT,
-				conversation_id INTEGER NOT NULL,
-				role TEXT NOT NULL,
-				content TEXT NOT NULL,
-				create_at TEXT NOT NULL DEFAULT(datetime('now')),
-				FOREIGN KEY(conversation_id) REFERENCES chat_conversations(id)
-			)
-			"""
-		)
-		_ensure_chat_conversation_columns_exist(conn)
 		init_default_data(conn)
-
-def _ensure_chat_conversation_columns_exist(conn):
-	try:
-		cursor = conn.execute("PRAGMA table_info(chat_conversations)")
-		existing_cols = {row[1] for row in cursor.fetchall()}
-		if "is_pinned" not in existing_cols:
-			try:
-				conn.execute("ALTER TABLE chat_conversations ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
-				conn.commit()
-			except Exception:
-				pass
-	except Exception:
-		pass
 
 def _ensure_columns_exist():
 	conn = get_connection()
@@ -246,20 +227,8 @@ def init_default_data(conn):
 	cursor = conn.execute("SELECT COUNT(*) FROM roles")
 	if cursor.fetchone()[0] == 0:
 		conn.execute(
-			"INSERT OR IGNORE INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
+			"INSERT INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
 			("超级管理员", "super_admin", "系统最高权限角色")
-		)
-	cursor = conn.execute("SELECT COUNT(*) FROM roles WHERE role_code='super_admin'")
-	if cursor.fetchone()[0] == 0:
-		conn.execute(
-			"INSERT OR IGNORE INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
-			("超级管理员", "super_admin", "系统最高权限角色")
-		)
-	cursor = conn.execute("SELECT COUNT(*) FROM roles WHERE role_code='normal_user'")
-	if cursor.fetchone()[0] == 0:
-		conn.execute(
-			"INSERT OR IGNORE INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
-			("普通用户", "normal_user", "前端普通用户角色")
 		)
 	
 	cursor = conn.execute("SELECT COUNT(*) FROM watch_sources")
@@ -290,6 +259,31 @@ def init_default_data(conn):
 				("三日天气查询", "query_tian", "https://api.52vmy.cn/api/query/tian?city=北京市", "GET", "JSON", "每2秒最多4次（携带Token可无视限制）", "", "点击前往三日天气API", 1),
 			]
 		)
+
+	def ensure_permission(perm_name: str, perm_code: str, parent_code: str = "", menu_url: str = "", sort_order: int = 0):
+		perm_code = (perm_code or "").strip()
+		if not perm_code:
+			return 0
+		row = conn.execute("SELECT id FROM permissions WHERE perm_code=?", (perm_code,)).fetchone()
+		if row:
+			return row[0]
+		parent_id = 0
+		parent_code = (parent_code or "").strip()
+		if parent_code:
+			parent_row = conn.execute("SELECT id FROM permissions WHERE perm_code=?", (parent_code,)).fetchone()
+			if not parent_row:
+				return 0
+			parent_id = parent_row[0]
+		try:
+			conn.execute(
+				"INSERT OR IGNORE INTO permissions(perm_name, perm_code, parent_id, menu_url, sort_order) VALUES(?,?,?,?,?)",
+				((perm_name or "").strip(), perm_code, int(parent_id), (menu_url or "").strip(), int(sort_order))
+			)
+		except Exception:
+			return 0
+		row = conn.execute("SELECT id FROM permissions WHERE perm_code=?", (perm_code,)).fetchone()
+		return row[0] if row else 0
+
 	cursor = conn.execute("SELECT COUNT(*) FROM permissions")
 	if cursor.fetchone()[0] == 0:
 		permissions = [
@@ -310,6 +304,27 @@ def init_default_data(conn):
 			"INSERT INTO permissions(perm_name, perm_code, parent_id, menu_url, sort_order) VALUES(?,?,?,?,?)",
 			permissions
 		)
+
+	ensure_permission("智能服务", "admin:smart_service", "", "", 10)
+	ensure_permission("数字员工", "admin:employee:list", "admin:smart_service", "/admin/employee/list", 1)
+	ensure_permission("新增数字员工", "admin:employee:add", "admin:employee:list", "", 1)
+	ensure_permission("编辑数字员工", "admin:employee:edit", "admin:employee:list", "", 2)
+	ensure_permission("删除数字员工", "admin:employee:delete", "admin:employee:list", "", 3)
+
+	default_employees = [
+		("川小农", "chuan_xiao_nong", "川小农", 1, "LLM", "默认模型 + Prompt 的对话型数字员工", "", "你是数字员工“川小农”，以中文简洁、专业地回答用户问题。优先给出结论与可执行建议。", "", json.dumps({"use_default_model": True}, ensure_ascii=False), 1),
+		("天气", "weather", "天气", 0, "API", "通过接口管理中的天气API返回天气数据；用户输入为城市名称", "", "", "query_tian", json.dumps({"city_param": "city"}, ensure_ascii=False), 1),
+		("音乐", "music", "音乐", 0, "API", "通过接口管理中的随机音乐API返回音乐卡片/数据", "", "", "music_wy_rand", json.dumps({}, ensure_ascii=False), 1),
+	]
+	for employee_name, employee_code, at_alias, category, service_type, description, model_code, prompt, api_code, config_json, status in default_employees:
+		conn.execute(
+			"""
+			INSERT OR IGNORE INTO digital_employees(employee_name, employee_code, at_alias, category, service_type, description, model_code, prompt, api_code, config_json, status)
+			VALUES(?,?,?,?,?,?,?,?,?,?,?)
+			""",
+			(employee_name, employee_code, at_alias, int(category), service_type, description, model_code, prompt, api_code, config_json, int(status))
+		)
+
 	cursor = conn.execute("SELECT id FROM roles WHERE role_code='super_admin'")
 	row = cursor.fetchone()
 	if row:

@@ -1,0 +1,169 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+	<div class="layui-card">
+		<div class="layui-card-header" style="font-size:18px; font-weight:600;">
+			{% if mode == "add" %}新增数字员工{% else %}编辑数字员工{% end %}
+		</div>
+		<div class="layui-card-body">
+			{% if error %}
+			<div class="layui-bg-red" style="padding:10px 12px; border-radius:10px; color:#fff; margin-bottom:16px;">
+				{{ error }}
+			</div>
+			{% end %}
+
+			<form class="layui-form" action="{% if mode == 'add' %}/admin/employee/add{% else %}/admin/employee/edit{% end %}" method="post">
+				{% if mode == "edit" %}
+				<input type="hidden" name="id" value="{{ employee['id'] }}">
+				{% end %}
+				{% module xsrf_form_html() %}
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">员工名称</label>
+					<div class="layui-input-inline">
+						<input type="text" name="employee_name" value="{% if employee %}{{ employee.get('employee_name','') }}{% end %}" placeholder="例如：川小农" class="layui-input" required lay-verify="required">
+					</div>
+					<div class="layui-form-mid layui-word-aux">显示名称</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">员工编码</label>
+					<div class="layui-input-inline">
+						<input type="text" name="employee_code" value="{% if employee %}{{ employee.get('employee_code','') }}{% end %}" placeholder="例如：chuan_xiao_nong" class="layui-input" required lay-verify="required">
+					</div>
+					<div class="layui-form-mid layui-word-aux">稳定标识，建议英文下划线；用于后台引用，不建议频繁修改</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">@别名</label>
+					<div class="layui-input-inline">
+						<input type="text" name="at_alias" value="{% if employee %}{{ employee.get('at_alias','') }}{% end %}" placeholder="例如：川小农（不包含@）" class="layui-input" required lay-verify="required">
+					</div>
+					<div class="layui-form-mid layui-word-aux">用户侧通过 @别名 调用；后台修改后用户侧需同步使用新别名</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">分类</label>
+					<div class="layui-input-inline">
+						{% set cat = (employee.get('category') if employee else 1) %}
+						<select name="category" lay-verify="required">
+							<option value="1" {% if cat == 1 %}selected{% end %}>AI</option>
+							<option value="0" {% if cat == 0 %}selected{% end %}>普通</option>
+						</select>
+					</div>
+					<div class="layui-form-mid layui-word-aux">AI：通常为模型对话；普通：通常为API服务/规则服务</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">服务类型</label>
+					<div class="layui-input-inline">
+						{% set st = (employee.get('service_type') if employee else 'LLM') %}
+						<select name="service_type" lay-filter="service_type" lay-verify="required">
+							<option value="LLM" {% if st == 'LLM' %}selected{% end %}>模型对话</option>
+							<option value="API" {% if st == 'API' %}selected{% end %}>API服务</option>
+						</select>
+					</div>
+					<div class="layui-form-mid layui-word-aux">模型对话：默认模型 + Prompt；API服务：调用接口管理中的 API</div>
+				</div>
+
+				<div id="llmSection">
+					<div class="layui-form-item">
+						<label class="layui-form-label">模型选择</label>
+						<div class="layui-input-inline">
+							<select name="model_code">
+								<option value="" {% if not employee or not employee.get('model_code') %}selected{% end %}>默认模型</option>
+								{% for m in models %}
+								<option value="{{ m.get('model_code') }}" {% if employee and employee.get('model_code') == m.get('model_code') %}selected{% end %}>{{ m.get('model_name') }} ({{ m.get('model_code') }})</option>
+								{% end %}
+							</select>
+						</div>
+						<div class="layui-form-mid layui-word-aux">为空表示使用模型引擎中的默认模型</div>
+					</div>
+
+					<div class="layui-form-item">
+						<label class="layui-form-label">提示词</label>
+						<div class="layui-input-block">
+							<textarea name="prompt" placeholder="用于约束模型行为的 Prompt（必填）" class="layui-textarea" rows="6" {% if st == 'LLM' %}required lay-verify="required"{% end %}>{% if employee %}{{ employee.get('prompt','') }}{% end %}</textarea>
+						</div>
+					</div>
+				</div>
+
+				<div id="apiSection">
+					<div class="layui-form-item">
+						<label class="layui-form-label">API编码</label>
+						<div class="layui-input-inline">
+							<select name="api_code">
+								<option value="" {% if not employee or not employee.get('api_code') %}selected{% end %}>请选择</option>
+								{% for a in apis %}
+								<option value="{{ a.get('api_code') }}" {% if employee and employee.get('api_code') == a.get('api_code') %}selected{% end %}>{{ a.get('api_name') }} ({{ a.get('api_code') }})</option>
+								{% end %}
+							</select>
+						</div>
+						<div class="layui-form-mid layui-word-aux">用于调用接口管理中已配置的 API</div>
+					</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">说明</label>
+					<div class="layui-input-block">
+						<textarea name="description" placeholder="例如：输入城市名称，返回三日天气；或：农业种植咨询助手" class="layui-textarea" rows="2">{% if employee %}{{ employee.get('description','') }}{% end %}</textarea>
+					</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">配置JSON</label>
+					<div class="layui-input-block">
+						<textarea name="config_json" placeholder='可选：扩展配置(JSON对象)。例如：{"city_param":"city"}' class="layui-textarea" rows="6">{{ config_json_pretty or '' }}</textarea>
+						<div class="layui-form-mid layui-word-aux">用于兼容不同员工的扩展参数；为空表示使用默认行为</div>
+					</div>
+				</div>
+
+				{% if mode == "edit" %}
+				<div class="layui-form-item">
+					<label class="layui-form-label">状态</label>
+					<div class="layui-input-inline">
+						<input type="radio" name="status" value="1" title="启用" {% if employee.get('status',1) == 1 %}checked{% end %}>
+						<input type="radio" name="status" value="0" title="禁用" {% if employee.get('status',1) == 0 %}checked{% end %}>
+					</div>
+				</div>
+				{% end %}
+
+				<div class="layui-form-item">
+					<div class="layui-input-block">
+						<button type="submit" class="layui-btn">保存</button>
+						<button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/admin/employee/list'">返回</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['form'], function(){
+	var form = layui.form;
+
+	function toggleSections(){
+		var st = (document.querySelector('select[name="service_type"]').value || 'LLM').toUpperCase();
+		var llm = document.getElementById('llmSection');
+		var api = document.getElementById('apiSection');
+		if(st === 'API'){
+			llm.style.display = 'none';
+			api.style.display = 'block';
+		} else {
+			llm.style.display = 'block';
+			api.style.display = 'none';
+		}
+	}
+
+	form.on('select(service_type)', function(){
+		toggleSections();
+	});
+
+	form.render();
+	toggleSections();
+});
+</script>
+{% end %}

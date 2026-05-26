@@ -14,6 +14,7 @@ from app.controllers.admin_user import AdminUserListHandler,AdminUserAddHandler,
 from app.controllers.admin_rbac import AdminPermissionListHandler,AdminPermissionAddHandler,AdminPermissionEditHandler
 from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,AdminRoleEditHandler
 from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandler,AdminModelEditHandler,AdminModelTestHandler
+from app.controllers.admin_employee import AdminEmployeeListHandler,AdminEmployeeAddHandler,AdminEmployeeEditHandler
 from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSourceAddHandler,AdminWatchSourceEditHandler
 from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler
 from app.controllers.admin_api import AdminApiListHandler,AdminApiAddHandler,AdminApiEditHandler,AdminApiTestHandler
@@ -107,6 +108,10 @@ def make_app():
 		(r"/admin/model/add",AdminModelAddHandler),
 		(r"/admin/model/edit",AdminModelEditHandler),
 		(r"/admin/model/test",AdminModelTestHandler),
+		# 智能服务路由
+		(r"/admin/employee/list",AdminEmployeeListHandler),
+		(r"/admin/employee/add",AdminEmployeeAddHandler),
+		(r"/admin/employee/edit",AdminEmployeeEditHandler),
 		# 瞭望管理路由
 		(r"/admin/watch/source/list",AdminWatchSourceListHandler),
 		(r"/admin/watch/source/add",AdminWatchSourceAddHandler),
