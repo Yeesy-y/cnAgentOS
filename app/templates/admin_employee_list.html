@@ -1,0 +1,211 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<style>
+.employee-table-wrap {
+	overflow-x: auto;
+}
+.employee-table {
+	table-layout: fixed;
+}
+.employee-table th,
+.employee-table td {
+	padding: 10px 12px !important;
+}
+.employee-table th {
+	white-space: nowrap;
+}
+.employee-table td {
+	vertical-align: top;
+}
+.employee-table .col-id { width: 54px; }
+.employee-table .col-name { width: 140px; }
+.employee-table .col-code { width: 160px; }
+.employee-table .col-alias { width: 130px; }
+.employee-table .col-cat { width: 78px; }
+.employee-table .col-type { width: 104px; }
+.employee-table .col-assoc { width: 520px; }
+.employee-table .col-status { width: 74px; }
+.employee-table .col-actions { width: 160px; }
+
+.assoc-col {
+	white-space: normal;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+.assoc-main {
+	line-height: 20px;
+}
+.assoc-desc {
+	margin-top: 6px;
+	color: #777;
+	line-height: 18px;
+	white-space: normal;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.employee-actions {
+	white-space: nowrap;
+}
+.employee-actions .layui-btn {
+	margin-right: 6px;
+	margin-bottom: 4px;
+}
+.employee-actions form {
+	display: inline;
+}
+
+@media (max-width: 1200px) {
+	.employee-table .col-assoc { width: 360px; }
+	.employee-table .col-actions { width: 150px; }
+	.employee-table .col-code { width: 140px; }
+	.employee-table .col-name { width: 130px; }
+}
+
+@media (max-width: 992px) {
+	.employee-table .col-assoc { width: 320px; }
+	.employee-table th.col-code,
+	.employee-table td.col-code {
+		display: none;
+	}
+}
+
+@media (max-width: 768px) {
+	.employee-table th.col-alias,
+	.employee-table td.col-alias {
+		display: none;
+	}
+	.employee-table .col-assoc { width: 260px; }
+	.employee-table .col-actions { width: 140px; }
+}
+</style>
+<div style="padding: 20px;">
+	<div class="layui-card">
+		<div class="layui-card-header" style="font-size:18px; font-weight:600;">
+			数字员工
+		</div>
+		<div class="layui-card-body">
+			<div class="layui-form" style="margin-bottom:20px;">
+				<div class="layui-inline">
+					<a href="/admin/employee/add" class="layui-btn layui-btn-normal">
+						<i class="layui-icon layui-icon-add-1"></i> 新增数字员工
+					</a>
+				</div>
+				<div class="layui-inline" style="margin-left:12px;">
+					<form action="/admin/employee/list" method="get" class="layui-form" style="display:inline;">
+						<div class="layui-inline">
+							<input type="text" name="keyword" value="{{ keyword or '' }}" placeholder="名称/编码/@别名 关键词" class="layui-input" style="width:260px; max-width:60vw;">
+						</div>
+						<div class="layui-inline">
+							<button type="submit" class="layui-btn layui-btn-primary">
+								<i class="layui-icon layui-icon-search"></i> 搜索
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<div class="employee-table-wrap">
+				<table class="layui-table employee-table" lay-skin="line">
+					<thead>
+						<tr>
+							<th class="col-id">ID</th>
+							<th class="col-name">员工名称</th>
+							<th class="col-code">员工编码</th>
+							<th class="col-alias">@别名</th>
+							<th class="col-cat">分类</th>
+							<th class="col-type">服务类型</th>
+							<th class="col-assoc">关联配置</th>
+							<th class="col-status">状态</th>
+							<th class="col-actions">操作</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for e in employees %}
+						<tr>
+							<td class="col-id">{{ e['id'] }}</td>
+							<td class="col-name">{{ e.get('employee_name') or '' }}</td>
+							<td class="col-code"><code>{{ e.get('employee_code') or '' }}</code></td>
+							<td class="col-alias"><span class="layui-badge layui-bg-gray">@{{ e.get('at_alias') or '' }}</span></td>
+						<td>
+							{% if e.get('category') == 1 %}
+							<span class="layui-badge" style="background:linear-gradient(135deg,#5f5f5f,#8a8a8a);">AI</span>
+							{% else %}
+							<span class="layui-badge layui-bg-gray">普通</span>
+							{% end %}
+						</td>
+						<td>
+							{% set st = (e.get('service_type') or 'LLM') %}
+							{% if st == 'LLM' %}
+							<span class="layui-badge" style="background:linear-gradient(135deg,#bdbbbf,#a2a1a4); color:#5f5f5f;">模型对话</span>
+							{% else %}
+							<span class="layui-badge layui-bg-gray">API服务</span>
+							{% end %}
+						</td>
+						<td class="assoc-col" title="{% if st == 'LLM' %}模型：{% if e.get('model_code') %}{{ e.get('model_code') }}{% else %}默认模型{% end %}{% else %}API：{% if e.get('api_code') %}{{ e.get('api_code') }}{% else %}未配置{% end %}{% end %}{% if e.get('description') %} | {{ e.get('description') }}{% end %}">
+							<div class="assoc-main">
+								{% if st == 'LLM' %}
+									{% if e.get('model_code') %}
+									<span>模型：</span><code>{{ e.get('model_code') }}</code>
+									{% else %}
+									<span>模型：</span><span style="color:#999;">默认模型</span>
+									{% end %}
+								{% else %}
+									{% if e.get('api_code') %}
+									<span>API：</span><code>{{ e.get('api_code') }}</code>
+									{% else %}
+									<span>API：</span><span style="color:#999;">未配置</span>
+									{% end %}
+								{% end %}
+							</div>
+							{% if e.get('description') %}
+							<div class="assoc-desc" title="{{ e.get('description') }}">{{ e.get('description') }}</div>
+							{% end %}
+						</td>
+						<td>
+							{% if e.get('status', 1) == 1 %}
+							<span class="layui-badge" style="background:linear-gradient(135deg,#5f5f5f,#8a8a8a);">启用</span>
+							{% else %}
+							<span class="layui-badge layui-bg-gray">禁用</span>
+							{% end %}
+						</td>
+						<td class="employee-actions">
+							<a href="/admin/employee/edit?id={{ e['id'] }}" class="layui-btn layui-btn-xs layui-btn-warm">
+								<i class="layui-icon layui-icon-edit"></i> 编辑
+							</a>
+							<form action="/admin/employee/list" method="post">
+								{% module xsrf_form_html() %}
+								<input type="hidden" name="action" value="delete">
+								<input type="hidden" name="employee_id" value="{{ e['id'] }}">
+								<button type="submit" class="layui-btn layui-btn-xs layui-btn-danger" onclick="return confirm('确认删除该数字员工吗？')">
+									<i class="layui-icon layui-icon-delete"></i> 删除
+								</button>
+							</form>
+						</td>
+						</tr>
+						{% end %}
+					</tbody>
+				</table>
+			</div>
+
+			{% if total > page_size %}
+			<div class="layui-box layui-laypage layui-laypage-default" style="margin-top:20px;">
+				{% set total_pages = (total + page_size - 1) // page_size %}
+				{% if page > 1 %}
+				<a href="?page={{ page - 1 }}&keyword={{ keyword }}" class="layui-laypage-prev">上一页</a>
+				{% end %}
+				{% for p in range(1, total_pages + 1) %}
+				<a href="?page={{ p }}&keyword={{ keyword }}" class="layui-laypage-num {% if p == page %}layui-laypage-curr{% end %}">{{ p }}</a>
+				{% end %}
+				{% if page < total_pages %}
+				<a href="?page={{ page + 1 }}&keyword={{ keyword }}" class="layui-laypage-next">下一页</a>
+				{% end %}
+			</div>
+			{% end %}
+		</div>
+	</div>
+</div>
+{% end %}

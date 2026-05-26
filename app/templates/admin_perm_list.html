@@ -50,6 +50,8 @@
                                 <i class="layui-icon layui-icon-app"></i>
                                 {% elif '模型' in p['perm_name'] %}
                                 <i class="layui-icon layui-icon-engine"></i>
+                                {% elif '智能' in p['perm_name'] or '服务' in p['perm_name'] %}
+                                <i class="layui-icon layui-icon-star"></i>
                                 {% elif '数据' in p['perm_name'] %}
                                 <i class="layui-icon layui-icon-table"></i>
                                 {% else %}
