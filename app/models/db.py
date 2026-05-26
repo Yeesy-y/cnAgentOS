@@ -182,7 +182,47 @@ def init_db():
 			)
 			"""
 		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS chat_conversations(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL,
+				title TEXT DEFAULT '',
+				model_service_id INTEGER DEFAULT 0,
+				is_pinned INTEGER NOT NULL DEFAULT 0,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				update_at TEXT NOT NULL DEFAULT(datetime('now')),
+				FOREIGN KEY(user_id) REFERENCES users(id)
+			)
+			"""
+		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS chat_messages(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				conversation_id INTEGER NOT NULL,
+				role TEXT NOT NULL,
+				content TEXT NOT NULL,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				FOREIGN KEY(conversation_id) REFERENCES chat_conversations(id)
+			)
+			"""
+		)
+		_ensure_chat_conversation_columns_exist(conn)
 		init_default_data(conn)
+
+def _ensure_chat_conversation_columns_exist(conn):
+	try:
+		cursor = conn.execute("PRAGMA table_info(chat_conversations)")
+		existing_cols = {row[1] for row in cursor.fetchall()}
+		if "is_pinned" not in existing_cols:
+			try:
+				conn.execute("ALTER TABLE chat_conversations ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
+				conn.commit()
+			except Exception:
+				pass
+	except Exception:
+		pass
 
 def _ensure_columns_exist():
 	conn = get_connection()
@@ -230,6 +270,15 @@ def init_default_data(conn):
 			"INSERT INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
 			("超级管理员", "super_admin", "系统最高权限角色")
 		)
+
+	conn.execute(
+		"INSERT OR IGNORE INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
+		("超级管理员", "super_admin", "系统最高权限角色")
+	)
+	conn.execute(
+		"INSERT OR IGNORE INTO roles(role_name, role_code, description) VALUES(?, ?, ?)",
+		("普通用户", "normal_user", "前端普通用户角色")
+	)
 	
 	cursor = conn.execute("SELECT COUNT(*) FROM watch_sources")
 	if cursor.fetchone()[0] == 0:

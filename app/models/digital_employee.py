@@ -62,6 +62,15 @@ class DigitalEmployeeRepository:
 		return dict(row) if row else None
 
 	@staticmethod
+	def get_by_alias(at_alias: str):
+		at_alias = (at_alias or "").strip()
+		if not at_alias:
+			return None
+		with get_connection() as conn:
+			row = conn.execute("SELECT * FROM digital_employees WHERE at_alias=?", (at_alias,)).fetchone()
+		return dict(row) if row else None
+
+	@staticmethod
 	def list_employees(page: int = 1, page_size: int = 20, keyword: str = "") -> dict:
 		page = max(1, int(page or 1))
 		page_size = max(1, int(page_size or 20))

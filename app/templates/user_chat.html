@@ -45,6 +45,28 @@
 		.small-tip{margin-top:8px;color:rgba(95,95,95,0.65);font-size:12px;}
 		pre code{display:block;overflow:auto;background:rgba(95,95,95,0.06);padding:10px;border-radius:12px;}
 		code{background:rgba(95,95,95,0.06);padding:2px 6px;border-radius:8px;}
+		.api-card{background:rgba(255,255,255,0.82);border:1px solid rgba(95,95,95,0.10);border-radius:16px;padding:12px 14px;}
+		.api-card-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
+		.api-card-title .name{font-weight:800;color:#5f5f5f;}
+		.api-card-title .meta{font-size:12px;color:rgba(95,95,95,0.75);}
+		.weather-main{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+		.weather-temp{font-size:36px;font-weight:900;color:#5f5f5f;line-height:1;}
+		.weather-desc{margin-top:6px;color:rgba(95,95,95,0.85);font-weight:700;}
+		.weather-kv{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+		.weather-tag{background:rgba(95,95,95,0.06);border:1px solid rgba(95,95,95,0.08);border-radius:12px;padding:6px 10px;font-size:12px;color:#5f5f5f;}
+		.forecast{margin-top:10px;border-top:1px dashed rgba(95,95,95,0.16);padding-top:10px;display:flex;flex-direction:column;gap:8px;}
+		.forecast-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:rgba(95,95,95,0.9);}
+		.music-wrap{display:flex;gap:12px;align-items:center;}
+		.music-cover{width:56px;height:56px;border-radius:14px;object-fit:cover;border:1px solid rgba(95,95,95,0.12);}
+		.music-meta{min-width:0;flex:1;}
+		.music-name{font-weight:900;color:#5f5f5f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+		.music-singer{font-size:12px;color:rgba(95,95,95,0.75);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+		.music-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+		.music-btn{height:32px;padding:0 12px;border-radius:12px;border:none;background:linear-gradient(135deg,#5f5f5f 0%,#8a8a8a 100%);color:#efe4e9;font-weight:800;cursor:pointer;}
+		.music-btn.secondary{background:rgba(95,95,95,0.08);color:#5f5f5f;border:1px solid rgba(95,95,95,0.12);}
+		.json-details{margin-top:10px;}
+		.json-details summary{cursor:pointer;color:rgba(95,95,95,0.8);font-size:12px;}
+		.json-details pre{margin-top:8px;}
 	</style>
 </head>
 <body>
@@ -107,7 +129,7 @@ layui.use(['layer', 'jquery', 'dropdown'], function(){
 
 	function renderMarkdown(md){
 		var text = String(md || '');
-		text = text.replace(/```([\s\S]*?)```/g, function(_, code){
+		text = text.replace(/```([a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, function(_, lang, code){
 			return '<pre><code>' + escapeHtml(code) + '</code></pre>';
 		});
 		text = text.replace(/`([^`]+)`/g, function(_, code){
@@ -121,6 +143,128 @@ layui.use(['layer', 'jquery', 'dropdown'], function(){
 		return text;
 	}
 
+	function extractJsonFromText(text){
+		var raw = String(text || '').trim();
+		if(!raw){
+			return null;
+		}
+		var m = raw.match(/```(?:json)?\n([\s\S]*?)```/i);
+		if(m && m[1]){
+			raw = String(m[1] || '').trim();
+		}
+		if(!raw){
+			return null;
+		}
+		try{
+			return JSON.parse(raw);
+		}catch(e){
+			return null;
+		}
+	}
+
+	function safeUrl(u){
+		return String(u || '').trim().replace(/\s+/g, '');
+	}
+
+	function renderWeatherCard(d){
+		if(!d || !d.city || (!d.weather && !d.temp)){
+			return '';
+		}
+		var city = String(d.city || '');
+		var time = String(d.time || '');
+		var temp = d.temp !== undefined ? String(d.temp) : '';
+		var tempn = d.tempn !== undefined ? String(d.tempn) : '';
+		var weather = String(d.weather || '');
+		var wind = String(d.wind || '');
+		var windSpeed = String(d.windSpeed || '');
+		var humidity = d.current && d.current.humidity ? String(d.current.humidity) : '';
+		var pressure = d.current && d.current.pressure ? String(d.current.pressure) : '';
+		var visibility = d.current && d.current.visibility ? String(d.current.visibility) : '';
+
+		var forecast = d.forecast || d.future || d.days || null;
+		var forecastRows = '';
+		if(Array.isArray(forecast) && forecast.length){
+			forecast.slice(0, 3).forEach(function(it){
+				var day = it.date || it.day || it.time || it.week || '';
+				var w = it.weather || it.wea || it.type || '';
+				var t = it.temp || it.temperature || '';
+				forecastRows += '<div class="forecast-row"><div>' + escapeHtml(String(day || '')) + '</div><div>' + escapeHtml(String(w || '')) + '</div><div>' + escapeHtml(String(t || '')) + '</div></div>';
+			});
+		}
+
+		var kv = '';
+		if(wind){ kv += '<span class="weather-tag">风向：' + escapeHtml(wind) + '</span>'; }
+		if(windSpeed){ kv += '<span class="weather-tag">风速：' + escapeHtml(windSpeed) + '</span>'; }
+		if(humidity){ kv += '<span class="weather-tag">湿度：' + escapeHtml(humidity) + '</span>'; }
+		if(pressure){ kv += '<span class="weather-tag">气压：' + escapeHtml(pressure) + '</span>'; }
+		if(visibility){ kv += '<span class="weather-tag">能见度：' + escapeHtml(visibility) + '</span>'; }
+
+		return '' +
+			'<div class="api-card weather-card">' +
+				'<div class="api-card-title">' +
+					'<div class="name">天气卡片</div>' +
+					'<div class="meta">' + escapeHtml(city) + (time ? ' · ' + escapeHtml(time) : '') + '</div>' +
+				'</div>' +
+				'<div class="weather-main">' +
+					'<div>' +
+						'<div class="weather-temp">' + escapeHtml(temp) + '°</div>' +
+						'<div class="weather-desc">' + escapeHtml(weather || '') + (tempn ? '（体感 ' + escapeHtml(tempn) + '°）' : '') + '</div>' +
+					'</div>' +
+				'</div>' +
+				'<div class="weather-kv">' + kv + '</div>' +
+				(forecastRows ? '<div class="forecast">' + forecastRows + '</div>' : '') +
+			'</div>';
+	}
+
+	function renderMusicCard(d){
+		if(!d || (!d.song && !d.singer && !d.Music && !d.cover)){
+			return '';
+		}
+		var song = String(d.song || '');
+		var singer = String(d.singer || '');
+		var cover = safeUrl(d.cover || '');
+		var audioUrl = safeUrl(d.Music || d.music || '');
+		if(!audioUrl){
+			return '';
+		}
+		var coverHtml = cover ? '<img class="music-cover" src="' + escapeHtml(cover) + '" alt="cover">' : '<div class="music-cover" style="display:flex;align-items:center;justify-content:center;background:rgba(95,95,95,0.06);"><i class="fas fa-music"></i></div>';
+		return '' +
+			'<div class="api-card music-card" data-audio="' + escapeHtml(audioUrl) + '">' +
+				'<div class="api-card-title">' +
+					'<div class="name">音乐播放器</div>' +
+					'<div class="meta">随机推荐</div>' +
+				'</div>' +
+				'<div class="music-wrap">' +
+					coverHtml +
+					'<div class="music-meta">' +
+						'<div class="music-name">' + escapeHtml(song || '未知歌曲') + '</div>' +
+						'<div class="music-singer">' + escapeHtml(singer || '') + '</div>' +
+					'</div>' +
+					'<div class="music-actions">' +
+						'<button type="button" class="music-btn music-play">播放</button>' +
+						'<button type="button" class="music-btn secondary music-open">打开</button>' +
+					'</div>' +
+				'</div>' +
+				'<audio preload="none" src="' + escapeHtml(audioUrl) + '"></audio>' +
+			'</div>';
+	}
+
+	function renderAssistantContent(content){
+		var obj = extractJsonFromText(content);
+		if(obj){
+			var payload = obj;
+			if(obj && obj.data && typeof obj.data === 'object'){
+				payload = obj.data;
+			}
+			var card = '';
+			card = renderWeatherCard(payload) || renderMusicCard(payload);
+			if(card){
+				return card;
+			}
+		}
+		return renderMarkdown(content);
+	}
+
 	function addMessage(role, content){
 		var isUser = role === 'user';
 		var $msg = $('<div class="msg"></div>');
@@ -129,7 +273,7 @@ layui.use(['layer', 'jquery', 'dropdown'], function(){
 		$avatar.html(isUser ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>');
 		var $bubble = $('<div class="bubble"></div>');
 		$bubble.addClass(isUser ? 'user' : 'ai');
-		$bubble.html(isUser ? escapeHtml(content) : renderMarkdown(content));
+		$bubble.html(isUser ? escapeHtml(content) : renderAssistantContent(content));
 		$msg.append($avatar).append($bubble);
 		$('#chatArea').append($msg);
 		$('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
@@ -387,13 +531,14 @@ layui.use(['layer', 'jquery', 'dropdown'], function(){
 						return;
 					}
 					if(ev.data === '[DONE]'){
+						currentAssistantEl.html(renderAssistantContent(fullText));
 						stopStream();
 						setSendDisabled(false);
 						loadHistory();
 						return;
 					}
 					fullText += ev.data;
-					currentAssistantEl.html(renderMarkdown(fullText));
+					currentAssistantEl.html(renderAssistantContent(fullText));
 					$('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 				};
 				activeEventSource.onerror = function(){
@@ -435,6 +580,42 @@ layui.use(['layer', 'jquery', 'dropdown'], function(){
 
 	$('#sendBtn').on('click', function(){
 		sendMessage();
+	});
+
+	$(document).on('click', '.music-open', function(){
+		var $card = $(this).closest('.music-card');
+		var url = $card.attr('data-audio') || '';
+		if(url){
+			window.open(url, '_blank');
+		}
+	});
+
+	$(document).on('click', '.music-play', function(){
+		var $btn = $(this);
+		var $card = $btn.closest('.music-card');
+		var audio = $card.find('audio')[0];
+		if(!audio){
+			return;
+		}
+		$('audio').each(function(){
+			if(this !== audio){
+				try{ this.pause(); }catch(e){}
+			}
+		});
+		if(audio.paused){
+			audio.play().then(function(){
+				$('.music-play').text('播放');
+				$btn.text('暂停');
+			}).catch(function(){
+				layer.msg('播放失败', {icon:2});
+			});
+		} else {
+			audio.pause();
+			$btn.text('播放');
+		}
+		audio.onended = function(){
+			$btn.text('播放');
+		};
 	});
 
 	$('#chatInput').on('keydown', function(e){

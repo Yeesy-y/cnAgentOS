@@ -4,6 +4,8 @@ import sqlite3
 import time
 import requests
 from app.models.db import get_connection
+from app.models.digital_employee import DigitalEmployeeRepository
+from app.models.api_service import ApiEndpointRepository
 from app.models.model_service import ModelServiceRepository
 
 _STREAM_TASKS = {}
@@ -153,15 +155,19 @@ class ChatRepository:
 
 class ChatRuntime:
 	@staticmethod
-	def create_stream_task(user_id: int, conversation_id: int, message: str, model_service_id: int = 0) -> dict:
+	def create_stream_task(user_id: int, conversation_id: int, message: str, model_service_id: int = 0, extra: dict = None) -> dict:
 		token = secrets.token_urlsafe(16)
-		_STREAM_TASKS[token] = {
+		task = {
 			"user_id": int(user_id),
 			"conversation_id": int(conversation_id),
 			"message": message,
 			"model_service_id": int(model_service_id or 0),
 			"create_ts": time.time(),
 		}
+		if extra and isinstance(extra, dict):
+			for k, v in extra.items():
+				task[k] = v
+		_STREAM_TASKS[token] = task
 		return {"token": token}
 
 	@staticmethod
@@ -257,6 +263,34 @@ class LlmRuntime:
 				continue
 		return full_text
 
+	@staticmethod
+	def stream_answer_with_system(model: dict, system_prompt: str, user_message: str):
+		messages = [
+			{"role": "system", "content": system_prompt or ""},
+			{"role": "user", "content": user_message or ""},
+		]
+		resp = LlmRuntime._chat_once(model, messages, stream=True)
+		resp.raise_for_status()
+		full_text = ""
+		for raw in resp.iter_lines(decode_unicode=True):
+			if not raw:
+				continue
+			line = raw.strip()
+			if not line.startswith("data:"):
+				continue
+			payload = line[5:].strip()
+			if payload == "[DONE]":
+				break
+			try:
+				obj = json.loads(payload)
+				delta = obj["choices"][0]["delta"].get("content")
+				if delta:
+					full_text += delta
+					yield delta
+			except Exception:
+				continue
+		return full_text
+
 class ChatOrchestrator:
 	@staticmethod
 	def generate_stream(model: dict, message: str):
@@ -267,4 +301,78 @@ class ChatOrchestrator:
 				yield chunk
 			return
 		for chunk in LlmRuntime.stream_answer(model, message, tool_result=None):
+			yield chunk
+
+class EmployeeOrchestrator:
+	@staticmethod
+	def _safe_json(value):
+		try:
+			return json.dumps(value, ensure_ascii=False, indent=2)
+		except Exception:
+			try:
+				return json.dumps(value, ensure_ascii=False)
+			except Exception:
+				return str(value)
+
+	@staticmethod
+	def _api_to_markdown(result: dict) -> str:
+		if not isinstance(result, dict):
+			return "```json\n" + EmployeeOrchestrator._safe_json(result) + "\n```"
+		if result.get("success") is True:
+			data = result.get("data")
+			return "```json\n" + EmployeeOrchestrator._safe_json(data) + "\n```"
+		return "```json\n" + EmployeeOrchestrator._safe_json(result) + "\n```"
+
+	@staticmethod
+	def generate_employee_stream(employee: dict, user_text: str, fallback_model_service_id: int = 0):
+		if not employee:
+			yield "未找到数字员工"
+			return
+		if int(employee.get("status") or 0) != 1:
+			yield "该数字员工已禁用"
+			return
+
+		service_type = (employee.get("service_type") or "LLM").strip().upper()
+		config = {}
+		cfg_text = (employee.get("config_json") or "").strip()
+		if cfg_text:
+			try:
+				obj = json.loads(cfg_text)
+				if isinstance(obj, dict):
+					config = obj
+			except Exception:
+				config = {}
+
+		if service_type == "API":
+			api_code = (employee.get("api_code") or "").strip()
+			if not api_code:
+				yield "该数字员工未配置API接口"
+				return
+			params = {}
+			city_param = (config.get("city_param") or "").strip()
+			if city_param and user_text:
+				params[city_param] = user_text.strip()
+			result = ApiEndpointRepository.call_api(api_code, params=params, timeout=30)
+			yield EmployeeOrchestrator._api_to_markdown(result)
+			return
+
+		prompt = (employee.get("prompt") or "").strip()
+		use_default_model = bool(config.get("use_default_model"))
+		model = None
+		if use_default_model:
+			model = ModelServiceRepository.get_default_model()
+		model_code = (employee.get("model_code") or "").strip()
+		if not model and model_code:
+			model = ModelServiceRepository.get_model_by_code(model_code)
+		if not model and fallback_model_service_id:
+			model = ModelServiceRepository.get_model_by_id(int(fallback_model_service_id))
+		if not model:
+			model = ModelServiceRepository.get_default_model()
+		if not model:
+			yield "未配置默认模型，请先到管理后台【模型引擎】添加并设为默认"
+			return
+
+		if not user_text:
+			user_text = "你好"
+		for chunk in LlmRuntime.stream_answer_with_system(model, prompt, user_text):
 			yield chunk

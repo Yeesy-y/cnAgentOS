@@ -1,7 +1,9 @@
 import json
+import re
 import tornado.web
 from app.controllers.user_base import UserBaseHandler
-from app.models.chat_service import ChatRepository, ChatRuntime, ModelRuntime, ChatOrchestrator
+from app.models.chat_service import ChatRepository, ChatRuntime, ModelRuntime, ChatOrchestrator, EmployeeOrchestrator
+from app.models.digital_employee import DigitalEmployeeRepository
 
 class UserModelsHandler(UserBaseHandler):
 	def get(self):
@@ -75,6 +77,24 @@ class UserSendHandler(UserBaseHandler):
 			self.write(json.dumps({"success": False, "message": "消息不能为空"}))
 			return
 
+		is_employee = False
+		employee_id = 0
+		employee_text = ""
+		if message.startswith("@"):
+			m = re.match(r"^@([^\s:：]+)(?:[:：\s]+(.*))?$", message)
+			if m:
+				alias = (m.group(1) or "").strip()
+				employee_text = (m.group(2) or "").strip()
+				employee = DigitalEmployeeRepository.get_by_alias(alias)
+				if not employee:
+					self.write(json.dumps({"success": False, "message": "未找到数字员工：@" + alias}, ensure_ascii=False))
+					return
+				if int(employee.get("status") or 0) != 1:
+					self.write(json.dumps({"success": False, "message": "该数字员工已禁用：@" + alias}, ensure_ascii=False))
+					return
+				is_employee = True
+				employee_id = int(employee.get("id") or 0)
+
 		if conversation_id:
 			conv = ChatRepository.get_conversation(conversation_id)
 			if not conv or int(conv.get("user_id") or 0) != user_id:
@@ -88,7 +108,11 @@ class UserSendHandler(UserBaseHandler):
 			ChatRepository.set_conversation_model(conversation_id, model_service_id)
 
 		ChatRepository.create_message(conversation_id, "user", message)
-		task = ChatRuntime.create_stream_task(user_id, conversation_id, message, model_service_id)
+		extra = {}
+		if is_employee and employee_id:
+			extra["employee_id"] = employee_id
+			extra["employee_text"] = employee_text
+		task = ChatRuntime.create_stream_task(user_id, conversation_id, message, model_service_id, extra=extra)
 		stream_url = "/user/api/stream?token=" + task["token"]
 		self.write(json.dumps({"success": True, "conversation_id": conversation_id, "stream_url": stream_url}, ensure_ascii=False))
 
@@ -157,33 +181,47 @@ class UserStreamHandler(UserBaseHandler):
 		conversation_id = int(task.get("conversation_id") or 0)
 		message = task.get("message") or ""
 		model_service_id = int(task.get("model_service_id") or 0)
+		employee_id = int(task.get("employee_id") or 0)
+		employee_text = (task.get("employee_text") or "").strip()
 		conv = ChatRepository.get_conversation(conversation_id)
 		if conv:
 			model_service_id = int(conv.get("model_service_id") or model_service_id or 0)
 
-		model = ModelRuntime.resolve_model(model_service_id)
 		self.set_header("Content-Type", "text/event-stream; charset=utf-8")
 		self.set_header("Cache-Control", "no-cache")
 		self.set_header("Connection", "keep-alive")
 
-		if not model:
-			self.write("data: " + "未配置默认模型，请先到管理后台【模型引擎】添加并设为默认" + "\n\n")
-			self.write("data: [DONE]\n\n")
-			self.finish()
-			return
+		def write_sse(text: str):
+			payload = (text or "").replace("\r", "")
+			for line in payload.split("\n"):
+				self.write("data: " + line + "\n")
+			self.write("\n")
 
 		full = ""
 		try:
-			for chunk in ChatOrchestrator.generate_stream(model, message):
-				full += chunk
-				self.write("data: " + chunk.replace("\r", "") + "\n\n")
-				await self.flush()
+			if employee_id:
+				employee = DigitalEmployeeRepository.get_by_id(employee_id)
+				for chunk in EmployeeOrchestrator.generate_employee_stream(employee, employee_text, model_service_id):
+					full += chunk
+					write_sse(chunk)
+					await self.flush()
+			else:
+				model = ModelRuntime.resolve_model(model_service_id)
+				if not model:
+					msg = "未配置默认模型，请先到管理后台【模型引擎】添加并设为默认"
+					full += msg
+					write_sse(msg)
+					return
+				for chunk in ChatOrchestrator.generate_stream(model, message):
+					full += chunk
+					write_sse(chunk)
+					await self.flush()
 		except Exception as e:
 			err = str(e) or "请求失败"
-			self.write("data: " + ("\\n\\n**错误**：" + err) + "\n\n")
+			write_sse("\\n\\n**错误**：" + err)
 			await self.flush()
 		finally:
 			if full.strip():
 				ChatRepository.create_message(conversation_id, "assistant", full)
-			self.write("data: [DONE]\n\n")
+			write_sse("[DONE]")
 			self.finish()
