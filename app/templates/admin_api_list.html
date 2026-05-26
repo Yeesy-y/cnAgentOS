@@ -1,0 +1,204 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+	<div class="layui-card">
+		<div class="layui-card-header" style="font-size:18px; font-weight:600;">
+			接口管理
+		</div>
+		<div class="layui-card-body">
+			<div class="layui-form" style="margin-bottom:20px;">
+				<div class="layui-inline">
+					<a href="/admin/api/add" class="layui-btn layui-btn-normal">
+						<i class="layui-icon layui-icon-add-1"></i> 新增接口
+					</a>
+				</div>
+				<div class="layui-inline" style="margin-left:12px;">
+					<form action="/admin/api/list" method="get" class="layui-form" style="display:inline;">
+						<div class="layui-inline">
+							<input type="text" name="keyword" value="{{ keyword or '' }}" placeholder="名称/编码/URL 关键词" class="layui-input" style="width:260px;">
+						</div>
+						<div class="layui-inline">
+							<button type="submit" class="layui-btn layui-btn-primary">
+								<i class="layui-icon layui-icon-search"></i> 搜索
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<table class="layui-table" lay-skin="line">
+				<thead>
+					<tr>
+						<th style="width:60px;">ID</th>
+						<th style="width:160px;">接口名称</th>
+						<th style="width:160px;">接口编码</th>
+						<th style="width:90px;">方法</th>
+						<th>接口URL</th>
+						<th style="width:110px;">格式</th>
+						<th style="width:90px;">状态</th>
+						<th style="width:180px;">创建时间</th>
+						<th style="width:200px;">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for a in apis %}
+					<tr>
+						<td>{{ a['id'] }}</td>
+						<td>{{ a['api_name'] }}</td>
+						<td>{{ a['api_code'] }}</td>
+						<td>
+							<span class="layui-badge layui-bg-gray">{{ a['request_method'] or 'GET' }}</span>
+						</td>
+						<td style="word-break:break-all;">{{ a['api_url'] }}</td>
+						<td>{{ a['response_format'] or 'JSON' }}</td>
+						<td>
+							{% if a['status'] == 1 %}
+							<span class="layui-badge" style="background:linear-gradient(135deg,#5f5f5f,#8a8a8a);">启用</span>
+							{% else %}
+							<span class="layui-badge layui-bg-gray">禁用</span>
+							{% end %}
+						</td>
+						<td>{{ a.get('create_at') or '' }}</td>
+						<td>
+							<a href="/admin/api/edit?id={{ a['id'] }}" class="layui-btn layui-btn-xs layui-btn-warm">
+								<i class="layui-icon layui-icon-edit"></i> 编辑
+							</a>
+							<button type="button" class="layui-btn layui-btn-xs layui-btn-primary btn-api-test" data-id="{{ a['id'] }}" data-name="{{ a['api_name'] }}" data-code="{{ a['api_code'] }}" data-method="{{ a['request_method'] }}" data-url="{{ a['api_url'] }}">
+								<i class="layui-icon layui-icon-release"></i> 测试
+							</button>
+							<form action="/admin/api/list" method="post" style="display:inline;">
+								{% module xsrf_form_html() %}
+								<input type="hidden" name="action" value="delete">
+								<input type="hidden" name="api_id" value="{{ a['id'] }}">
+								<button type="submit" class="layui-btn layui-btn-xs layui-btn-danger" onclick="return confirm('确认删除该接口吗？')">
+									<i class="layui-icon layui-icon-delete"></i> 删除
+								</button>
+							</form>
+						</td>
+					</tr>
+					{% end %}
+				</tbody>
+			</table>
+			<div style="display:none;">
+				{% module xsrf_form_html() %}
+			</div>
+
+			{% if total > page_size %}
+			<div class="layui-box layui-laypage layui-laypage-default" style="margin-top:20px;">
+				{% set total_pages = (total + page_size - 1) // page_size %}
+				{% if page > 1 %}
+				<a href="?page={{ page - 1 }}&keyword={{ keyword }}" class="layui-laypage-prev">上一页</a>
+				{% end %}
+				{% for p in range(1, total_pages + 1) %}
+				<a href="?page={{ p }}&keyword={{ keyword }}" class="layui-laypage-num {% if p == page %}layui-laypage-curr{% end %}">{{ p }}</a>
+				{% end %}
+				{% if page < total_pages %}
+				<a href="?page={{ page + 1 }}&keyword={{ keyword }}" class="layui-laypage-next">下一页</a>
+				{% end %}
+			</div>
+			{% end %}
+		</div>
+	</div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['layer', 'jquery'], function(){
+	var layer = layui.layer;
+	var $ = layui.jquery;
+
+	var currentApiId = null;
+
+	function safeJsonText(value){
+		try{
+			return JSON.stringify(value, null, 2);
+		}catch(e){
+			return String(value);
+		}
+	}
+
+	$(document).on('click', '.btn-api-test', function(){
+		var $btn = $(this);
+		currentApiId = $btn.data('id');
+		var title = '接口测试 - ' + ($btn.data('name') || '') + ' (' + ($btn.data('code') || '') + ')';
+		var method = ($btn.data('method') || 'GET');
+		var url = ($btn.data('url') || '');
+
+		var contentHtml = ''
+			+ '<div style="padding:16px;">'
+			+ '  <div style="margin-bottom:10px; color:#5f5f5f;">'
+			+ '    <div><b>方法</b>：' + method + '</div>'
+			+ '    <div style="word-break:break-all;"><b>URL</b>：' + $('<div/>').text(url).html() + '</div>'
+			+ '  </div>'
+			+ '  <div class="layui-form-item">'
+			+ '    <label class="layui-form-label" style="width:90px;">请求参数</label>'
+			+ '    <div class="layui-input-block" style="margin-left:120px;">'
+			+ '      <textarea id="apiTestParams" class="layui-textarea" rows="6" placeholder=\'JSON对象，例如：{"city":"北京市"} 或 {}\'></textarea>'
+			+ '      <div class="layui-form-mid layui-word-aux">GET：会拼接为 querystring；POST：以 form 表单方式提交</div>'
+			+ '    </div>'
+			+ '  </div>'
+			+ '  <div class="layui-form-item">'
+			+ '    <label class="layui-form-label" style="width:90px;">超时(秒)</label>'
+			+ '    <div class="layui-input-inline" style="margin-left:30px;">'
+			+ '      <input id="apiTestTimeout" type="number" min="1" max="120" value="30" class="layui-input">'
+			+ '    </div>'
+			+ '  </div>'
+			+ '  <div class="layui-form-item">'
+			+ '    <label class="layui-form-label" style="width:90px;">响应</label>'
+			+ '    <div class="layui-input-block" style="margin-left:120px;">'
+			+ '      <pre id="apiTestResp" style="background:rgba(255,255,255,0.7); border:1px solid rgba(95,95,95,0.15); border-radius:12px; padding:12px; max-height:320px; overflow:auto; white-space:pre-wrap;">等待测试...</pre>'
+			+ '    </div>'
+			+ '  </div>'
+			+ '</div>';
+
+		layer.open({
+			type: 1,
+			title: title,
+			area: ['900px', '640px'],
+			content: contentHtml,
+			btn: ['发送测试', '关闭'],
+			yes: function(index){
+				var xsrf = $('input[name="_xsrf"]').val();
+				var paramsText = ($('#apiTestParams').val() || '').trim();
+				var timeout = ($('#apiTestTimeout').val() || '30');
+
+				if(!paramsText){
+					paramsText = '{}';
+				}
+
+				$('#apiTestResp').text('请求中...');
+
+				$.ajax({
+					url: '/admin/api/test',
+					type: 'POST',
+					contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+					dataType: 'json',
+					data: $.param({
+						api_id: currentApiId,
+						params_json: paramsText,
+						timeout: timeout,
+						_xsrf: xsrf
+					}),
+					success: function(data){
+						$('#apiTestResp').text(safeJsonText(data));
+						if(data && data.success){
+							layer.msg('测试成功', {icon:1});
+						} else {
+							layer.msg((data && data.message) ? data.message : '测试失败', {icon:2});
+						}
+					},
+					error: function(xhr, status, error){
+						$('#apiTestResp').text('请求失败: ' + status + ' ' + error);
+						layer.msg('请求失败', {icon:2});
+					}
+				});
+			},
+			btn2: function(index){
+				layer.close(index);
+			}
+		});
+	});
+});
+</script>
+{% end %}

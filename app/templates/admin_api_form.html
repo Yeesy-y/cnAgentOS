@@ -1,0 +1,115 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+	<div class="layui-card">
+		<div class="layui-card-header" style="font-size:18px; font-weight:600;">
+			{% if mode == "add" %}新增接口{% else %}编辑接口{% end %}
+		</div>
+		<div class="layui-card-body">
+			{% if error %}
+			<div class="layui-bg-red" style="padding:10px 12px; border-radius:10px; color:#fff; margin-bottom:16px;">
+				{{ error }}
+			</div>
+			{% end %}
+
+			<form class="layui-form" action="{% if mode == 'add' %}/admin/api/add{% else %}/admin/api/edit{% end %}" method="post">
+				{% if mode == "edit" %}
+				<input type="hidden" name="id" value="{{ api['id'] }}">
+				{% end %}
+				{% module xsrf_form_html() %}
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">接口名称</label>
+					<div class="layui-input-inline">
+						<input type="text" name="api_name" value="{% if api %}{{ api.get('api_name','') }}{% end %}" placeholder="例如：三日天气查询" class="layui-input" required lay-verify="required">
+					</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">接口编码</label>
+					<div class="layui-input-inline">
+						<input type="text" name="api_code" value="{% if api %}{{ api.get('api_code','') }}{% end %}" placeholder="例如：query_tian" class="layui-input" required lay-verify="required">
+					</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">请求方式</label>
+					<div class="layui-input-inline">
+						<select name="request_method" lay-verify="required">
+							{% set rm = (api.get('request_method') if api else 'GET') %}
+							<option value="GET" {% if rm == 'GET' %}selected{% end %}>GET</option>
+							<option value="POST" {% if rm == 'POST' %}selected{% end %}>POST</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">返回格式</label>
+					<div class="layui-input-inline">
+						<select name="response_format" lay-verify="required">
+							{% set rf = (api.get('response_format') if api else 'JSON') %}
+							<option value="JSON" {% if rf == 'JSON' %}selected{% end %}>JSON</option>
+							<option value="TEXT" {% if rf == 'TEXT' %}selected{% end %}>TEXT</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">接口URL</label>
+					<div class="layui-input-block">
+						<textarea name="api_url" placeholder="例如：https://api.52vmy.cn/api/query/tian?city=北京市" class="layui-textarea" rows="3" required lay-verify="required">{% if api %}{{ api.get('api_url','') }}{% end %}</textarea>
+					</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">QPS限制</label>
+					<div class="layui-input-block">
+						<input type="text" name="qps_limit" value="{% if api %}{{ api.get('qps_limit','') }}{% end %}" placeholder="例如：每2秒最多4次（携带Token可无视限制）" class="layui-input">
+					</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">Token</label>
+					<div class="layui-input-block">
+						<input type="text" name="token" value="{% if api %}{{ api.get('token','') }}{% end %}" placeholder="可选：用于访问需要鉴权的接口" class="layui-input">
+						<div class="layui-form-mid layui-word-aux">当前实现：如填写 Token，会以 Authorization: Bearer &lt;token&gt; 方式携带</div>
+					</div>
+				</div>
+
+				<div class="layui-form-item">
+					<label class="layui-form-label">接口备注</label>
+					<div class="layui-input-block">
+						<textarea name="remark" placeholder="例如：点击前往三日天气API" class="layui-textarea" rows="2">{% if api %}{{ api.get('remark','') }}{% end %}</textarea>
+					</div>
+				</div>
+
+				{% if mode == "edit" %}
+				<div class="layui-form-item">
+					<label class="layui-form-label">状态</label>
+					<div class="layui-input-inline">
+						<input type="radio" name="status" value="1" title="启用" {% if api.get('status',1) == 1 %}checked{% end %}>
+						<input type="radio" name="status" value="0" title="禁用" {% if api.get('status',1) == 0 %}checked{% end %}>
+					</div>
+				</div>
+				{% end %}
+
+				<div class="layui-form-item">
+					<div class="layui-input-block">
+						<button type="submit" class="layui-btn">保存</button>
+						<button type="button" class="layui-btn layui-btn-primary" onclick="location.href='/admin/api/list'">返回</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['form'], function(){
+	var form = layui.form;
+	form.render();
+});
+</script>
+{% end %}
