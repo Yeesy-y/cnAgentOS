@@ -10,7 +10,7 @@ from tornado.httpserver import HTTPServer
 #引入admin-controller层
 from app.controllers.admin_auth import AdminLoginHandler,AdminLogoutHandler
 from app.controllers.admin_home import AdminIndexHandler
-from app.controllers.admin_user import AdminUserListHandler,AdminUserAddHandler,AdminUserEditHandler
+from app.controllers.admin_user import AdminUserListHandler,AdminUserAddHandler,AdminUserEditHandler,AdminProfileHandler,AdminSecurityHandler
 from app.controllers.admin_rbac import AdminPermissionListHandler,AdminPermissionAddHandler,AdminPermissionEditHandler
 from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,AdminRoleEditHandler
 from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandler,AdminModelEditHandler,AdminModelTestHandler
@@ -103,6 +103,8 @@ def make_app():
 		(r"/admin/user/list",AdminUserListHandler),
 		(r"/admin/user/add",AdminUserAddHandler),
 		(r"/admin/user/edit",AdminUserEditHandler),
+		(r"/admin/user/profile",AdminProfileHandler),
+		(r"/admin/user/security",AdminSecurityHandler),
 		# 模型引擎路由
 		(r"/admin/model/list",AdminModelListHandler),
 		(r"/admin/model/add",AdminModelAddHandler),

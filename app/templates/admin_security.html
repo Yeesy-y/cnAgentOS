@@ -1,0 +1,55 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding:16px;">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <i class="layui-icon layui-icon-password"></i> 安全设置
+        </div>
+        <div class="layui-card-body">
+            {% if request.arguments.get('error') %}
+                {% set err = request.arguments.get('error')[0].decode('utf-8') %}
+                <div class="layui-bg-red" style="padding:10px 14px;border-radius:8px;color:#fff;margin-bottom:12px;">
+                    {% if err == '1' %}当前密码错误{% elif err == '2' %}新密码至少6位{% elif err == '3' %}两次输入的新密码不一致{% else %}修改失败{% end %}
+                </div>
+            {% end %}
+            {% if request.arguments.get('success') %}
+                <div class="layui-bg-green" style="padding:10px 14px;border-radius:8px;color:#fff;margin-bottom:12px;">
+                    密码修改成功
+                </div>
+            {% end %}
+
+            <form class="layui-form" action="/admin/user/security" method="post">
+                {% module xsrf_form_html() %}
+                <div class="layui-form-item">
+                    <label class="layui-form-label">当前密码</label>
+                    <div class="layui-input-inline">
+                        <input type="password" name="current_password" required placeholder="请输入当前密码" autocomplete="current-password" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">新密码</label>
+                    <div class="layui-input-inline">
+                        <input type="password" name="new_password" required placeholder="请输入新密码" autocomplete="new-password" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">至少6位</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">确认新密码</label>
+                    <div class="layui-input-inline">
+                        <input type="password" name="confirm_password" required placeholder="请再次输入新密码" autocomplete="new-password" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <button type="submit" class="layui-btn">修改密码</button>
+                        <a href="/admin/index" class="layui-btn layui-btn-primary">返回首页</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% end %}
