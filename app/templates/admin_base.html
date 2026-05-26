@@ -166,13 +166,20 @@
             font-size: 16px !important;
             font-weight: 700 !important;
             border-bottom: 1px solid rgba(95, 95, 95, 0.08) !important;
-            padding: 16px 20px !important;
+            padding: 16px 48px 16px 20px !important;
             height: auto !important;
             line-height: 1.4 !important;
         }
-        .layui-layer-dialog .layui-layer-setwin .layui-layer-close {
+        .layui-layer-dialog .layui-layer-setwin {
             top: 14px !important;
-            right: 16px !important;
+            right: 14px !important;
+            width: auto !important;
+            height: auto !important;
+            display: block !important;
+            z-index: 2 !important;
+        }
+        .layui-layer-dialog .layui-layer-setwin .layui-layer-close {
+            position: static !important;
             width: 28px !important;
             height: 28px !important;
             border-radius: 50% !important;
@@ -194,6 +201,14 @@
             color: #5f5f5f !important;
             line-height: 1.7 !important;
             background: linear-gradient(135deg, #efe4e9 0%, #f5f0f5 100%) !important;
+            position: relative !important;
+            display: block !important;
+            min-height: 36px !important;
+            padding-left: 68px !important;
+        }
+        .layui-layer-dialog .layui-layer-content .layui-layer-icon-text {
+            display: block !important;
+            min-width: 0;
         }
         .layui-layer-dialog .layui-layer-btn {
             padding: 14px 20px !important;
@@ -228,9 +243,19 @@
             background: rgba(189, 187, 191, 0.6) !important;
         }
         .layui-layer-dialog .layui-layer-content .layui-layer-ico {
-            background: linear-gradient(135deg, #bdbbbf 0%, #a2a1a4 100%) !important;
+            width: 36px !important;
+            height: 36px !important;
+            margin: 0 !important;
+            position: absolute !important;
+            float: none !important;
+            top: 24px !important;
+            left: 20px !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-size: 20px !important;
             border-radius: 50% !important;
             box-shadow: 0 4px 15px rgba(95, 95, 95, 0.15) !important;
+            background-color: rgba(189, 187, 191, 0.4) !important;
         }
         .layui-layer-dialog .layui-layer-content .layui-layer-ico0,
         .layui-layer-dialog .layui-layer-content .layui-layer-ico16 {
