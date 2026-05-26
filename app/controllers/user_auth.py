@@ -71,5 +71,4 @@ class UserRegisterHandler(UserBaseHandler):
 		if not user_id:
 			return self.render("user_register.html", title="用户注册", error="注册失败：用户名可能已存在", form=form)
 
-		self.set_secure_cookie("username", username)
-		self.redirect("/chat")
+		self.redirect("/login")

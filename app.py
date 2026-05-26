@@ -19,7 +19,7 @@ from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataL
 from app.controllers.admin_api import AdminApiListHandler,AdminApiAddHandler,AdminApiEditHandler,AdminApiTestHandler
 from app.controllers.user_auth import UserLoginHandler,UserLogoutHandler,UserRegisterHandler
 from app.controllers.user_chat import UserChatPageHandler
-from app.controllers.user_api import UserModelsHandler,UserConversationsHandler,UserMessagesHandler,UserSendHandler,UserStreamHandler
+from app.controllers.user_api import UserModelsHandler,UserConversationsHandler,UserMessagesHandler,UserSendHandler,UserStreamHandler,UserConversationActionHandler
 #引入db-model层
 from app.models.db import init_db
 
@@ -93,6 +93,7 @@ def make_app():
 		(r"/user/api/conversations",UserConversationsHandler),
 		(r"/user/api/messages",UserMessagesHandler),
 		(r"/user/api/send",UserSendHandler),
+		(r"/user/api/conversation/action",UserConversationActionHandler),
 		(r"/user/api/stream",UserStreamHandler),
 		# admin后台路由
 		(r"/admin/login",AdminLoginHandler),
@@ -145,4 +146,3 @@ if __name__=="__main__":
 
 	print("===== Server 启动成功 ======= 端口：10086 ======",flush=True)
 	tornado.ioloop.IOLoop.current().start()
-

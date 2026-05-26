@@ -16,9 +16,17 @@
 		.sidebar-card{background:rgba(255,255,255,0.65);border:1px solid rgba(95,95,95,0.08);border-radius:16px;padding:12px;}
 		.sidebar-title{font-size:12px;color:rgba(95,95,95,0.7);margin-bottom:8px;}
 		.history{margin-top:10px;}
-		.history-item{padding:10px 10px;border-radius:12px;cursor:pointer;color:#5f5f5f;background:rgba(255,255,255,0.4);border:1px solid rgba(95,95,95,0.06);margin-bottom:8px;}
+		.history-item{padding:10px 10px;border-radius:12px;cursor:pointer;color:#5f5f5f;background:rgba(255,255,255,0.4);border:1px solid rgba(95,95,95,0.06);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+		.history-left{display:flex;align-items:center;gap:8px;min-width:0;}
+		.history-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;}
+		.history-pin{font-size:12px;color:rgba(95,95,95,0.7);}
+		.history-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto;}
+		.hist-menu-btn{width:26px;height:26px;border-radius:10px;border:1px solid rgba(95,95,95,0.12);background:rgba(255,255,255,0.55);color:#5f5f5f;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+		.hist-menu-btn:hover{background:rgba(189,187,191,0.35);}
 		.history-item:hover{background:rgba(189,187,191,0.35);}
 		.history-item.active{background:linear-gradient(135deg,#5f5f5f 0%,#8a8a8a 100%);color:#efe4e9;border-color:transparent;}
+		.history-item.active .hist-menu-btn{border-color:rgba(255,255,255,0.25);background:rgba(255,255,255,0.15);color:#efe4e9;}
+		.history-item.active .history-pin{color:rgba(239,228,233,0.9);}
 		.main{flex:1;display:flex;flex-direction:column;}
 		.topbar{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(95,95,95,0.08);backdrop-filter:blur(10px);}
 		.topbar .user{color:#5f5f5f;}
@@ -84,9 +92,10 @@
 
 <script src="{{ static_url('dist/layui-v2.13.6/layui/layui.js') }}"></script>
 <script>
-layui.use(['layer', 'jquery'], function(){
+layui.use(['layer', 'jquery', 'dropdown'], function(){
 	var layer = layui.layer;
 	var $ = layui.jquery;
+	var dropdown = layui.dropdown;
 
 	var currentConversationId = 0;
 	var currentAssistantEl = null;
@@ -165,13 +174,132 @@ layui.use(['layer', 'jquery'], function(){
 			}
 			data.forEach(function(item){
 				var $it = $('<div class="history-item"></div>');
-				$it.text(item.title || ('对话 #' + item.id));
 				$it.attr('data-id', item.id);
+				$it.attr('data-pinned', item.is_pinned ? '1' : '0');
 				if(item.id === currentConversationId){
 					$it.addClass('active');
 				}
+				var $left = $('<div class="history-left"></div>');
+				var $pin = $('<span class="history-pin"></span>');
+				if(item.is_pinned){
+					$pin.html('<i class="layui-icon layui-icon-top"></i>');
+				}
+				var $title = $('<div class="history-title"></div>').text(item.title || ('对话 #' + item.id));
+				$left.append($pin).append($title);
+
+				var $actions = $('<div class="history-actions"></div>');
+				var $menuBtn = $('<div class="hist-menu-btn" title="设置"><i class="layui-icon layui-icon-more"></i></div>');
+				$menuBtn.attr('data-id', item.id);
+				$menuBtn.attr('data-title', item.title || '');
+				$menuBtn.attr('data-pinned', item.is_pinned ? '1' : '0');
+				$actions.append($menuBtn);
+
+				$it.append($left).append($actions);
 				$list.append($it);
 			});
+
+			$('.hist-menu-btn').each(function(){
+				var $btn = $(this);
+				if($btn.data('ddInit')){
+					return;
+				}
+				$btn.data('ddInit', true);
+				dropdown.render({
+					elem: this,
+					trigger: 'click',
+					data: [
+						{title: ($btn.attr('data-pinned') === '1' ? '取消置顶' : '置顶'), id: 'pin_toggle'},
+						{title: '分享', id: 'share'},
+						{title: '重命名', id: 'rename'},
+						{title: '举报', id: 'report'},
+						{title: '删除', id: 'delete'}
+					],
+					click: function(obj){
+						var cid = parseInt($btn.attr('data-id') || '0', 10);
+						if(!cid){
+							return;
+						}
+						if(obj.id === 'pin_toggle'){
+							var pinned = $btn.attr('data-pinned') === '1';
+							postConvAction(cid, pinned ? 'unpin' : 'pin', null, function(){
+								loadHistory();
+							});
+							return;
+						}
+						if(obj.id === 'share'){
+							var shareUrl = window.location.origin + '/chat?conversation_id=' + cid;
+							if(navigator.clipboard && navigator.clipboard.writeText){
+								navigator.clipboard.writeText(shareUrl).then(function(){
+									layer.msg('链接已复制', {icon:1});
+								}).catch(function(){
+									layer.prompt({title:'分享链接（复制）', formType: 2, value: shareUrl}, function(v, idx){ layer.close(idx); });
+								});
+							} else {
+								layer.prompt({title:'分享链接（复制）', formType: 2, value: shareUrl}, function(v, idx){ layer.close(idx); });
+							}
+							return;
+						}
+						if(obj.id === 'rename'){
+							layer.prompt({title: '重命名对话', formType: 0, value: $btn.attr('data-title') || ''}, function(value, index){
+								layer.close(index);
+								postConvAction(cid, 'rename', value, function(){
+									if(cid === currentConversationId){
+										loadHistory();
+									} else {
+										loadHistory();
+									}
+								});
+							});
+							return;
+						}
+						if(obj.id === 'report'){
+							postConvAction(cid, 'report', null, function(){
+								layer.msg('已收到举报（预留）', {icon:1});
+							});
+							return;
+						}
+						if(obj.id === 'delete'){
+							layer.confirm('确认删除该历史对话吗？', function(index){
+								layer.close(index);
+								postConvAction(cid, 'delete', null, function(){
+									if(cid === currentConversationId){
+										newChat();
+									} else {
+										loadHistory();
+									}
+								});
+							});
+							return;
+						}
+					}
+				});
+			});
+		});
+	}
+
+	function postConvAction(conversationId, action, title, ok){
+		var xsrf = $('input[name=\"_xsrf\"]').val();
+		var data = {conversation_id: conversationId, action: action, _xsrf: xsrf};
+		if(title !== null && title !== undefined){
+			data.title = title;
+		}
+		$.ajax({
+			url: '/user/api/conversation/action',
+			type: 'POST',
+			contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+			dataType: 'json',
+			headers: {"X-XSRFToken": xsrf},
+			data: $.param(data),
+			success: function(resp){
+				if(resp && resp.success){
+					if(ok){ ok(); }
+				} else {
+					layer.msg((resp && resp.message) ? resp.message : '操作失败', {icon:2});
+				}
+			},
+			error: function(){
+				layer.msg('操作失败', {icon:2});
+			}
 		});
 	}
 
@@ -286,7 +414,10 @@ layui.use(['layer', 'jquery'], function(){
 		});
 	}
 
-	$(document).on('click', '.history-item', function(){
+	$(document).on('click', '.history-item', function(e){
+		if($(e.target).closest('.hist-menu-btn').length){
+			return;
+		}
 		var cid = parseInt($(this).attr('data-id') || '0', 10);
 		if(!cid){
 			return;
@@ -315,7 +446,19 @@ layui.use(['layer', 'jquery'], function(){
 
 	loadModels();
 	loadHistory();
-	newChat();
+	(function initFromUrl(){
+		try{
+			var qs = new URLSearchParams(window.location.search || '');
+			var cid = parseInt(qs.get('conversation_id') || '0', 10);
+			if(cid){
+				currentConversationId = cid;
+				loadHistory();
+				loadMessages(cid);
+				return;
+			}
+		}catch(e){}
+		newChat();
+	})();
 });
 </script>
 </body>

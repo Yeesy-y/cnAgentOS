@@ -29,7 +29,12 @@ class UserConversationsHandler(UserBaseHandler):
 		convs = ChatRepository.list_conversations(user_id, 50)
 		data = []
 		for c in convs:
-			data.append({"id": c.get("id"), "title": c.get("title") or "", "update_at": c.get("update_at")})
+			data.append({
+				"id": c.get("id"),
+				"title": c.get("title") or "",
+				"update_at": c.get("update_at"),
+				"is_pinned": int(c.get("is_pinned") or 0),
+			})
 		self.write(json.dumps({"success": True, "data": data}, ensure_ascii=False))
 
 class UserMessagesHandler(UserBaseHandler):
@@ -86,6 +91,54 @@ class UserSendHandler(UserBaseHandler):
 		task = ChatRuntime.create_stream_task(user_id, conversation_id, message, model_service_id)
 		stream_url = "/user/api/stream?token=" + task["token"]
 		self.write(json.dumps({"success": True, "conversation_id": conversation_id, "stream_url": stream_url}, ensure_ascii=False))
+
+class UserConversationActionHandler(UserBaseHandler):
+	def post(self):
+		self.set_header("Content-Type", "application/json")
+		user = self.get_current_user_row()
+		if not user:
+			self.set_status(401)
+			self.write(json.dumps({"success": False, "message": "未登录"}))
+			return
+		user_id = int(user["id"])
+
+		action = (self.get_body_argument("action", "") or "").strip()
+		conversation_id = int(self.get_body_argument("conversation_id", "0"))
+		if not conversation_id:
+			self.write(json.dumps({"success": False, "message": "参数错误"}))
+			return
+		conv = ChatRepository.get_conversation(conversation_id)
+		if not conv or int(conv.get("user_id") or 0) != user_id:
+			self.write(json.dumps({"success": False, "message": "无权限"}))
+			return
+
+		if action == "pin":
+			ChatRepository.set_pinned(conversation_id, 1)
+			self.write(json.dumps({"success": True}, ensure_ascii=False))
+			return
+		if action == "unpin":
+			ChatRepository.set_pinned(conversation_id, 0)
+			self.write(json.dumps({"success": True}, ensure_ascii=False))
+			return
+		if action == "rename":
+			title = (self.get_body_argument("title", "") or "").strip()
+			if not title:
+				self.write(json.dumps({"success": False, "message": "标题不能为空"}))
+				return
+			if len(title) > 50:
+				title = title[:50]
+			ChatRepository.update_title(conversation_id, title)
+			self.write(json.dumps({"success": True}, ensure_ascii=False))
+			return
+		if action == "delete":
+			ChatRepository.delete_conversation(conversation_id)
+			self.write(json.dumps({"success": True}, ensure_ascii=False))
+			return
+		if action == "report":
+			self.write(json.dumps({"success": True}, ensure_ascii=False))
+			return
+
+		self.write(json.dumps({"success": False, "message": "不支持的操作"}))
 
 class UserStreamHandler(UserBaseHandler):
 	async def get(self):

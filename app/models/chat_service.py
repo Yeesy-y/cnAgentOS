@@ -79,11 +79,50 @@ class ChatRepository:
 	@staticmethod
 	def list_conversations(user_id: int, limit: int = 50) -> list:
 		with get_connection() as conn:
+			has_pinned = False
+			try:
+				cols = [r[1] for r in conn.execute("PRAGMA table_info(chat_conversations)").fetchall()]
+				has_pinned = "is_pinned" in cols
+			except Exception:
+				has_pinned = False
+			if has_pinned:
+				order_sql = "ORDER BY is_pinned DESC, update_at DESC, id DESC"
+			else:
+				order_sql = "ORDER BY update_at DESC, id DESC"
 			rows = conn.execute(
-				"SELECT * FROM chat_conversations WHERE user_id=? ORDER BY update_at DESC, id DESC LIMIT ?",
+				f"SELECT * FROM chat_conversations WHERE user_id=? {order_sql} LIMIT ?",
 				(user_id, int(limit))
 			).fetchall()
 		return [dict(r) for r in rows]
+
+	@staticmethod
+	def set_pinned(conversation_id: int, is_pinned: int):
+		with get_connection() as conn:
+			try:
+				conn.execute(
+					"UPDATE chat_conversations SET is_pinned=?, update_at=datetime('now') WHERE id=?",
+					(int(is_pinned), conversation_id)
+				)
+			except sqlite3.OperationalError:
+				pass
+
+	@staticmethod
+	def update_title(conversation_id: int, title: str):
+		with get_connection() as conn:
+			conn.execute(
+				"UPDATE chat_conversations SET title=?, update_at=datetime('now') WHERE id=?",
+				((title or "").strip(), conversation_id)
+			)
+
+	@staticmethod
+	def delete_conversation(conversation_id: int):
+		with get_connection() as conn:
+			link_col = _chat_messages_link_column(conn)
+			try:
+				conn.execute(f"DELETE FROM chat_messages WHERE {link_col}=?", (conversation_id,))
+			except Exception:
+				pass
+			conn.execute("DELETE FROM chat_conversations WHERE id=?", (conversation_id,))
 
 	@staticmethod
 	def get_conversation(conversation_id: int):

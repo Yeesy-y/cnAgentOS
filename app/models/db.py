@@ -187,7 +187,21 @@ def init_db():
 			)
 			"""
 		)
+		_ensure_chat_conversation_columns_exist(conn)
 		init_default_data(conn)
+
+def _ensure_chat_conversation_columns_exist(conn):
+	try:
+		cursor = conn.execute("PRAGMA table_info(chat_conversations)")
+		existing_cols = {row[1] for row in cursor.fetchall()}
+		if "is_pinned" not in existing_cols:
+			try:
+				conn.execute("ALTER TABLE chat_conversations ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
+				conn.commit()
+			except Exception:
+				pass
+	except Exception:
+		pass
 
 def _ensure_columns_exist():
 	conn = get_connection()
