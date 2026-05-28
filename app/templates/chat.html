@@ -1,0 +1,2852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title if title else "智能聊天" }}</title>
+    <link rel="stylesheet" href="{{ static_url('dist/bootstrap-5.3.8-dist/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ static_url('dist/layui-v2.13.6/layui/css/layui.css') }}">
+    <link rel="stylesheet" href="{{ static_url('dist/fontawesome-free-5.15.4-web/css/all.min.css') }}">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            background-color: #EDEDED;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .chat-container {
+            display: flex;
+            height: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .contact-list {
+            width: 380px;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #EBEBEB;
+        }
+        .contact-header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #EBEBEB;
+        }
+        .contact-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        .contact-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .action-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background-color: #F1F1F1;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .action-btn:hover {
+            background-color: #EBEBEB;
+        }
+        .search-box {
+            padding: 12px;
+        }
+        .search-input {
+            width: 100%;
+            height: 38px;
+            border-radius: 19px;
+            border: none;
+            background-color: #F1F1F1;
+            padding: 0 16px;
+            font-size: 14px;
+            outline: none;
+        }
+        .contact-tabs {
+            display: flex;
+            padding: 0 12px;
+            gap: 8px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: none;
+            font-size: 14px;
+            color: #666;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background-color: #07C160;
+            color: #fff;
+        }
+        .contacts-scroll {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* 字母索引侧边栏 */
+        .alphabet-index {
+            position: fixed;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 4px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .alphabet-index span {
+            display: block;
+            width: 24px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+        }
+
+        .alphabet-index span:hover,
+        .alphabet-index span.active {
+            color: #07C160;
+            background-color: #E8F5E9;
+            font-weight: 600;
+        }
+
+        /* 字母分组标题 */
+        .group-title {
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #999;
+            background-color: #F8F8F8;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .contact-item {
+            display: flex;
+            padding: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #F1F1F1;
+        }
+        .contact-item:hover {
+            background-color: #F8F8F8;
+        }
+        .contact-item.active {
+            background-color: #E8F5E9;
+        }
+        .contact-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #07C160 0%, #10B981 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .contact-avatar.group {
+            background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+        }
+        .contact-avatar.bot {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        }
+        .contact-info {
+            flex: 1;
+            margin-left: 12px;
+            min-width: 0;
+        }
+        .contact-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .contact-preview {
+            font-size: 13px;
+            color: #999;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .contact-meta {
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .contact-time {
+            font-size: 12px;
+            color: #CCC;
+            margin-bottom: 4px;
+        }
+        .contact-badge {
+            background-color: #FF4D4F;
+            color: #fff;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+        }
+        .request-section {
+            padding: 12px;
+            border-bottom: 8px solid #F1F1F1;
+        }
+        .request-section-title {
+            font-size: 13px;
+            color: #999;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .request-item {
+            display: flex;
+            padding: 10px;
+            background-color: #F8F8F8;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .request-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #07C160 0%, #10B981 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .request-info {
+            flex: 1;
+            margin-left: 10px;
+        }
+        .request-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .request-time {
+            font-size: 12px;
+            color: #999;
+        }
+        .request-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .request-btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: none;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .request-btn.accept {
+            background-color: #07C160;
+            color: #fff;
+        }
+        .request-btn.accept:hover {
+            background-color: #06AD56;
+        }
+        .request-btn.reject {
+            background-color: #F1F1F1;
+            color: #666;
+        }
+        .request-btn.reject:hover {
+            background-color: #E0E0E0;
+        }
+        .no-requests {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 13px;
+        }
+        .chat-window {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #EDEDED;
+        }
+        .chat-header {
+            background-color: #fff;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #EBEBEB;
+        }
+        .chat-user-info {
+            display: flex;
+            align-items: center;
+        }
+        .chat-user-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #07C160 0%, #10B981 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 18px;
+            margin-right: 12px;
+        }
+        .chat-user-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        .chat-user-status {
+            font-size: 12px;
+            color: #07C160;
+        }
+        .chat-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%23DBDBDB' fill-opacity='0.4'%3E%3Cpath opacity='.5' d='M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z'/%3E%3Cpath d='M6 5V0H5v5H0v1h5v94h1V6h94V5H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .message.own {
+            justify-content: flex-end;
+        }
+        .message.other .message-content {
+            background-color: #fff;
+            border-radius: 0 12px 12px 12px;
+        }
+        .message.own .message-content {
+            background-color: #07C160;
+            color: #fff;
+            border-radius: 12px 0 12px 12px;
+        }
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #07C160 0%, #10B981 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .message-avatar.clickable {
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .message-avatar.clickable:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        .message.own .message-avatar {
+            order: 2;
+        }
+        .message-bubble {
+            max-width: 70%;
+        }
+        .message.other .message-bubble {
+            margin-left: 12px;
+        }
+        .message.own .message-bubble {
+            margin-right: 12px;
+        }
+        .message-content {
+            padding: 10px 14px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+        .message-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+            text-align: right;
+        }
+        .message.own .message-time {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .chat-input-area {
+            position: relative;
+            background-color: #fff;
+            padding: 12px 20px;
+            border-top: 1px solid #EBEBEB;
+        }
+        .input-tools {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        .tool-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background-color: #F1F1F1;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 20px;
+        }
+        .tool-btn:hover {
+            background-color: #EBEBEB;
+        }
+        .input-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+        }
+        .message-input {
+            flex: 1;
+            min-height: 42px;
+            max-height: 120px;
+            border-radius: 21px;
+            border: none;
+            background-color: #F1F1F1;
+            padding: 10px 20px;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+        }
+        .send-btn {
+            width: 80px;
+            height: 42px;
+            border-radius: 21px;
+            border: none;
+            background-color: #07C160;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .send-btn:hover {
+            background-color: #06AD56;
+        }
+        .send-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .emoji-picker {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+            padding: 12px;
+            display: none;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            max-width: 400px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .emoji-picker.show {
+            display: grid;
+        }
+        .emoji-item {
+            font-size: 24px;
+            padding: 4px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+        .emoji-item:hover {
+            background-color: #F1F1F1;
+        }
+        .file-upload {
+            display: none;
+        }
+        .file-message {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background-color: #F8F8F8;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            min-width: 200px;
+        }
+        .file-message:hover {
+            background-color: #F0F0F0;
+        }
+        .message.own .file-message {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+        .message.own .file-message:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+        }
+        .file-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 20px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .file-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-bottom: 4px;
+        }
+        .message.own .file-name {
+            color: #fff;
+        }
+        .file-size {
+            font-size: 12px;
+            color: #999;
+        }
+        .message.own .file-size {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* 天气卡片样式 */
+        .weather-card {
+            border-radius: 16px;
+            padding: 20px;
+            min-width: 280px;
+            overflow: hidden;
+            position: relative;
+            transition: background-color 0.3s ease;
+        }
+        
+        .weather-card.sunny {
+            background: linear-gradient(135deg, #FFE5B4 0%, #FFD700 100%);
+            animation: sunnyGlow 3s ease-in-out infinite;
+        }
+        
+        .weather-card.cloudy {
+            background: linear-gradient(135deg, #B0C4DE 0%, #778899 100%);
+        }
+        
+        .weather-card.overcast {
+            background: linear-gradient(135deg, #708090 0%, #4A4A4A 100%);
+        }
+        
+        .weather-card.rainy {
+            background: linear-gradient(135deg, #4682B4 0%, #2F4F4F 100%);
+            animation: rainFall 1s linear infinite;
+        }
+        
+        .weather-card.snowy {
+            background: linear-gradient(135deg, #F0F8FF 0%, #B0E0E6 100%);
+        }
+        
+        .weather-card.thunderstorm {
+            background: linear-gradient(135deg, #483D8B 0%, #2F2F4F 100%);
+        }
+        
+        .weather-card.foggy {
+            background: linear-gradient(135deg, #D3D3D3 0%, #A9A9A9 100%);
+        }
+        
+        .weather-emoji {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 12px;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .weather-city {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        
+        .weather-temp {
+            font-size: 36px;
+            font-weight: 700;
+            color: #333;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        
+        .weather-info {
+            display: flex;
+            justify-content: space-around;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        .weather-info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .weather-info-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .weather-info-value {
+            font-weight: 500;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        
+        @keyframes sunnyGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.7); }
+        }
+        
+        @keyframes rainFall {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 20px; }
+        }
+        
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+        }
+        .empty-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        .empty-text {
+                font-size: 16px;
+            }
+            
+            .message-reference {
+                background-color: rgba(0, 0, 0, 0.05);
+                border-left: 3px solid #07C160;
+                padding: 8px 12px;
+                margin-bottom: 8px;
+                border-radius: 4px;
+                font-size: 13px;
+                color: #666;
+            }
+            
+            .message.own .message-reference {
+                background-color: rgba(255, 255, 255, 0.15);
+                border-left-color: rgba(255, 255, 255, 0.5);
+                color: rgba(255, 255, 255, 0.8);
+            }
+            
+            .message-reference-sender {
+                font-weight: 500;
+                margin-bottom: 4px;
+            }
+            
+            .message-actions {
+                display: none;
+                position: absolute;
+                top: -30px;
+                right: 0;
+                background: #fff;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                padding: 4px;
+                gap: 4px;
+            }
+            
+            .message:hover .message-actions {
+                display: flex;
+            }
+            
+            .message.own .message-actions {
+                right: auto;
+                left: 0;
+            }
+            
+            .message-action-btn {
+                padding: 6px 10px;
+                border: none;
+                background: transparent;
+                cursor: pointer;
+                border-radius: 4px;
+                font-size: 12px;
+                color: #666;
+                transition: background 0.2s;
+            }
+            
+            .message-action-btn:hover {
+                background: #f5f5f5;
+                color: #333;
+            }
+            
+            .search-modal {
+                display: none;
+            }
+            
+            .search-modal.show {
+                display: block;
+            }
+            
+            .search-result-item {
+                padding: 12px;
+                border-bottom: 1px solid #eee;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            
+            .search-result-item:hover {
+                background: #f5f5f5;
+            }
+            
+            .search-result-chat {
+                font-size: 12px;
+                color: #999;
+                margin-bottom: 4px;
+            }
+            
+            .search-result-content {
+                color: #333;
+                margin-bottom: 4px;
+            }
+            
+            .search-result-meta {
+                font-size: 11px;
+                color: #999;
+            }
+            
+            .search-result-highlight {
+                background-color: #ffeb3b;
+                padding: 0 2px;
+            }
+        </style>
+</head>
+<body>
+    <div class="chat-container">
+        <!-- 搜索消息模态框 -->
+        <div class="search-modal" id="searchMessageModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: none;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; width: 500px; max-width: 90%; max-height: 80vh; border-radius: 12px; overflow: hidden;">
+                <div style="padding: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 16px;">搜索消息</h3>
+                    <button id="closeSearchModal" style="border: none; background: none; cursor: pointer; font-size: 20px; color: #999;">×</button>
+                </div>
+                <div style="padding: 12px; border-bottom: 1px solid #eee;">
+                    <input type="text" id="modalSearchInput" placeholder="输入关键词搜索消息..." style="width: 100%; padding: 10px 16px; border: 1px solid #ddd; border-radius: 20px; outline: none; font-size: 14px;">
+                </div>
+                <div id="searchResults" style="max-height: 400px; overflow-y: auto;">
+                    <div style="padding: 40px; text-align: center; color: #999;">输入关键词开始搜索</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 转发消息模态框 -->
+        <div class="search-modal" id="forwardMessageModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: none;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; width: 400px; max-width: 90%; max-height: 80vh; border-radius: 12px; overflow: hidden;">
+                <div style="padding: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 16px;">转发给</h3>
+                    <button id="closeForwardModal" style="border: none; background: none; cursor: pointer; font-size: 20px; color: #999;">×</button>
+                </div>
+                <div id="forwardTargetList" style="max-height: 400px; overflow-y: auto; padding: 8px;">
+                </div>
+            </div>
+        </div>
+
+        <!-- 回复消息提示 -->
+        <div id="replyHint" style="display: none; position: absolute; top: -60px; left: 20px; right: 20px; background: #f5f5f5; padding: 10px 16px; border-radius: 8px; font-size: 13px; z-index: 100;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="color: #07C160; font-weight: 500;">回复:</span>
+                    <span id="replyHintText" style="color: #666; margin-left: 8px;"></span>
+                </div>
+                <button id="cancelReply" style="border: none; background: none; cursor: pointer; color: #999; font-size: 16px;">×</button>
+            </div>
+        </div>
+        <div class="contact-list">
+            <div class="contact-header">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <button class="action-btn" onclick="window.location.href='/home'" title="返回主界面" style="background:transparent;">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h2>微信风格聊天</h2>
+                </div>
+                <div class="contact-actions">
+                    <button class="action-btn" id="searchMessageBtn" title="搜索消息">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button class="action-btn" id="createGroupBtn" title="发起群聊">
+                        <i class="fas fa-users"></i>
+                    </button>
+                    <button class="action-btn" id="addFriendBtn" title="添加好友">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                    <button class="action-btn" id="moreBtn" title="更多">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput" placeholder="搜索">
+            </div>
+            
+            <div class="contact-tabs">
+                <button class="tab-btn active" data-tab="friends">好友</button>
+                <button class="tab-btn" data-tab="groups">群聊</button>
+                <button class="tab-btn" data-tab="bots">数字员工</button>
+                <button class="tab-btn" data-tab="requests" id="friendRequestsTab">
+                    待处理
+                    <span class="request-badge" id="requestBadge" style="display:none; background-color: #FF4D4F; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 4px;">0</span>
+                </button>
+            </div>
+            
+            <div class="contacts-scroll" id="contactList">
+            </div>
+            
+            <div class="contacts-scroll" id="friendRequestList" style="display:none;">
+                <div class="request-section">
+                    <div class="request-section-title">收到的好友请求</div>
+                    <div id="receivedRequests"></div>
+                </div>
+                <div class="request-section">
+                    <div class="request-section-title">发送的好友请求</div>
+                    <div id="sentRequests"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 字母索引侧边栏 -->
+        <div class="alphabet-index" id="alphabetIndex" style="display:none;">
+        </div>
+        
+        <div class="chat-window">
+            <div class="chat-header" id="chatHeader">
+                <div class="chat-user-info">
+                    <div class="chat-user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <div class="chat-user-name">选择联系人开始聊天</div>
+                        <div class="chat-user-status"></div>
+                    </div>
+                </div>
+                <div class="chat-actions">
+<!--                     <button class="action-btn" id="voiceCallBtn" title="语音通话">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                    <button class="action-btn" id="videoCallBtn" title="视频通话">
+                        <i class="fas fa-video"></i>
+                    </button> -->
+                    <button class="action-btn" id="inviteBtn" title="邀请成员">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                    <button class="action-btn" id="addFriendChatBtn" title="添加好友" style="display:none;">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                    <button class="action-btn" id="chatInfoBtn" title="聊天信息">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-state">
+                    <i class="fas fa-comments empty-icon"></i>
+                    <div class="empty-text">选择一个联系人开始聊天</div>
+                </div>
+            </div>
+            
+            <div class="chat-input-area" style="position: relative;">
+                <div class="input-tools">
+                    <button class="tool-btn" id="emojiBtn" title="表情">
+                        <i class="fas fa-smile"></i>
+                    </button>
+                    <button class="tool-btn" title="图片">
+                        <i class="fas fa-image"></i>
+                    </button>
+<!--                     <button class="tool-btn" title="视频">
+                        <i class="fas fa-video"></i>
+                    </button> -->
+                    <button class="tool-btn" title="文件" id="fileBtn">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <input type="file" class="file-upload" id="fileUpload" accept="*">
+                    <button class="tool-btn" title="位置">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </button>
+                    <button class="tool-btn" title="语音">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                </div>
+                
+                <div class="input-row">
+                    <textarea class="message-input" id="messageInput" placeholder="输入消息..." rows="1"></textarea>
+                    <button class="send-btn" id="sendBtn" disabled>发送</button>
+                </div>
+                
+                <div class="emoji-picker" id="emojiPicker">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ static_url('dist/layui-v2.13.6/layui/layui.js') }}"></script>
+    <script>
+        layui.use(['layer', 'jquery'], function(){
+            if (typeof layui === 'undefined' || typeof layui.layer === 'undefined') {
+                console.warn('Layui layer 未加载，使用备用方式');
+                window.layer = {
+                    msg: function(msg, options) { alert(msg); },
+                    confirm: function(msg, callback) { if(confirm(msg)) callback(); },
+                    prompt: function(options, callback) { callback(prompt(options.value || '')); },
+                    open: function(options) { alert(options.content); },
+                    close: function() {}
+                };
+            }
+            var layer = (typeof layui !== 'undefined' && layui.layer) ? layui.layer : window.layer;
+            var $ = (typeof layui !== 'undefined' && layui.jquery) ? layui.jquery : window.jquery;
+            
+            var ws = null;
+            var isConnected = false;
+            
+            var contacts = {
+                friends: [],
+                groups: [],
+                bots: [],
+                requests: {
+                    received: [],
+                    sent: []
+                }
+            };
+            
+            var selectedContact = null;
+            
+            var pendingRequestCount = 0;
+            
+            var currentReplyMessage = null; // 当前回复的消息
+            var currentForwardMessage = null; // 当前要转发的消息
+            var allMessages = []; // 当前聊天的所有消息
+            
+            function initWebSocket() {
+                var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                var wsUrl = protocol + '//' + window.location.host + '/chat/ws';
+                
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    isConnected = true;
+                    console.log('WebSocket 连接成功');
+                    layer.msg('连接成功', { icon: 1 });
+                    loadFriendRequests();
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        var data = JSON.parse(event.data);
+                        handleWebSocketMessage(data);
+                    } catch (e) {
+                        console.error('消息解析错误:', e);
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket 错误:', error);
+                    isConnected = false;
+                };
+                
+                ws.onclose = function() {
+                    isConnected = false;
+                    console.log('WebSocket 连接关闭');
+                    layer.msg('连接已断开', { icon: 2 });
+                    setTimeout(initWebSocket, 5000);
+                };
+            }
+            
+            function loadFriendRequests() {
+                $.ajax({
+                    url: '/user/api/friend/pending',
+                    type: 'GET',
+                    success: function(res) {
+                        if (res.success) {
+                            contacts.requests.received = res.received || [];
+                            contacts.requests.sent = res.sent || [];
+                            pendingRequestCount = contacts.requests.received.length;
+                            updateRequestBadge();
+                            renderFriendRequests();
+                        }
+                    },
+                    error: function() {
+                        console.error('加载好友请求失败');
+                    }
+                });
+            }
+            
+            function updateRequestBadge() {
+                var badge = $('#requestBadge');
+                if (pendingRequestCount > 0) {
+                    badge.text(pendingRequestCount).show();
+                } else {
+                    badge.hide();
+                }
+            }
+            
+            function renderFriendRequests() {
+                var receivedHtml = '';
+                if (contacts.requests.received.length === 0) {
+                    receivedHtml = '<div class="no-requests">暂无收到的好友请求</div>';
+                } else {
+                    for (var i = 0; i < contacts.requests.received.length; i++) {
+                        var req = contacts.requests.received[i];
+                        receivedHtml += '<div class="request-item" data-username="' + req.username + '">' +
+                            '<div class="request-avatar">' + req.avatar + '</div>' +
+                            '<div class="request-info">' +
+                                '<div class="request-name">' + req.username + '</div>' +
+                                '<div class="request-time">' + req.time + '</div>' +
+                            '</div>' +
+                            '<div class="request-actions">' +
+                                '<button class="request-btn accept" data-action="accept" data-username="' + req.username + '">同意</button>' +
+                                '<button class="request-btn reject" data-action="reject" data-username="' + req.username + '">拒绝</button>' +
+                            '</div>' +
+                        '</div>';
+                    }
+                }
+                $('#receivedRequests').html(receivedHtml);
+                
+                var sentHtml = '';
+                if (contacts.requests.sent.length === 0) {
+                    sentHtml = '<div class="no-requests">暂无发送的好友请求</div>';
+                } else {
+                    for (var i = 0; i < contacts.requests.sent.length; i++) {
+                        var req = contacts.requests.sent[i];
+                        sentHtml += '<div class="request-item" data-username="' + req.username + '">' +
+                            '<div class="request-avatar">' + req.avatar + '</div>' +
+                            '<div class="request-info">' +
+                                '<div class="request-name">' + req.username + '</div>' +
+                                '<div class="request-time">等待对方同意</div>' +
+                            '</div>' +
+                        '</div>';
+                    }
+                }
+                $('#sentRequests').html(sentHtml);
+            }
+            
+            function handleWebSocketMessage(data) {
+                var type = data.type;
+                
+                if (type === 'system') {
+                    layer.msg(data.content, { icon: 1 });
+                } else if (type === 'error') {
+                    layer.msg(data.content, { icon: 2 });
+                } else if (type === 'success') {
+                    layer.msg(data.content, { icon: 1 });
+                } else if (type === 'private') {
+                    addReceivedMessage(data.from, data.content, false, data.is_file);
+                } else if (type === 'group') {
+                    addReceivedMessage(data.from, data.content, true, data.is_file);
+                }
+            }
+            
+            function addReceivedMessage(from, content, isGroup, isFile) {
+                var now = new Date();
+                var timeStr = now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+                
+                if (!selectedContact) {
+                    return;
+                }
+                
+                var shouldDisplay = false;
+                var avatar = from && from.length > 0 ? from[0].toUpperCase() : '?';
+                
+                var botNames = ['川农小助手', '天气小助手', '毒鸡汤助手', '智能助手', '天气机器人', '新闻速递'];
+                if (botNames.indexOf(from) !== -1) {
+                    if (selectedContact.type === 'bot' && selectedContact.name === from) {
+                        shouldDisplay = true;
+                    }
+                    if (from === '川农小助手') avatar = 'C';
+                    else if (from === '天气小助手') avatar = 'W';
+                    else if (from === '毒鸡汤助手') avatar = 'D';
+                    else if (from === '智能助手') avatar = 'B';
+                    else if (from === '新闻速递') avatar = 'X';
+                }
+                
+                if (!shouldDisplay) {
+                    for (var tab in contacts) {
+                        if (contacts[tab]) {
+                            for (var i = 0; i < contacts[tab].length; i++) {
+                                if (contacts[tab][i].name === from) {
+                                    avatar = contacts[tab][i].avatar;
+                                    if (selectedContact && selectedContact.id === contacts[tab][i].id) {
+                                        shouldDisplay = true;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (isGroup && selectedContact && selectedContact.type === 'group') {
+                    shouldDisplay = true;
+                }
+                
+                if (shouldDisplay) {
+                    var avatarHtml;
+                    if (isGroup && selectedContact.type === 'group') {
+                        avatarHtml = '<div class="message-avatar clickable" data-username="' + from + '" title="点击发起私聊">' + avatar + '</div>';
+                    } else {
+                        avatarHtml = '<div class="message-avatar">' + avatar + '</div>';
+                    }
+                    
+                    var messageContentHtml;
+                    var fileData = null;
+                    var weatherData = null;
+                    
+                    try {
+                        fileData = JSON.parse(content);
+                        if (fileData.file_url && fileData.file_name) {
+                            isFile = true;
+                        } else if (fileData.type === 'weather_card') {
+                            weatherData = fileData;
+                        }
+                    } catch (e) {
+                    }
+                    
+                    if (isFile && fileData) {
+                        messageContentHtml = '<div class="file-message" onclick="window.open(\'' + fileData.file_url + '\', \'_blank\')">' +
+                            '<div class="file-icon"><i class="fas fa-file"></i></div>' +
+                            '<div class="file-info">' +
+                                '<div class="file-name">' + fileData.file_name + '</div>' +
+                                '<div class="file-size">' + formatFileSize(fileData.file_size || 0) + '</div>' +
+                            '</div>' +
+                        '</div>';
+                    } else if (weatherData) {
+                        messageContentHtml = renderWeatherCard(weatherData);
+                    } else {
+                        messageContentHtml = content;
+                    }
+                    
+                    $('#chatMessages').append('<div class="message other">' +
+                        avatarHtml +
+                        '<div class="message-bubble">' +
+                            '<div class="message-content">' + messageContentHtml + '</div>' +
+                            '<div class="message-time">' + timeStr + '</div>' +
+                        '</div>' +
+                    '</div>');
+                    scrollToBottom();
+                }
+            }
+            
+            // 获取用户名的首字母
+            function getFirstLetter(name) {
+                if (!name || name.length === 0) return '#';
+                
+                var firstChar = name.charAt(0).toUpperCase();
+                var letter = firstChar;
+                
+                // 简单的中文拼音首字母映射（常用字）
+                var pinyinMap = {
+                    '阿': 'A', '爱': 'A', '安': 'A', '昂': 'A', '奥': 'A',
+                    '巴': 'B', '白': 'B', '百': 'B', '半': 'B', '包': 'B', '保': 'B', '贝': 'B', '背': 'B', '本': 'B', '比': 'B', '必': 'B', '边': 'B', '变': 'B', '表': 'B', '别': 'B', '宾': 'B', '波': 'B', '伯': 'B', '博': 'B', '布': 'B', '步': 'B',
+                    '才': 'C', '财': 'C', '菜': 'C', '参': 'C', '餐': 'C', '查': 'C', '差': 'C', '长': 'C', '常': 'C', '场': 'C', '唱': 'C', '超': 'C', '车': 'C', '陈': 'C', '成': 'C', '程': 'C', '吃': 'C', '尺': 'C', '冲': 'C', '虫': 'C', '抽': 'C', '出': 'C', '初': 'C', '处': 'C', '川': 'C', '穿': 'C', '传': 'C', '窗': 'C', '床': 'C', '春': 'C', '次': 'C', '从': 'C', '村': 'C', '存': 'C', '错': 'C',
+                    '达': 'D', '打': 'D', '大': 'D', '代': 'D', '带': 'D', '单': 'D', '但': 'D', '淡': 'D', '蛋': 'D', '当': 'D', '党': 'D', '导': 'D', '道': 'D', '的': 'D', '得': 'D', '灯': 'D', '登': 'D', '等': 'D', '地': 'D', '底': 'D', '点': 'D', '电': 'D', '店': 'D', '调': 'D', '丁': 'D', '顶': 'D', '定': 'D', '东': 'D', '冬': 'D', '董': 'D', '懂': 'D', '动': 'D', '都': 'D', '读': 'D', '独': 'D', '度': 'D', '短': 'D', '对': 'D', '多': 'D',
+                    '儿': 'E', '而': 'E', '二': 'E',
+                    '发': 'F', '法': 'F', '番': 'F', '翻': 'F', '凡': 'F', '烦': 'F', '反': 'F', '饭': 'F', '范': 'F', '方': 'F', '放': 'F', '飞': 'F', '非': 'F', '费': 'F', '分': 'F', '风': 'F', '封': 'F', '冯': 'F', '夫': 'F', '服': 'F', '福': 'F', '府': 'F', '父': 'F', '复': 'F', '富': 'F', '付': 'F',
+                    '改': 'G', '感': 'G', '干': 'G', '刚': 'G', '高': 'G', '哥': 'G', '歌': 'G', '格': 'G', '个': 'G', '给': 'G', '根': 'G', '更': 'G', '工': 'G', '公': 'G', '功': 'G', '共': 'G', '古': 'G', '骨': 'G', '谷': 'G', '故': 'G', '顾': 'G', '瓜': 'G', '关': 'G', '观': 'G', '官': 'G', '管': 'G', '光': 'G', '广': 'G', '归': 'G', '鬼': 'G', '国': 'G', '果': 'G', '过': 'G',
+                    '哈': 'H', '海': 'H', '含': 'H', '寒': 'H', '汉': 'H', '好': 'H', '号': 'H', '喝': 'H', '和': 'H', '河': 'H', '黑': 'H', '很': 'H', '红': 'H', '后': 'H', '候': 'H', '呼': 'H', '胡': 'H', '湖': 'H', '互': 'H', '花': 'H', '华': 'H', '化': 'H', '话': 'H', '画': 'H', '欢': 'H', '黄': 'H', '回': 'H', '会': 'H', '婚': 'H', '活': 'H', '火': 'H', '或': 'H', '获': 'H',
+                    '机': 'J', '基': 'J', '级': 'J', '急': 'J', '即': 'J', '集': 'J', '计': 'J', '记': 'J', '技': 'J', '季': 'J', '家': 'J', '加': 'J', '甲': 'J', '假': 'J', '价': 'J', '间': 'J', '见': 'J', '江': 'J', '将': 'J', '讲': 'J', '交': 'J', '角': 'J', '脚': 'J', '叫': 'J', '教': 'J', '接': 'J', '结': 'J', '节': 'J', '姐': 'J', '解': 'J', '界': 'J', '借': 'J', '今': 'J', '金': 'J', '进': 'J', '近': 'J', '京': 'J', '经': 'J', '井': 'J', '景': 'J', '静': 'J', '九': 'J', '酒': 'J', '旧': 'J', '就': 'J', '居': 'J', '局': 'J', '举': 'J', '句': 'J', '具': 'J', '决': 'J', '觉': 'J', '军': 'J',
+                    '卡': 'K', '开': 'K', '看': 'K', '康': 'K', '考': 'K', '科': 'K', '可': 'K', '课': 'K', '空': 'K', '孔': 'K', '口': 'K', '快': 'K', '款': 'K', '况': 'K', '矿': 'K',
+                    '拉': 'L', '来': 'L', '蓝': 'L', '兰': 'L', '老': 'L', '劳': 'L', '乐': 'L', '雷': 'L', '冷': 'L', '李': 'L', '里': 'L', '理': 'L', '力': 'L', '立': 'L', '丽': 'L', '利': 'L', '连': 'L', '练': 'L', '良': 'L', '凉': 'L', '梁': 'L', '两': 'L', '亮': 'L', '量': 'L', '林': 'L', '临': 'L', '刘': 'L', '留': 'L', '流': 'L', '六': 'L', '龙': 'L', '楼': 'L', '路': 'L', '陆': 'L', '录': 'L', '绿': 'L', '论': 'L', '罗': 'L',
+                    '马': 'M', '妈': 'M', '买': 'M', '卖': 'M', '满': 'M', '慢': 'M', '忙': 'M', '猫': 'M', '毛': 'M', '美': 'M', '妹': 'M', '门': 'M', '们': 'M', '米': 'M', '密': 'M', '民': 'M', '明': 'M', '命': 'M', '模': 'M', '磨': 'M', '墨': 'M', '母': 'M', '木': 'M', '目': 'M',
+                    '拿': 'N', '那': 'N', '纳': 'N', '男': 'N', '南': 'N', '难': 'N', '脑': 'N', '能': 'N', '你': 'N', '年': 'N', '念': 'N', '鸟': 'N', '您': 'N', '牛': 'N', '农': 'N', '努': 'N', '女': 'N', '暖': 'N',
+                    '欧': 'O', '偶': 'O',
+                    '排': 'P', '派': 'P', '潘': 'P', '盘': 'P', '判': 'P', '旁': 'P', '跑': 'P', '配': 'P', '朋': 'P', '皮': 'P', '品': 'P', '平': 'P', '评': 'P', '屏': 'P', '凭': 'P', '苹': 'P', '瓶': 'P',
+                    '七': 'Q', '期': 'Q', '妻': 'Q', '其': 'Q', '奇': 'Q', '齐': 'Q', '企': 'Q', '启': 'Q', '起': 'Q', '气': 'Q', '汽': 'Q', '千': 'Q', '前': 'Q', '钱': 'Q', '强': 'Q', '桥': 'Q', '巧': 'Q', '切': 'Q', '且': 'Q', '青': 'Q', '轻': 'Q', '清': 'Q', '情': 'Q', '请': 'Q', '秋': 'Q', '求': 'Q', '球': 'Q', '区': 'Q', '曲': 'Q', '去': 'Q', '缺': 'Q', '确': 'Q', '群': 'Q',
+                    '然': 'R', '让': 'R', '热': 'R', '人': 'R', '认': 'R', '任': 'R', '日': 'R', '容': 'R', '如': 'R', '入': 'R',
+                    '三': 'S', '散': 'S', '色': 'S', '森': 'S', '山': 'S', '商': 'S', '上': 'S', '少': 'S', '绍': 'S', '社': 'S', '设': 'S', '申': 'S', '身': 'S', '深': 'S', '神': 'S', '生': 'S', '声': 'S', '胜': 'S', '师': 'S', '施': 'S', '十': 'S', '石': 'S', '时': 'S', '实': 'S', '识': 'S', '史': 'S', '始': 'S', '式': 'S', '世': 'S', '事': 'S', '是': 'S', '市': 'S', '室': 'S', '视': 'S', '试': 'S', '收': 'S', '手': 'S', '首': 'S', '受': 'S', '书': 'S', '输': 'S', '树': 'S', '双': 'S', '谁': 'S', '水': 'S', '税': 'S', '说': 'S', '思': 'S', '死': 'S', '四': 'S', '送': 'S', '苏': 'S', '素': 'S', '速': 'S', '算': 'S', '虽': 'S', '随': 'S', '岁': 'S', '孙': 'S', '所': 'S',
+                    '他': 'T', '它': 'T', '她': 'T', '台': 'T', '太': 'T', '态': 'T', '谈': 'T', '汤': 'T', '堂': 'T', '套': 'T', '特': 'T', '提': 'T', '题': 'T', '体': 'T', '天': 'T', '田': 'T', '条': 'T', '跳': 'T', '听': 'T', '停': 'T', '通': 'T', '同': 'T', '统': 'T', '头': 'T', '图': 'T', '土': 'T', '团': 'T', '推': 'T', '退': 'T',
+                    '外': 'W', '完': 'W', '晚': 'W', '万': 'W', '王': 'W', '往': 'W', '网': 'W', '望': 'W', '忘': 'W', '危': 'W', '威': 'W', '为': 'W', '位': 'W', '卫': 'W', '未': 'W', '味': 'W', '文': 'W', '闻': 'W', '问': 'W', '我': 'W', '五': 'W', '武': 'W', '舞': 'W', '物': 'W', '务': 'W', '误': 'W',
+                    '西': 'X', '希': 'X', '息': 'X', '溪': 'X', '习': 'X', '系': 'X', '细': 'X', '下': 'X', '夏': 'X', '先': 'X', '香': 'X', '乡': 'X', '相': 'X', '香': 'X', '箱': 'X', '想': 'X', '向': 'X', '项': 'X', '象': 'X', '小': 'X', '校': 'X', '笑': 'X', '效': 'X', '写': 'X', '谢': 'X', '心': 'X', '新': 'X', '信': 'X', '兴': 'X', '星': 'X', '行': 'X', '形': 'X', '型': 'X', '醒': 'X', '姓': 'X', '性': 'X', '休': 'X', '修': 'X', '秀': 'X', '须': 'X', '许': 'X', '续': 'X', '选': 'X', '学': 'X', '雪': 'X', '血': 'X', '寻': 'X', '循': 'X', '训': 'X', '迅': 'X',
+                    '压': 'Y', '呀': 'Y', '牙': 'Y', '雅': 'Y', '亚': 'Y', '烟': 'Y', '言': 'Y', '颜': 'Y', '眼': 'Y', '演': 'Y', '燕': 'Y', '杨': 'Y', '阳': 'Y', '洋': 'Y', '养': 'Y', '样': 'Y', '药': 'Y', '要': 'Y', '也': 'Y', '业': 'Y', '夜': 'Y', '一': 'Y', '医': 'Y', '衣': 'Y', '依': 'Y', '移': 'Y', '已': 'Y', '以': 'Y', '意': 'Y', '义': 'Y', '艺': 'Y', '议': 'Y', '亦': 'Y', '异': 'Y', '忆': 'Y', '义': 'Y', '易': 'Y', '益': 'Y', '意': 'Y', '义': 'Y', '因': 'Y', '音': 'Y', '阴': 'Y', '银': 'Y', '引': 'Y', '应': 'Y', '英': 'Y', '营': 'Y', '迎': 'Y', '影': 'Y', '永': 'Y', '用': 'Y', '优': 'Y', '由': 'Y', '邮': 'Y', '油': 'Y', '游': 'Y', '友': 'Y', '有': 'Y', '又': 'Y', '右': 'Y', '于': 'Y', '余': 'Y', '鱼': 'Y', '愉': 'Y', '雨': 'Y', '语': 'Y', '玉': 'Y', '欲': 'Y', '元': 'Y', '员': 'Y', '原': 'Y', '源': 'Y', '远': 'Y', '愿': 'Y', '月': 'Y', '岳': 'Y', '悦': 'Y', '越': 'Y', '云': 'Y', '运': 'Y', '在': 'Y', '早': 'Y', '则': 'Y', '曾': 'Z', '张': 'Z', '找': 'Z', '赵': 'Z', '照': 'Z', '者': 'Z', '这': 'Z', '真': 'Z', '正': 'Z', '郑': 'Z', '知': 'Z', '直': 'Z', '值': 'Z', '只': 'Z', '纸': 'Z', '指': 'Z', '制': 'Z', '治': 'Z', '中': 'Z', '终': 'Z', '种': 'Z', '重': 'Z', '周': 'Z', '洲': 'Z', '主': 'Z', '住': 'Z', '注': 'Z', '祝': 'Z', '抓': 'Z', '转': 'Z', '赚': 'Z', '准': 'Z', '卓': 'Z', '资': 'Z', '子': 'Z', '自': 'Z', '字': 'Z', '总': 'Z', '走': 'Z', '租': 'Z', '足': 'Z', '组': 'Z', '最': 'Z', '罪': 'Z', '尊': 'Z', '遵': 'Z', '左': 'Z', '作': 'Z', '坐': 'Z', '座': 'Z', '做': 'Z', '作': 'Z'
+                };
+                
+                // 如果是英文字母，直接返回
+                if (/[A-Z]/.test(letter)) {
+                    return letter;
+                }
+                // 如果是中文，从映射表中找
+                if (pinyinMap[firstChar]) {
+                    return pinyinMap[firstChar];
+                }
+                // 其他字符归类到 #
+                return '#';
+            }
+
+            // 按字母分组联系人
+            function groupContacts(list) {
+                var groups = {};
+                
+                for (var i = 0; i < list.length; i++) {
+                    var contact = list[i];
+                    var letter = getFirstLetter(contact.name);
+                    
+                    if (!groups[letter]) {
+                        groups[letter] = [];
+                    }
+                    groups[letter].push(contact);
+                }
+                
+                // 对分组进行排序
+                var sortedGroups = [];
+                var hasPound = false;
+                
+                for (var letter in groups) {
+                    if (letter === '#') {
+                        hasPound = true;
+                        continue;
+                    }
+                    sortedGroups.push({
+                        letter: letter,
+                        contacts: groups[letter]
+                    });
+                }
+                
+                // 按字母顺序排序
+                sortedGroups.sort(function(a, b) {
+                    return a.letter.localeCompare(b.letter);
+                });
+                
+                // 把 # 分组放在最后
+                if (hasPound) {
+                    sortedGroups.push({
+                        letter: '#',
+                        contacts: groups['#']
+                    });
+                }
+                
+                return sortedGroups;
+            }
+
+            // 渲染字母索引
+            function renderAlphabetIndex(groups, tab) {
+                var indexHtml = '';
+                
+                for (var i = 0; i < groups.length; i++) {
+                    indexHtml += '<span data-letter="' + groups[i].letter + '">' + groups[i].letter + '</span>';
+                }
+                
+                $('#alphabetIndex').html(indexHtml);
+                
+                // 只在好友标签页显示字母索引
+                if (tab === 'friends') {
+                    $('#alphabetIndex').show();
+                } else {
+                    $('#alphabetIndex').hide();
+                }
+            }
+
+            // 滚动到指定字母分组
+            function scrollToLetter(letter) {
+                var target = $('#group-' + letter);
+                if (target.length > 0) {
+                    $('#contactList').animate({
+                        scrollTop: target.position().top + $('#contactList').scrollTop() - 40
+                    }, 200);
+                    
+                    // 更新字母索引高亮状态
+                    $('#alphabetIndex span').removeClass('active');
+                    $('#alphabetIndex span[data-letter="' + letter + '"]').addClass('active');
+                }
+            }
+
+            function renderContacts(tab) {
+                var list = contacts[tab] || [];
+                var html = '';
+                
+                if (tab === 'friends' && list.length > 0) {
+                    // 好友按字母分组显示
+                    var groups = groupContacts(list);
+                    renderAlphabetIndex(groups, tab);
+                    
+                    for (var g = 0; g < groups.length; g++) {
+                        var group = groups[g];
+                        html += '<div class="group-title" id="group-' + group.letter + '">' + group.letter + '</div>';
+                        
+                        for (var i = 0; i < group.contacts.length; i++) {
+                            var contact = group.contacts[i];
+                            var avatarClass = 'contact-avatar';
+                            if (contact.type === 'group') avatarClass += ' group';
+                            if (contact.type === 'bot') avatarClass += ' bot';
+                            
+                            var badgeHtml = contact.badge > 0 ? '<span class="contact-badge">' + contact.badge + '</span>' : '';
+                            
+                            html += '<div class="contact-item" data-id="' + contact.id + '" data-type="' + contact.type + '">' +
+                                '<div class="' + avatarClass + '">' + contact.avatar + '</div>' +
+                                '<div class="contact-info">' +
+                                    '<div class="contact-name">' + contact.name + '</div>' +
+                                    '<div class="contact-preview">' + contact.preview + '</div>' +
+                                '</div>' +
+                                '<div class="contact-meta">' +
+                                    '<div class="contact-time">' + contact.time + '</div>' +
+                                    badgeHtml +
+                                '</div>' +
+                            '</div>';
+                        }
+                    }
+                } else {
+                    // 群聊、数字员工等其他标签直接按列表显示
+                    $('#alphabetIndex').hide();
+                    
+                    for (var i = 0; i < list.length; i++) {
+                        var contact = list[i];
+                        var avatarClass = 'contact-avatar';
+                        if (contact.type === 'group') avatarClass += ' group';
+                        if (contact.type === 'bot') avatarClass += ' bot';
+                        
+                        var badgeHtml = contact.badge > 0 ? '<span class="contact-badge">' + contact.badge + '</span>' : '';
+                        
+                        html += '<div class="contact-item" data-id="' + contact.id + '" data-type="' + contact.type + '">' +
+                            '<div class="' + avatarClass + '">' + contact.avatar + '</div>' +
+                            '<div class="contact-info">' +
+                                '<div class="contact-name">' + contact.name + '</div>' +
+                                '<div class="contact-preview">' + contact.preview + '</div>' +
+                            '</div>' +
+                            '<div class="contact-meta">' +
+                                '<div class="contact-time">' + contact.time + '</div>' +
+                                badgeHtml +
+                            '</div>' +
+                        '</div>';
+                    }
+                }
+                
+                $('#contactList').html(html);
+            }
+            
+            function renderMessages(contactId) {
+                if (!selectedContact) {
+                    $('#chatMessages').html('<div class="empty-state">' +
+                        '<i class="fas fa-comments empty-icon"></i>' +
+                        '<div class="empty-text">选择一个联系人开始聊天</div>' +
+                    '</div>');
+                    return;
+                }
+                
+                // 加载历史消息
+                loadMessageHistory();
+            }
+            
+            function loadMessageHistory() {
+                var type = selectedContact.type;
+                var id = selectedContact.id;
+                var params = { type: type };
+                
+                if (type === 'group') {
+                    params.id = id;
+                } else if (type === 'friend' || type === 'bot') {
+                    params.id = selectedContact.name;
+                } else {
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/user/api/message/history',
+                    type: 'GET',
+                    data: params,
+                    success: function(res) {
+                        if (res.success) {
+                            allMessages = res.messages || [];
+                            displayMessages(allMessages);
+                            
+                            // 标记为已读
+                            markAsRead();
+                        }
+                    },
+                    error: function() {
+                        console.error('加载消息历史失败');
+                    }
+                });
+            }
+            
+            function displayMessages(messages) {
+                var html = '';
+                
+                if (messages.length === 0) {
+                    html = '<div class="empty-state">' +
+                        '<i class="fas fa-comments empty-icon"></i>' +
+                        '<div class="empty-text">暂无消息</div>' +
+                    '</div>';
+                } else {
+                    for (var i = 0; i < messages.length; i++) {
+                        var msg = messages[i];
+                        html += renderSingleMessage(msg);
+                    }
+                }
+                
+                $('#chatMessages').html(html);
+                scrollToBottom();
+            }
+            
+            function renderSingleMessage(msg) {
+                var isOwn = msg.is_own;
+                var avatar = isOwn ? '我' : (msg.sender && msg.sender[0] ? msg.sender[0].toUpperCase() : '?');
+                var timeStr = msg.time || new Date().toLocaleTimeString().substring(0, 5);
+                
+                var referenceHtml = '';
+                if (msg.referenced_message_id) {
+                    // 获取引用消息的内容
+                    var referencedMsg = allMessages.find(function(m) { return m.id === msg.referenced_message_id; });
+                    if (referencedMsg) {
+                        referenceHtml = '<div class="message-reference">' +
+                            '<div class="message-reference-sender">' + referencedMsg.sender + '</div>' +
+                            '<div>' + (referencedMsg.content.length > 50 ? referencedMsg.content.substring(0, 50) + '...' : referencedMsg.content) + '</div>' +
+                        '</div>';
+                    }
+                }
+                
+                var actionsHtml = '<div class="message-actions">' +
+                    '<button class="message-action-btn" data-action="reply" data-message-id="' + msg.id + '" data-message-type="' + (msg.group_id ? 'group' : 'private') + '">' +
+                        '<i class="fas fa-reply"></i> 回复' +
+                    '</button>' +
+                    '<button class="message-action-btn" data-action="forward" data-message-id="' + msg.id + '" data-message-type="' + (msg.group_id ? 'group' : 'private') + '">' +
+                        '<i class="fas fa-share"></i> 转发' +
+                    '</button>' +
+                '</div>';
+                
+                // 检查是否是天气卡片
+                var messageContentHtml = '';
+                var weatherData = null;
+                try {
+                    var parsed = JSON.parse(msg.content);
+                    if (parsed.type === 'weather_card') {
+                        weatherData = parsed;
+                    }
+                } catch (e) {
+                }
+                
+                if (weatherData) {
+                    messageContentHtml = renderWeatherCard(weatherData);
+                } else {
+                    messageContentHtml = referenceHtml + msg.content;
+                }
+                
+                return '<div class="message ' + (isOwn ? 'own' : 'other') + '" style="position: relative;">' +
+                    '<div class="message-avatar">' + avatar + '</div>' +
+                    '<div class="message-bubble">' +
+                    actionsHtml +
+                    '<div class="message-content">' + messageContentHtml + '</div>' +
+                    '<div class="message-time">' + timeStr + '</div>' +
+                    '</div>' +
+                '</div>';
+            }
+            
+            function markAsRead() {
+                if (!selectedContact) return;
+                
+                var type = selectedContact.type;
+                var id = selectedContact.id;
+                var params = { type: type };
+                
+                if (type === 'group') {
+                    params.id = id;
+                } else if (type === 'friend' || type === 'bot') {
+                    params.id = selectedContact.name;
+                } else {
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/user/api/mark/read',
+                    type: 'POST',
+                    data: JSON.stringify(params),
+                    contentType: 'application/json',
+                    success: function(res) {
+                        if (res.success) {
+                            // 刷新联系人列表，更新未读数
+                            loadContactsWithUnread();
+                        }
+                    },
+                    error: function() {
+                        console.error('标记已读失败');
+                    }
+                });
+            }
+            
+            function loadContactsWithUnread() {
+                // 加载好友列表（含未读数）
+                $.ajax({
+                    url: '/user/api/friends/unread',
+                    type: 'GET',
+                    success: function(res) {
+                        if (res.success) {
+                            contacts.friends = res.friends || [];
+                            if ($('.tab-btn.active').data('tab') === 'friends') {
+                                renderContacts('friends');
+                            }
+                        }
+                    }
+                });
+                
+                // 加载群聊列表（含未读数）
+                $.ajax({
+                    url: '/user/api/groups/unread',
+                    type: 'GET',
+                    success: function(res) {
+                        if (res.success) {
+                            contacts.groups = res.groups || [];
+                            if ($('.tab-btn.active').data('tab') === 'groups') {
+                                renderContacts('groups');
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function startReply(messageId, messageType, content, sender) {
+                currentReplyMessage = {
+                    id: messageId,
+                    type: messageType,
+                    content: content,
+                    sender: sender
+                };
+                
+                $('#replyHintText').text(sender + ': ' + (content.length > 30 ? content.substring(0, 30) + '...' : content));
+                $('#replyHint').show();
+                $('#messageInput').focus();
+            }
+            
+            function cancelReply() {
+                currentReplyMessage = null;
+                $('#replyHint').hide();
+            }
+            
+            function showForwardModal(messageId, messageType) {
+                currentForwardMessage = {
+                    id: messageId,
+                    type: messageType
+                };
+                
+                // 加载转发目标列表
+                var html = '';
+                
+                // 好友列表
+                if (contacts.friends.length > 0) {
+                    html += '<div style="padding: 8px 12px; font-size: 12px; color: #999; font-weight: 500;">好友</div>';
+                    for (var i = 0; i < contacts.friends.length; i++) {
+                        var friend = contacts.friends[i];
+                        html += '<div class="forward-target-item" data-type="private" data-id="' + friend.name + '" style="display: flex; align-items: center; padding: 10px; cursor: pointer; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.backgroundColor=\'#f5f5f5\'" onmouseout="this.style.backgroundColor=\'\'">' +
+                            '<div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #07C160 0%, #10B981 100%); display: flex; align-items: center; justify-content: center; color: #fff; margin-right: 12px; font-size: 16px;">' + friend.avatar + '</div>' +
+                            '<div>' + friend.name + '</div>' +
+                        '</div>';
+                    }
+                }
+                
+                // 群聊列表
+                if (contacts.groups.length > 0) {
+                    html += '<div style="padding: 8px 12px; font-size: 12px; color: #999; font-weight: 500; margin-top: 8px;">群聊</div>';
+                    for (var i = 0; i < contacts.groups.length; i++) {
+                        var group = contacts.groups[i];
+                        html += '<div class="forward-target-item" data-type="group" data-id="' + group.id + '" style="display: flex; align-items: center; padding: 10px; cursor: pointer; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.backgroundColor=\'#f5f5f5\'" onmouseout="this.style.backgroundColor=\'\'">' +
+                            '<div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%); display: flex; align-items: center; justify-content: center; color: #fff; margin-right: 12px; font-size: 16px;">' + group.avatar + '</div>' +
+                            '<div>' + group.name + '</div>' +
+                        '</div>';
+                    }
+                }
+                
+                if (!html) {
+                    html = '<div style="padding: 40px; text-align: center; color: #999;">暂无可转发的目标</div>';
+                }
+                
+                $('#forwardTargetList').html(html);
+                $('#forwardMessageModal').show();
+            }
+            
+            function forwardMessage(targetType, targetId) {
+                if (!currentForwardMessage) return;
+                
+                $.ajax({
+                    url: '/user/api/message/forward',
+                    type: 'POST',
+                    data: JSON.stringify({
+                        message_id: currentForwardMessage.id,
+                        message_type: currentForwardMessage.type,
+                        target_type: targetType,
+                        target_id: targetId
+                    }),
+                    contentType: 'application/json',
+                    success: function(res) {
+                        if (res.success) {
+                            layer.msg('转发成功！', { icon: 1 });
+                            $('#forwardMessageModal').hide();
+                            currentForwardMessage = null;
+                        } else {
+                            layer.msg('转发失败：' + res.message, { icon: 2 });
+                        }
+                    },
+                    error: function() {
+                        layer.msg('网络错误，请重试', { icon: 2 });
+                    }
+                });
+            }
+            
+            function searchMessages(keyword) {
+                if (!keyword.trim()) {
+                    $('#searchResults').html('<div style="padding: 40px; text-align: center; color: #999;">输入关键词开始搜索</div>');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/user/api/message/search',
+                    type: 'POST',
+                    data: JSON.stringify({
+                        keyword: keyword,
+                        type: null,
+                        id: null
+                    }),
+                    contentType: 'application/json',
+                    success: function(res) {
+                        if (res.success && res.results && res.results.length > 0) {
+                            var html = '';
+                            for (var i = 0; i < res.results.length; i++) {
+                                var result = res.results[i];
+                                // 高亮关键词
+                                var highlightedContent = result.content.replace(new RegExp(keyword, 'gi'), function(match) {
+                                    return '<span class="search-result-highlight">' + match + '</span>';
+                                });
+                                html += '<div class="search-result-item" data-chat-type="' + result.chat_type + '" data-chat-id="' + result.chat_id + '">' +
+                                    '<div class="search-result-chat">' + result.chat_name + '</div>' +
+                                    '<div class="search-result-content">' + highlightedContent + '</div>' +
+                                    '<div class="search-result-meta">' + result.sender + ' · ' + result.time + '</div>' +
+                                '</div>';
+                            }
+                            $('#searchResults').html(html);
+                        } else {
+                            $('#searchResults').html('<div style="padding: 40px; text-align: center; color: #999;">未找到相关消息</div>');
+                        }
+                    },
+                    error: function() {
+                        $('#searchResults').html('<div style="padding: 40px; text-align: center; color: #999;">搜索失败，请重试</div>');
+                    }
+                });
+            }
+            
+            function isFriend(username) {
+                if (!contacts.friends) return false;
+                for (var i = 0; i < contacts.friends.length; i++) {
+                    if (contacts.friends[i].name === username) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            function updateChatHeader(contact) {
+                if (!contact) {
+                    $('#chatHeader .chat-user-name').text('选择联系人开始聊天');
+                    $('#chatHeader .chat-user-status').text('');
+                    $('#chatHeader .chat-user-avatar').html('<i class="fas fa-user"></i>');
+                    $('#addFriendChatBtn').hide();
+                    $('#inviteBtn').hide();
+                    return;
+                }
+                
+                var avatarClass = 'chat-user-avatar';
+                if (contact.type === 'group') avatarClass += ' group';
+                if (contact.type === 'bot') avatarClass += ' bot';
+                
+                $('#chatHeader .chat-user-name').text(contact.name);
+                $('#chatHeader .chat-user-status').text(isConnected ? '在线' : '离线');
+                $('#chatHeader .chat-user-avatar').attr('class', avatarClass).text(contact.avatar);
+                
+                if (contact.type === 'group') {
+                    $('#addFriendChatBtn').hide();
+                    $('#inviteBtn').show();
+                } else if (contact.type === 'bot') {
+                    $('#addFriendChatBtn').hide();
+                    $('#inviteBtn').hide();
+                } else {
+                    $('#inviteBtn').hide();
+                    if (isFriend(contact.name)) {
+                        $('#addFriendChatBtn').hide();
+                    } else {
+                        $('#addFriendChatBtn').show();
+                    }
+                }
+            }
+            
+            function getContactName(id) {
+                for (var tab in contacts) {
+                    if (contacts[tab]) {
+                        for (var i = 0; i < contacts[tab].length; i++) {
+                            if (contacts[tab][i].id === id) {
+                                return contacts[tab][i].name;
+                            }
+                        }
+                    }
+                }
+                return '未知';
+            }
+            
+            function scrollToBottom() {
+                var chatMessages = $('#chatMessages')[0];
+                if (chatMessages) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            }
+            
+            function sendMessage() {
+                var text = $.trim($('#messageInput').val());
+                if (!text || !selectedContact) return;
+                
+                if (!isConnected) {
+                    layer.msg('未连接到服务器', { icon: 2 });
+                    return;
+                }
+                
+                var now = new Date();
+                var timeStr = now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+                
+                // 构建引用HTML
+                var referenceHtml = '';
+                if (currentReplyMessage) {
+                    referenceHtml = '<div class="message-reference">' +
+                        '<div class="message-reference-sender">' + currentReplyMessage.sender + '</div>' +
+                        '<div>' + (currentReplyMessage.content.length > 50 ? currentReplyMessage.content.substring(0, 50) + '...' : currentReplyMessage.content) + '</div>' +
+                    '</div>';
+                }
+                
+                $('#chatMessages').append('<div class="message own" style="position: relative;">' +
+                    '<div class="message-avatar">我</div>' +
+                    '<div class="message-bubble">' +
+                        '<div class="message-content">' + referenceHtml + text + '</div>' +
+                        '<div class="message-time">' + timeStr + '</div>' +
+                    '</div>' +
+                '</div>');
+                
+                $('#messageInput').val('');
+                $('#sendBtn').prop('disabled', true);
+                cancelReply();
+                scrollToBottom();
+                
+                var message = {};
+                if (selectedContact.type === 'group') {
+                    message = {
+                        type: 'group',
+                        group_id: selectedContact.id,
+                        content: text
+                    };
+                    if (currentReplyMessage) {
+                        message.referenced_message_id = currentReplyMessage.id;
+                    }
+                } else {
+                    message = {
+                        type: 'private',
+                        to: selectedContact.name,
+                        content: text
+                    };
+                    if (currentReplyMessage) {
+                        message.referenced_message_id = currentReplyMessage.id;
+                    }
+                }
+                ws.send(JSON.stringify(message));
+            }
+            
+            function renderEmojiPicker() {
+                var emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+                    '🙂', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗',
+                    '😚', '😋', '😛', '😝', '🤑', '🤗', '🤭', '🤫',
+                    '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒',
+                    '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴',
+                    '😷', '🤒', '🤕', '🤢', '🤮', '🥵', '🥶', '🥴',
+                    '😵', '🤯', '🤠', '🥳', '🥸', '😎', '🤓', '🧐',
+                    '😕', '😟', '🙁', '☹️', '😮‍💨', '😌', '😤', '😡'
+                ];
+                var html = '';
+                emojis.forEach(function(emoji) {
+                    html += '<span class="emoji-item">' + emoji + '</span>';
+                });
+                $('#emojiPicker').html(html);
+            }
+            
+            $('#searchInput').on('input', function() {
+                var keyword = $(this).val().trim().toLowerCase();
+                var currentTab = $('.tab-btn.active').data('tab');
+                var list = contacts[currentTab] || [];
+                
+                if (keyword === '') {
+                    renderContacts(currentTab);
+                    return;
+                }
+                
+                var filtered = [];
+                for (var i = 0; i < list.length; i++) {
+                    if (list[i].name.toLowerCase().indexOf(keyword) !== -1) {
+                        filtered.push(list[i]);
+                    }
+                }
+                
+                var html = '';
+                for (var i = 0; i < filtered.length; i++) {
+                    var contact = filtered[i];
+                    var avatarClass = 'contact-avatar';
+                    if (contact.type === 'group') avatarClass += ' group';
+                    if (contact.type === 'bot') avatarClass += ' bot';
+                    
+                    var badgeHtml = contact.badge > 0 ? '<span class="contact-badge">' + contact.badge + '</span>' : '';
+                    
+                    html += '<div class="contact-item" data-id="' + contact.id + '" data-type="' + contact.type + '">' +
+                        '<div class="' + avatarClass + '">' + contact.avatar + '</div>' +
+                        '<div class="contact-info">' +
+                            '<div class="contact-name">' + contact.name + '</div>' +
+                            '<div class="contact-preview">' + contact.preview + '</div>' +
+                        '</div>' +
+                        '<div class="contact-meta">' +
+                            '<div class="contact-time">' + contact.time + '</div>' +
+                            badgeHtml +
+                        '</div>' +
+                    '</div>';
+                }
+                $('#contactList').html(html);
+            });
+            
+            $('#createGroupBtn').on('click', function() {
+                $.ajax({
+                    url: '/user/api/friends',
+                    type: 'GET',
+                    success: function(res) {
+                        var friends = res.success && res.friends ? res.friends : [];
+                        
+                        $.ajax({
+                            url: '/user/api/employees',
+                            type: 'GET',
+                            success: function(empRes) {
+                                var employees = empRes.success && empRes.employees ? empRes.employees : [];
+                                
+                                var html = '<div style="padding: 10px;">';
+                                html += '<div style="margin-bottom: 15px;">';
+                                html += '<input type="text" id="groupNameInput" placeholder="请输入群名称" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;">';
+                                html += '</div>';
+                                
+                                if (friends.length > 0) {
+                                    html += '<div style="margin-bottom: 10px; font-weight: 600; color: #5f5f5f;">选择要拉群的好友：</div>';
+                                    html += '<div style="max-height: 150px; overflow-y: auto; margin-bottom: 15px;">';
+                                    for (var i = 0; i < friends.length; i++) {
+                                        html += '<div class="friend-item" style="display: flex; align-items: center; padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; border-radius: 8px; margin-bottom: 5px; transition: background 0.2s;" data-username="' + friends[i].name + '" onmouseover="this.style.backgroundColor=\'#f5f5f5\'" onmouseout="this.style.backgroundColor=\'\'">';
+                                        html += '<div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #07C160 0%, #10B981 100%); display: flex; align-items: center; justify-content: center; color: #fff; margin-right: 10px; font-size: 14px; font-weight: 600;">' + friends[i].avatar + '</div>';
+                                        html += '<div style="flex: 1; font-size: 14px; color: #333;">' + friends[i].name + '</div>';
+                                        html += '<input type="checkbox" class="friend-checkbox" style="width: 18px; height: 18px; accent-color: #07C160;"></div>';
+                                    }
+                                    html += '</div>';
+                                }
+                                
+                                if (employees.length > 0) {
+                                    html += '<div style="margin-bottom: 10px; font-weight: 600; color: #F59E0B;">选择数字员工（可选）：</div>';
+                                    html += '<div style="max-height: 150px; overflow-y: auto;">';
+                                    for (var i = 0; i < employees.length; i++) {
+                                        html += '<div class="employee-item" style="display: flex; align-items: center; padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; border-radius: 8px; margin-bottom: 5px; transition: background 0.2s;" data-employeeid="' + employees[i].id + '" onmouseover="this.style.backgroundColor=\'#FFF7E6\'" onmouseout="this.style.backgroundColor=\'\'">';
+                                        html += '<div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); display: flex; align-items: center; justify-content: center; color: #fff; margin-right: 10px; font-size: 14px; font-weight: 600;">' + employees[i].avatar + '</div>';
+                                        html += '<div style="flex: 1;">';
+                                        html += '<div style="font-size: 14px; color: #333; font-weight: 500;">' + employees[i].name + '</div>';
+                                        html += '<div style="font-size: 12px; color: #999;">@' + employees[i].name + ' 触发</div>';
+                                        html += '</div>';
+                                        html += '<input type="checkbox" class="employee-checkbox" style="width: 18px; height: 18px; accent-color: #F59E0B;"></div>';
+                                    }
+                                    html += '</div>';
+                                }
+                                
+                                html += '</div>';
+                                
+                                layer.open({
+                                    type: 0,
+                                    title: '创建群聊',
+                                    area: ['380px', '520px'],
+                                    content: html,
+                                    btn: ['创建群聊', '取消'],
+                                    success: function() {
+                                        $(document).off('click', '.friend-item');
+                                        $(document).off('click', '.friend-checkbox');
+                                        $(document).off('click', '.employee-item');
+                                        $(document).off('click', '.employee-checkbox');
+                                        $(document).on('click', '.friend-checkbox', function(e) {
+                                            e.stopPropagation();
+                                        });
+                                        $(document).on('click', '.employee-checkbox', function(e) {
+                                            e.stopPropagation();
+                                        });
+                                        $(document).on('click', '.friend-item', function(e) {
+                                            if ($(e.target).hasClass('friend-checkbox')) {
+                                                return;
+                                            }
+                                            var checkbox = $(this).find('.friend-checkbox');
+                                            checkbox.prop('checked', !checkbox.prop('checked'));
+                                        });
+                                        $(document).on('click', '.employee-item', function(e) {
+                                            if ($(e.target).hasClass('employee-checkbox')) {
+                                                return;
+                                            }
+                                            var checkbox = $(this).find('.employee-checkbox');
+                                            checkbox.prop('checked', !checkbox.prop('checked'));
+                                        });
+                                    },
+                                    yes: function(index) {
+                                        var groupName = $('#groupNameInput').val().trim();
+                                        if (!groupName) {
+                                            layer.msg('请输入群名称', {icon: 0});
+                                            return;
+                                        }
+                                        
+                                        var selectedFriends = [];
+                                        var layerContent = $('#layui-layer' + index + ' .friend-checkbox:checked');
+                                        layerContent.each(function() {
+                                            selectedFriends.push($(this).closest('.friend-item').data('username'));
+                                        });
+                                        
+                                        var selectedEmployees = [];
+                                        var empContent = $('#layui-layer' + index + ' .employee-checkbox:checked');
+                                        empContent.each(function() {
+                                            selectedEmployees.push($(this).closest('.employee-item').data('employeeid'));
+                                        });
+                                        
+                                        $.ajax({
+                                            url: '/user/api/group/create',
+                                            type: 'POST',
+                                            data: JSON.stringify({
+                                                name: groupName,
+                                                friends: selectedFriends,
+                                                employees: selectedEmployees
+                                            }),
+                                            contentType: 'application/json',
+                                            success: function(createRes) {
+                                                if (createRes.success) {
+                                                    layer.msg('群聊创建成功！', {icon: 1});
+                                                    layer.close(index);
+                                                    $.ajax({
+                                                        url: '/user/api/groups',
+                                                        type: 'GET',
+                                                        success: function(groupsRes) {
+                                                            if (groupsRes.success) {
+                                                                contacts.groups = groupsRes.groups;
+                                                                renderContacts('groups');
+                                                            }
+                                                        }
+                                                    });
+                                                } else {
+                                                    layer.msg('创建失败：' + createRes.message, {icon: 2});
+                                                }
+                                            },
+                                            error: function() {
+                                                layer.msg('网络错误，请重试', {icon: 2});
+                                            }
+                                        });
+                                    }
+                                });
+                            },
+                            error: function() {
+                                layer.msg('获取数字员工列表失败', {icon: 2});
+                            }
+                        });
+                    },
+                    error: function() {
+                        layer.msg('获取好友列表失败', {icon: 2});
+                    }
+                });
+            });
+            
+            $('#addFriendBtn').on('click', function() {
+                layer.prompt({
+                    title: '添加好友',
+                    formType: 0,
+                    value: '',
+                    placeholder: '请输入好友用户名'
+                }, function(value, index) {
+                    if (!value.trim()) {
+                        layer.msg('用户名不能为空');
+                        return;
+                    }
+                    
+                    $.ajax({
+                        url: '/user/api/search',
+                        type: 'GET',
+                        data: {username: value.trim()},
+                        success: function(res) {
+                            if (res.success && res.user) {
+                                layer.confirm('找到用户：' + res.user.username + '，是否发送好友请求？', {
+                                    icon: 3,
+                                    title: '确认添加'
+                                }, function(confirmIndex) {
+                                    $.ajax({
+                                        url: '/user/api/friend/request',
+                                        type: 'POST',
+                                        data: JSON.stringify({
+                                            username: res.user.username
+                                        }),
+                                        contentType: 'application/json',
+                                        success: function(addRes) {
+                                            if (addRes.success) {
+                                                layer.msg(addRes.message, {icon: 1});
+                                                loadFriendRequests();
+                                            } else {
+                                                layer.msg(addRes.message, {icon: 2});
+                                            }
+                                        },
+                                        error: function() {
+                                            layer.msg('网络错误，请重试', {icon: 2});
+                                        }
+                                    });
+                                    layer.close(confirmIndex);
+                                });
+                            } else {
+                                layer.msg('未找到该用户', {icon: 2});
+                            }
+                        },
+                        error: function() {
+                            layer.msg('网络错误，请重试', {icon: 2});
+                        }
+                    });
+                    layer.close(index);
+                });
+            });
+            
+            $('#moreBtn').on('click', function() {
+                layer.open({
+                    type: 0,
+                    title: '更多功能',
+                    area: ['300px', 'auto'],
+                    content: '<div style="padding: 10px;">' +
+                        '<div style="padding: 12px; cursor: pointer; border-bottom: 1px solid #eee;" onclick="window.location.href=\'/user/profile\'"><i class="fas fa-user" style="margin-right: 10px;"></i> 个人信息</div>' +
+                        '<div style="padding: 12px; cursor: pointer; border-bottom: 1px solid #eee;" onclick="clearChatHistory()"><i class="fas fa-trash" style="margin-right: 10px;"></i> 清空聊天记录</div>' +
+                        '<div style="padding: 12px; cursor: pointer;" onclick="window.location.href=\'/logout\'"><i class="fas fa-sign-out-alt" style="margin-right: 10px;"></i> 退出登录</div>' +
+                    '</div>'
+                });
+            });
+            
+            function clearChatHistory() {
+                $('#chatMessages').html('<div class="empty-state">' +
+                    '<i class="fas fa-comments empty-icon"></i>' +
+                    '<div class="empty-text">聊天记录已清空</div>' +
+                '</div>');
+                layer.msg('聊天记录已清空', { icon: 1 });
+            }
+            
+            $(document).on('click', '.contact-item', function() {
+                $('.contact-item').removeClass('active');
+                $(this).addClass('active');
+                
+                var id = parseInt($(this).data('id'));
+                var type = $(this).data('type');
+                var name = $(this).find('.contact-name').text();
+                var avatar = $(this).find('.contact-avatar').text();
+                
+                selectedContact = {
+                    id: id,
+                    type: type,
+                    name: name,
+                    avatar: avatar
+                };
+                
+                updateChatHeader(selectedContact);
+                renderMessages(id);
+            });
+            
+            $('#emojiBtn').on('click', function(e) {
+                e.stopPropagation();
+                $('#emojiPicker').toggleClass('show');
+            });
+
+            $(document).on('click', '.emoji-item', function(e) {
+                e.stopPropagation();
+                var emoji = $(this).text();
+                var $input = $('#messageInput');
+                var currentText = $input.val();
+                var cursorPos = $input[0].selectionStart;
+                var newText = currentText.substring(0, cursorPos) + emoji + currentText.substring(cursorPos);
+                $input.val(newText);
+                $input[0].selectionStart = $input[0].selectionEnd = cursorPos + emoji.length;
+                $input.focus();
+                $('#emojiPicker').removeClass('show');
+                $('#sendBtn').prop('disabled', !$.trim($input.val()));
+            });
+
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('#emojiPicker').length && !$(e.target).closest('#emojiBtn').length) {
+                    $('#emojiPicker').removeClass('show');
+                }
+            });
+            
+            $('#fileBtn').on('click', function() {
+                $('#fileUpload').click();
+            });
+
+            $('#fileUpload').on('change', function(e) {
+                var file = e.target.files[0];
+                if (!file) return;
+
+                if (!selectedContact) {
+                    layer.msg('请先选择一个聊天', { icon: 0 });
+                    $(this).val('');
+                    return;
+                }
+
+                var formData = new FormData();
+                formData.append('file', file);
+
+                var loadingIndex = layer.load(2, {
+                    shade: [0.3, '#000']
+                });
+
+                $.ajax({
+                    url: '/user/api/file/upload',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(res) {
+                        layer.close(loadingIndex);
+                        if (res.success) {
+                            sendFileMessage(res.file_url, res.file_name, res.file_size);
+                        } else {
+                            layer.msg('上传失败: ' + res.message, { icon: 2 });
+                        }
+                    },
+                    error: function() {
+                        layer.close(loadingIndex);
+                        layer.msg('上传失败，请重试', { icon: 2 });
+                    }
+                });
+
+                $(this).val('');
+            });
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 B';
+                var k = 1024;
+                var sizes = ['B', 'KB', 'MB', 'GB'];
+                var i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            function renderWeatherCard(data) {
+                var effectClass = data.effect || 'sunny';
+                
+                return '<div class="weather-card ' + effectClass + '">' +
+                    '<div class="weather-emoji">' + data.emoji + '</div>' +
+                    '<div class="weather-city">' + data.city + '</div>' +
+                    '<div class="weather-temp">' + data.temp + '°C</div>' +
+                    '<div class="weather-info">' +
+                        '<div class="weather-info-item">' +
+                            '<span class="weather-info-label">天气</span>' +
+                            '<span class="weather-info-value">' + data.weather + '</span>' +
+                        '</div>' +
+                        '<div class="weather-info-item">' +
+                            '<span class="weather-info-label">风力</span>' +
+                            '<span class="weather-info-value">' + data.wind + '</span>' +
+                        '</div>' +
+                        '<div class="weather-info-item">' +
+                            '<span class="weather-info-label">湿度</span>' +
+                            '<span class="weather-info-value">' + data.humidity + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }
+
+            function sendFileMessage(fileUrl, fileName, fileSize) {
+                var now = new Date();
+                var timeStr = now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+
+                var fileMessageHtml = '<div class="file-message" onclick="window.open(\'' + fileUrl + '\', \'_blank\')">' +
+                    '<div class="file-icon"><i class="fas fa-file"></i></div>' +
+                    '<div class="file-info">' +
+                        '<div class="file-name">' + fileName + '</div>' +
+                        '<div class="file-size">' + formatFileSize(fileSize) + '</div>' +
+                    '</div>' +
+                '</div>';
+
+                $('#chatMessages').append('<div class="message own">' +
+                    '<div class="message-avatar">我</div>' +
+                    '<div class="message-bubble">' +
+                        '<div class="message-content">' + fileMessageHtml + '</div>' +
+                        '<div class="message-time">' + timeStr + '</div>' +
+                    '</div>' +
+                '</div>');
+
+                scrollToBottom();
+
+                if (!isConnected) {
+                    layer.msg('未连接到服务器', { icon: 2 });
+                    return;
+                }
+
+                var messageData = {
+                    file_url: fileUrl,
+                    file_name: fileName,
+                    file_size: fileSize
+                };
+                var message = {};
+                if (selectedContact.type === 'group') {
+                    message = {
+                        type: 'group',
+                        group_id: selectedContact.id,
+                        content: JSON.stringify(messageData),
+                        is_file: true
+                    };
+                } else {
+                    message = {
+                        type: 'private',
+                        to: selectedContact.name,
+                        content: JSON.stringify(messageData),
+                        is_file: true
+                    };
+                }
+                ws.send(JSON.stringify(message));
+            }
+
+            $('.tool-btn[title="图片"]').on('click', function() {
+                layer.msg('图片功能暂未开放', { icon: 0 });
+            });
+
+            $('.tool-btn[title="视频"]').on('click', function() {
+                layer.msg('视频功能暂未开放', { icon: 0 });
+            });
+
+            $('.tool-btn[title="位置"]').on('click', function() {
+                layer.msg('位置功能暂未开放', { icon: 0 });
+            });
+
+            $('.tool-btn[title="语音"]').on('click', function() {
+                layer.msg('语音功能暂未开放', { icon: 0 });
+            });
+
+<!--             $('#voiceCallBtn').on('click', function() {
+                layer.msg('语音通话功能暂未开放', { icon: 2 });
+            });
+
+            $('#videoCallBtn').on('click', function() {
+                layer.msg('视频通话功能暂未开放', { icon: 2 });
+            }); -->
+
+            $('#chatInfoBtn').on('click', function() {
+                if (!selectedContact) {
+                    layer.msg('请先选择一个聊天', { icon: 0 });
+                    return;
+                }
+                
+                if (selectedContact.type === 'group') {
+                    $.ajax({
+                        url: '/user/api/group/members',
+                        type: 'GET',
+                        data: { group_id: selectedContact.id },
+                        success: function(res) {
+                            if (res.success && res.members && res.members.length > 0) {
+                                var userCount = res.members.filter(function(m) { return m.type !== 'employee'; }).length;
+                                var empCount = res.members.filter(function(m) { return m.type === 'employee'; }).length;
+                                var html = '<div style="padding: 10px; max-height: 350px; overflow-y: auto;">';
+                                html += '<div style="font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee;">';
+                                html += '群成员 (' + userCount + '人';
+                                if (empCount > 0) {
+                                    html += ' + ' + empCount + '名数字员工';
+                                }
+                                html += ')</div>';
+                                for (var i = 0; i < res.members.length; i++) {
+                                    var member = res.members[i];
+                                    var isEmployee = member.type === 'employee';
+                                    var bgColor = isEmployee ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' : 'linear-gradient(135deg, #07C160 0%, #10B981 100%)';
+                                    html += '<div class="member-item" style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f5f5f5;">';
+                                    html += '<div style="width: 36px; height: 36px; border-radius: 50%; background: ' + bgColor + '; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; margin-right: 10px;">' + member.avatar + '</div>';
+                                    html += '<div style="flex: 1; font-size: 14px;">' + member.name + (isEmployee ? ' <span style="color:#F59E0B; font-size:11px;">(数字员工)</span>' : '') + '</div>';
+                                    if (isEmployee && member.at_alias) {
+                                        html += '<div style="font-size: 11px; color: #999;">@' + member.at_alias + '</div>';
+                                    }
+                                    html += '</div>';
+                                }
+                                html += '</div>';
+                                
+                                layer.open({
+                                    type: 0,
+                                    title: selectedContact.name + ' - 群成员',
+                                    area: ['320px', '420px'],
+                                    content: html,
+                                    btn: ['关闭'],
+                                    yes: function(index) {
+                                        layer.close(index);
+                                    }
+                                });
+                            } else {
+                                layer.msg('暂无群成员', { icon: 0 });
+                            }
+                        },
+                        error: function() {
+                            layer.msg('获取群成员失败', { icon: 2 });
+                        }
+                    });
+                } else {
+                    layer.msg('聊天信息功能暂未开放', { icon: 2 });
+                }
+            });
+
+            $('#inviteBtn').on('click', function() {
+                if (!selectedContact || selectedContact.type !== 'group') {
+                    layer.msg('请先选择一个群聊', { icon: 0 });
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/user/api/friends',
+                    type: 'GET',
+                    success: function(res) {
+                        var friends = res.success && res.friends ? res.friends : [];
+                        
+                        $.ajax({
+                            url: '/user/api/employees',
+                            type: 'GET',
+                            success: function(empRes) {
+                                var employees = empRes.success && empRes.employees ? empRes.employees : [];
+                                
+                                if (friends.length === 0 && employees.length === 0) {
+                                    layer.msg('暂无好友或数字员工可邀请', { icon: 0 });
+                                    return;
+                                }
+                                
+                                var html = '<div style="padding: 10px;">';
+                                
+                                if (friends.length > 0) {
+                                    html += '<div style="font-weight: 600; color: #5f5f5f; margin-bottom: 10px;">选择好友：</div>';
+                                    html += '<div style="max-height: 180px; overflow-y: auto; margin-bottom: 15px;">';
+                                    for (var i = 0; i < friends.length; i++) {
+                                        html += '<div class="invite-friend-item" style="display: flex; align-items: center; padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; border-radius: 6px; margin-bottom: 4px;" data-username="' + friends[i].name + '">';
+                                        html += '<div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #07C160 0%, #10B981 100%); display: flex; align-items: center; justify-content: center; color: #fff; margin-right: 8px; font-size: 12px;">' + friends[i].avatar + '</div>';
+                                        html += '<div style="flex: 1; font-size: 13px;">' + friends[i].name + '</div>';
+                                        html += '<input type="checkbox" class="invite-friend-checkbox" style="width: 16px; height: 16px; accent-color: #07C160;"></div>';
+                                    }
+                                    html += '</div>';
+                                }
+                                
+                                if (employees.length > 0) {
+                                    html += '<div style="font-weight: 600; color: #F59E0B; margin-bottom: 10px;">选择数字员工：</div>';
+                                    html += '<div style="max-height: 120px; overflow-y: auto;">';
+                                    for (var i = 0; i < employees.length; i++) {
+                                        html += '<div class="invite-employee-item" style="display: flex; align-items: center; padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; border-radius: 6px; margin-bottom: 4px;" data-employeeid="' + employees[i].id + '">';
+                                        html += '<div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); display: flex; align-items: center; justify-content: center; color: #fff; margin-right: 8px; font-size: 12px;">' + employees[i].avatar + '</div>';
+                                        html += '<div style="flex: 1;">';
+                                        html += '<div style="font-size: 13px; font-weight: 500;">' + employees[i].name + '</div>';
+                                        html += '<div style="font-size: 11px; color: #999;">@' + employees[i].name + '</div>';
+                                        html += '</div>';
+                                        html += '<input type="checkbox" class="invite-employee-checkbox" style="width: 16px; height: 16px; accent-color: #F59E0B;"></div>';
+                                    }
+                                    html += '</div>';
+                                }
+                                
+                                html += '</div>';
+                                
+                                layer.open({
+                                    type: 0,
+                                    title: '邀请加入群聊',
+                                    area: ['320px', '420px'],
+                                    content: html,
+                                    btn: ['确认邀请', '取消'],
+                                    success: function() {
+                                        $(document).off('click', '.invite-friend-item');
+                                        $(document).off('click', '.invite-friend-checkbox');
+                                        $(document).off('click', '.invite-employee-item');
+                                        $(document).off('click', '.invite-employee-checkbox');
+                                        $(document).on('click', '.invite-friend-checkbox', function(e) {
+                                            e.stopPropagation();
+                                        });
+                                        $(document).on('click', '.invite-employee-checkbox', function(e) {
+                                            e.stopPropagation();
+                                        });
+                                        $(document).on('click', '.invite-friend-item', function(e) {
+                                            if ($(e.target).hasClass('invite-friend-checkbox')) {
+                                                return;
+                                            }
+                                            var checkbox = $(this).find('.invite-friend-checkbox');
+                                            checkbox.prop('checked', !checkbox.prop('checked'));
+                                        });
+                                        $(document).on('click', '.invite-employee-item', function(e) {
+                                            if ($(e.target).hasClass('invite-employee-checkbox')) {
+                                                return;
+                                            }
+                                            var checkbox = $(this).find('.invite-employee-checkbox');
+                                            checkbox.prop('checked', !checkbox.prop('checked'));
+                                        });
+                                    },
+                                    yes: function(index) {
+                                        var selectedFriends = [];
+                                        var layerContent = $('#layui-layer' + index + ' .invite-friend-checkbox:checked');
+                                        layerContent.each(function() {
+                                            selectedFriends.push($(this).closest('.invite-friend-item').data('username'));
+                                        });
+                                        
+                                        var selectedEmployees = [];
+                                        var empContent = $('#layui-layer' + index + ' .invite-employee-checkbox:checked');
+                                        empContent.each(function() {
+                                            selectedEmployees.push($(this).closest('.invite-employee-item').data('employeeid'));
+                                        });
+                                        
+                                        if (selectedFriends.length === 0 && selectedEmployees.length === 0) {
+                                            layer.msg('请选择要邀请的成员', { icon: 0 });
+                                            return;
+                                        }
+                                        
+                                        $.ajax({
+                                            url: '/user/api/group/invite',
+                                            type: 'POST',
+                                            headers: {"X-XSRFToken": $('input[name="_xsrf"]').val()},
+                                            data: JSON.stringify({
+                                                group_id: selectedContact.id,
+                                                friends: selectedFriends,
+                                                employees: selectedEmployees
+                                            }),
+                                            contentType: 'application/json',
+                                            success: function(inviteRes) {
+                                                if (inviteRes.success) {
+                                                    layer.msg('邀请成功！', { icon: 1 });
+                                                } else {
+                                                    layer.msg('邀请失败：' + inviteRes.message, { icon: 2 });
+                                                }
+                                            },
+                                            error: function() {
+                                                layer.msg('网络错误，请重试', { icon: 2 });
+                                            }
+                                        });
+                                        layer.close(index);
+                                    }
+                                });
+                            },
+                            error: function() {
+                                layer.msg('获取数字员工列表失败', { icon: 2 });
+                            }
+                        });
+                    },
+                    error: function() {
+                        layer.msg('获取好友列表失败', { icon: 2 });
+                    }
+                });
+            });
+            
+            $('#messageInput').on('input', function() {
+                $('#sendBtn').prop('disabled', !$.trim($(this).val()));
+            });
+            
+            $('#messageInput').on('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            $('#sendBtn').on('click', sendMessage);
+            
+            $(document).on('click', '.tab-btn', function() {
+                $('.tab-btn').removeClass('active');
+                $(this).addClass('active');
+                var tab = $(this).data('tab');
+                
+                if (tab === 'friends') {
+                    $('#contactList').show();
+                    $('#friendRequestList').hide();
+                    $.ajax({
+                        url: '/user/api/friends',
+                        type: 'GET',
+                        success: function(res) {
+                            if (res.success) {
+                                contacts.friends = res.friends || [];
+                                renderContacts('friends');
+                            }
+                        }
+                    });
+                } else if (tab === 'groups') {
+                    $('#contactList').show();
+                    $('#friendRequestList').hide();
+                    $.ajax({
+                        url: '/user/api/groups',
+                        type: 'GET',
+                        success: function(res) {
+                            if (res.success) {
+                                contacts.groups = res.groups || [];
+                                renderContacts('groups');
+                            }
+                        }
+                    });
+                } else if (tab === 'bots') {
+                    $('#contactList').show();
+                    $('#friendRequestList').hide();
+                    $.ajax({
+                        url: '/user/api/employees',
+                        type: 'GET',
+                        success: function(res) {
+                            if (res.success) {
+                                contacts.bots = res.employees || [];
+                                renderContacts('bots');
+                            }
+                        }
+                    });
+                } else if (tab === 'requests') {
+                    $('#contactList').hide();
+                    $('#friendRequestList').show();
+                    loadFriendRequests();
+                }
+            });
+
+            // 字母索引点击事件
+            $(document).on('click', '.alphabet-index span', function(e) {
+                e.stopPropagation();
+                var letter = $(this).data('letter');
+                scrollToLetter(letter);
+            });
+
+            // 联系人列表滚动时更新字母索引高亮状态
+            $('#contactList').on('scroll', function() {
+                var scrollTop = $(this).scrollTop();
+                var containerHeight = $(this).height();
+                var containerTop = $(this).offset().top;
+                
+                $('.group-title').each(function() {
+                    var titleTop = $(this).offset().top - containerTop + scrollTop;
+                    var titleHeight = $(this).height();
+                    
+                    if (titleTop <= scrollTop + 20 && titleTop + titleHeight > scrollTop) {
+                        var letter = $(this).attr('id').replace('group-', '');
+                        $('.alphabet-index span').removeClass('active');
+                        $('.alphabet-index span[data-letter="' + letter + '"]').addClass('active');
+                        return false;
+                    }
+                });
+            });
+            
+            $(document).on('click', '.message-avatar.clickable', function(e) {
+                e.stopPropagation();
+                var username = $(this).data('username');
+                console.log('点击头像，用户名:', username);
+                
+                if (!username || username.trim() === '') {
+                    layer.msg('无法识别用户', { icon: 2 });
+                    return;
+                }
+                
+                var existingFriend = null;
+                for (var i = 0; i < contacts.friends.length; i++) {
+                    if (contacts.friends[i].name === username) {
+                        existingFriend = contacts.friends[i];
+                        break;
+                    }
+                }
+                
+                if (existingFriend) {
+                    console.log('找到好友，直接切换:', existingFriend);
+                    selectedContact = existingFriend;
+                    updateChatHeader(selectedContact);
+                    renderMessages(selectedContact.id);
+                } else {
+                    console.log('创建临时对话:', username);
+                    var temporaryContact = {
+                        id: 'temp_' + username,
+                        name: username,
+                        avatar: username[0].toUpperCase(),
+                        type: 'friend',
+                        preview: '',
+                        time: '刚刚',
+                        badge: 0
+                    };
+                    selectedContact = temporaryContact;
+                    updateChatHeader(selectedContact);
+                    renderMessages(selectedContact.id);
+                    layer.msg('已打开与' + username + '的临时对话', { icon: 1, time: 1500 });
+                }
+            });
+            
+            $('#addFriendChatBtn').on('click', function() {
+                if (!selectedContact) return;
+                
+                var username = selectedContact.name;
+                layer.confirm('确认添加' + username + '为好友？', {
+                    icon: 3,
+                    title: '确认添加'
+                }, function(confirmIndex) {
+                    $.ajax({
+                        url: '/user/api/friend/request',
+                        type: 'POST',
+                        data: JSON.stringify({
+                            username: username
+                        }),
+                        contentType: 'application/json',
+                        success: function(addRes) {
+                            if (addRes.success) {
+                                layer.msg(addRes.message, {icon: 1});
+                                loadFriendRequests();
+                            } else {
+                                layer.msg(addRes.message, {icon: 2});
+                            }
+                        },
+                        error: function() {
+                            layer.msg('网络错误，请重试', {icon: 2});
+                        }
+                    });
+                    layer.close(confirmIndex);
+                });
+            });
+            
+            $(document).on('click', '.request-btn', function() {
+                var action = $(this).data('action');
+                var username = $(this).data('username');
+                var requestItem = $(this).closest('.request-item');
+                
+                if (action === 'accept') {
+                    $.ajax({
+                        url: '/user/api/friend/accept',
+                        type: 'POST',
+                        data: JSON.stringify({username: username}),
+                        contentType: 'application/json',
+                        success: function(res) {
+                            if (res.success) {
+                                layer.msg('已同意好友请求', {icon: 1});
+                                requestItem.remove();
+                                pendingRequestCount--;
+                                updateRequestBadge();
+                                
+                                for (var i = 0; i < contacts.requests.received.length; i++) {
+                                    if (contacts.requests.received[i].username === username) {
+                                        contacts.requests.received.splice(i, 1);
+                                        break;
+                                    }
+                                }
+                                
+                                $.ajax({
+                                    url: '/user/api/friends',
+                                    type: 'GET',
+                                    success: function(friendsRes) {
+                                        if (friendsRes.success) {
+                                            contacts.friends = friendsRes.friends || [];
+                                            if (selectedContact && selectedContact.name === username) {
+                                                updateChatHeader(selectedContact);
+                                            }
+                                        }
+                                    }
+                                });
+                            } else {
+                                layer.msg(res.message || '操作失败', {icon: 2});
+                            }
+                        },
+                        error: function() {
+                            layer.msg('网络错误，请重试', {icon: 2});
+                        }
+                    });
+                } else if (action === 'reject') {
+                    $.ajax({
+                        url: '/user/api/friend/reject',
+                        type: 'POST',
+                        data: JSON.stringify({username: username}),
+                        contentType: 'application/json',
+                        success: function(res) {
+                            if (res.success) {
+                                layer.msg('已拒绝好友请求', {icon: 1});
+                                requestItem.remove();
+                                pendingRequestCount--;
+                                updateRequestBadge();
+                                
+                                for (var i = 0; i < contacts.requests.received.length; i++) {
+                                    if (contacts.requests.received[i].username === username) {
+                                        contacts.requests.received.splice(i, 1);
+                                        break;
+                                    }
+                                }
+                            } else {
+                                layer.msg(res.message || '操作失败', {icon: 2});
+                            }
+                        },
+                        error: function() {
+                            layer.msg('网络错误，请重试', {icon: 2});
+                        }
+                    });
+                }
+            });
+            
+            window.onbeforeunload = function() {
+                if (ws) {
+                    ws.close();
+                }
+            };
+            
+            $.ajax({
+                url: '/user/api/friends',
+                type: 'GET',
+                success: function(res) {
+                    if (res.success) {
+                        contacts.friends = res.friends || [];
+                        renderContacts('friends');
+                    }
+                }
+            });
+            
+            $.ajax({
+                url: '/user/api/employees',
+                type: 'GET',
+                success: function(res) {
+                    if (res.success) {
+                        contacts.bots = res.employees || [];
+                    }
+                }
+            });
+            
+
+            
+            // 搜索消息按钮
+            $('#searchMessageBtn').on('click', function() {
+                $('#searchMessageModal').show();
+                $('#modalSearchInput').val('').focus();
+                $('#searchResults').html('<div style="padding: 40px; text-align: center; color: #999;">输入关键词开始搜索</div>');
+            });
+            
+            // 关闭搜索模态框
+            $('#closeSearchModal').on('click', function() {
+                $('#searchMessageModal').hide();
+            });
+            
+            // 搜索输入
+            var searchTimeout;
+            $('#modalSearchInput').on('input', function() {
+                var keyword = $(this).val();
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(function() {
+                    searchMessages(keyword);
+                }, 300);
+            });
+            
+            // 搜索结果点击
+            $(document).on('click', '.search-result-item', function() {
+                var chatType = $(this).data('chat-type');
+                var chatId = $(this).data('chat-id');
+                $('#searchMessageModal').hide();
+                
+                if (chatType === 'group') {
+                    // 找到对应的群聊
+                    var group = contacts.groups.find(function(g) { return g.id === chatId; });
+                    if (group) {
+                        selectedContact = group;
+                        updateChatHeader(selectedContact);
+                        renderMessages(selectedContact.id);
+                    }
+                } else if (chatType === 'private') {
+                    var friend = contacts.friends.find(function(f) { return f.name === chatId; });
+                    if (friend) {
+                        selectedContact = friend;
+                        updateChatHeader(selectedContact);
+                        renderMessages(selectedContact.id);
+                    }
+                }
+            });
+            
+            // 消息操作按钮
+            $(document).on('click', '.message-action-btn', function(e) {
+                e.stopPropagation();
+                var action = $(this).data('action');
+                var messageId = $(this).data('message-id');
+                var messageType = $(this).data('message-type');
+                
+                // 找到对应的消息内容
+                var messageElement = $(this).closest('.message');
+                var messageContent = messageElement.find('.message-content').text();
+                if (messageContent.length > 100) {
+                    messageContent = messageContent.substring(0, 100) + '...';
+                }
+                // 提取发送者
+                var senderName = messageElement.hasClass('own') ? '我' : '对方';
+                
+                if (action === 'reply') {
+                    startReply(messageId, messageType, messageContent, senderName);
+                } else if (action === 'forward') {
+                    showForwardModal(messageId, messageType);
+                }
+            });
+            
+            // 转发目标点击
+            $(document).on('click', '.forward-target-item', function() {
+                var type = $(this).data('type');
+                var id = $(this).data('id');
+                forwardMessage(type, id);
+            });
+            
+            // 关闭转发模态框
+            $('#closeForwardModal').on('click', function() {
+                $('#forwardMessageModal').hide();
+                currentForwardMessage = null;
+            });
+            
+            // 取消回复
+            $('#cancelReply').on('click', function() {
+                cancelReply();
+            });
+            
+            // 点击模态框外部关闭
+            $(document).on('click', function(e) {
+                if ($(e.target).is('#searchMessageModal')) {
+                    $('#searchMessageModal').hide();
+                }
+                if ($(e.target).is('#forwardMessageModal')) {
+                    $('#forwardMessageModal').hide();
+                    currentForwardMessage = null;
+                }
+                if (!$(e.target).closest('#emojiPicker').length && !$(e.target).closest('#emojiBtn').length) {
+                    $('#emojiPicker').removeClass('show');
+                }
+            });
+            
+            // 加载带未读数的联系人
+            loadContactsWithUnread();
+
+            initWebSocket();
+        });
+    </script>
+</body>
+</html>

@@ -366,12 +366,32 @@
                         </dd>
                     </dl>
                 </li>
-                <li class="layui-nav-item {% if active_menu in ['employee'] %}layui-nav-itemed{% end %}">
+                <li class="layui-nav-item {% if active_menu in ['employee', 'group', 'file', 'server', 'tool'] %}layui-nav-itemed{% end %}">
                     <a href="javascript:;"><i class="layui-icon layui-icon-star"></i><span>智能服务</span></a>
                     <dl class="layui-nav-child">
                         <dd class="{% if active_menu == 'employee' %}layui-this{% end %}">
                             <a href="/admin/employee/list">
                                 <i class="layui-icon layui-icon-user"></i> 数字员工
+                            </a>
+                        </dd>
+                        <dd class="{% if active_menu == 'group' %}layui-this{% end %}">
+                            <a href="/admin/group/list">
+                                <i class="layui-icon layui-icon-group"></i> 群聊管理
+                            </a>
+                        </dd>
+                        <dd class="{% if active_menu == 'file' %}layui-this{% end %}">
+                            <a href="/admin/file/list">
+                                <i class="layui-icon layui-icon-file"></i> 文件管理
+                            </a>
+                        </dd>
+                        <dd class="{% if active_menu == 'server' %}layui-this{% end %}">
+                            <a href="/admin/server/list">
+                                <i class="layui-icon layui-icon-server"></i> 服务器管理
+                            </a>
+                        </dd>
+                        <dd class="{% if active_menu == 'tool' %}layui-this{% end %}">
+                            <a href="/admin/tool/list">
+                                <i class="layui-icon layui-icon-util"></i> 工具管理
                             </a>
                         </dd>
                     </dl>

@@ -1,0 +1,197 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            文件管理
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-form" style="margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <div class="layui-inline">
+                        <form method="get" action="/admin/file/list" style="display:inline-flex;">
+                            <input type="text" name="keyword" value="{{ keyword }}" placeholder="搜索文件名" class="layui-input" style="width:200px; margin-right:10px;">
+                            <button type="submit" class="layui-btn"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                            <a href="/admin/file/list" class="layui-btn layui-btn-primary" style="margin-left:5px;">重置</a>
+                        </form>
+                    </div>
+                    <div class="layui-inline">
+                        <button type="button" class="layui-btn layui-btn-warm" id="cleanupBtn">
+                            <i class="layui-icon layui-icon-util"></i> 清理重复文件
+                        </button>
+                        <button type="button" class="layui-btn layui-btn-danger" id="batchDelBtn">
+                            <i class="layui-icon layui-icon-delete"></i> 批量删除
+                        </button>
+                    </div>
+                </div>
+                <div class="layui-row layui-col-space15">
+                    <div class="layui-col-md3">
+                        <div class="layuiadmin-card-box" style="background:#009688; color:#fff; padding:15px; border-radius:8px;">
+                            <div style="font-size:24px; font-weight:600;">{{ total }}</div>
+                            <div style="font-size:12px; opacity:0.8;">文件总数</div>
+                        </div>
+                    </div>
+                    <div class="layui-col-md3">
+                        <div class="layuiadmin-card-box" style="background:#1E9FFF; color:#fff; padding:15px; border-radius:8px;">
+                            <div style="font-size:24px; font-weight:600;">{{ total_size }} B</div>
+                            <div style="font-size:12px; opacity:0.8;">总大小</div>
+                        </div>
+                    </div>
+                    <div class="layui-col-md3">
+                        <div class="layuiadmin-card-box" style="background:#FF5722; color:#fff; padding:15px; border-radius:8px;">
+                            <div style="font-size:24px; font-weight:600;">{{ unique_hashes }}</div>
+                            <div style="font-size:12px; opacity:0.8;">去重后数量</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form id="fileListForm" action="/admin/file/list" method="post">
+                {% module xsrf_form_html() %}
+                <input type="hidden" name="action" id="fileAction" value="">
+                <input type="hidden" name="file_id" id="fileId" value="">
+                <input type="hidden" name="file_ids" id="fileIds" value="">
+
+                <table class="layui-table" lay-skin="line">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;"><input type="checkbox" lay-filter="checkAll" lay-skin="primary"></th>
+                            <th>文件名</th>
+                            <th style="width:100px;">大小</th>
+                            <th style="width:100px;">类型</th>
+                            <th style="width:120px;">上传者</th>
+                            <th style="width:160px;">上传时间</th>
+                            <th style="width:80px;">状态</th>
+                            <th style="width:150px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if files %}
+                            {% for f in files %}
+                            <tr>
+                                <td><input type="checkbox" name="file" value="{{ f['id'] }}" lay-skin="primary" class="rowCheck"></td>
+                                <td>
+                                    <i class="layui-icon layui-icon-file" style="color:#1E9FFF;"></i>
+                                    <span title="{{ f['original_name'] }}">{{ f['original_name'] }}</span>
+                                    {% if f['file_hash'] %}
+                                        <span style="color:#999; font-size:11px;" title="MD5: {{ f['file_hash'] }}">
+                                            <i class="layui-icon layui-icon-refresh"></i>
+                                        </span>
+                                    {% end %}
+                                </td>
+                                <td>{{ f['file_size'] }} B</td>
+                                <td>
+                                    {% if f['content_type'] and 'image' in f['content_type'] %}
+                                        <span class="layui-badge layui-bg-green">图片</span>
+                                    {% elif f['content_type'] and 'video' in f['content_type'] %}
+                                        <span class="layui-badge layui-bg-orange">视频</span>
+                                    {% elif f['content_type'] and 'audio' in f['content_type'] %}
+                                        <span class="layui-badge layui-bg-cyan">音频</span>
+                                    {% else %}
+                                        <span class="layui-badge layui-bg-gray">文件</span>
+                                    {% end %}
+                                </td>
+                                <td>{{ f['uploader_name'] }}</td>
+                                <td>{{ f['created_at'] }}</td>
+                                <td>
+                                    {% if f['exists'] %}
+                                        <span class="layui-badge layui-bg-green">正常</span>
+                                    {% else %}
+                                        <span class="layui-badge layui-bg-red">缺失</span>
+                                    {% end %}
+                                </td>
+                                <td>
+                                    {% if f['file_path'] %}
+                                        <a href="{{ f['file_path'] }}" target="_blank" class="layui-btn layui-btn-xs layui-btn-normal">
+                                            <i class="layui-icon layui-icon-download-circle"></i> 下载
+                                        </a>
+                                    {% end %}
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="deleteFile('{{ f['id'] }}', '{{ f['original_name'] }}')">
+                                        <i class="layui-icon layui-icon-delete"></i> 删除
+                                    </button>
+                                </td>
+                            </tr>
+                            {% end %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" style="text-align:center; color:#999; padding:30px;">
+                                    <i class="layui-icon layui-icon-file" style="font-size:40px;"></i>
+                                    <p style="margin-top:10px;">暂无文件数据</p>
+                                </td>
+                            </tr>
+                        {% end %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+function formatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    var k = 1024;
+    var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+}
+
+layui.use(['layer', 'form', 'jquery'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.jquery;
+
+    form.on('checkbox(checkAll)', function(data){
+        $('.rowCheck').each(function(){
+            this.checked = data.elem.checked;
+        });
+        form.render('checkbox');
+    });
+
+    window.deleteFile = function(fileId, fileName) {
+        layer.confirm('确认删除文件 "<strong>' + fileName + '</strong>" 吗？', {
+            icon: 3,
+            title: '删除确认',
+            btn: ['确认删除', '取消']
+        }, function(index){
+            $('#fileAction').val('delete');
+            $('#fileId').val(fileId);
+            $('#fileListForm').submit();
+        });
+    };
+
+    $('#batchDelBtn').on('click', function(){
+        var ids = [];
+        $('.rowCheck:checked').each(function(){
+            ids.push($(this).val());
+        });
+        if(ids.length === 0){
+            layer.msg('请先选择要删除的文件', {icon: 2});
+            return;
+        }
+        layer.confirm('确认删除选中的 '+ids.length+' 个文件吗？', {
+            icon: 3,
+            title: '批量删除确认',
+            btn: ['确认删除', '取消']
+        }, function(index){
+            $('#fileAction').val('batch_delete');
+            $('#fileIds').val(ids.join(','));
+            $('#fileListForm').submit();
+        });
+    });
+
+    $('#cleanupBtn').on('click', function(){
+        layer.confirm('清理重复文件将删除相同内容的重复文件，保留一份。是否继续？', {
+            icon: 3,
+            title: '清理重复文件',
+            btn: ['确认清理', '取消']
+        }, function(index){
+            $('#fileAction').val('cleanup');
+            $('#fileListForm').submit();
+        });
+    });
+});
+</script>
+{% end %}

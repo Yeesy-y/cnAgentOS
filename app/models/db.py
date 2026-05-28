@@ -23,6 +23,7 @@ def get_connection():
 def init_db():
 	_ensure_columns_exist()
 	with get_connection() as conn:
+		# 用户表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS users(
@@ -39,6 +40,7 @@ def init_db():
 			)
 			"""
 		)
+		# 角色表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS roles(
@@ -51,6 +53,7 @@ def init_db():
 			)
 			"""
 		)
+		# 权限表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS permissions(
@@ -64,6 +67,7 @@ def init_db():
 			)
 			"""
 		)
+		# 角色权限关联表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS role_permissions(
@@ -75,6 +79,7 @@ def init_db():
 			)
 			"""
 		)
+		# 用户角色关联表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS user_roles(
@@ -86,6 +91,7 @@ def init_db():
 			)
 			"""
 		)
+		# 管理员会话表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS admin_sessions(
@@ -97,6 +103,7 @@ def init_db():
 			)
 			"""
 		)
+		# 模型服务表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS model_services(
@@ -114,6 +121,7 @@ def init_db():
 			)
 			"""
 		)
+		# 瞭望源表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS watch_sources(
@@ -129,6 +137,7 @@ def init_db():
 			)
 			"""
 		)
+		# 瞭望数据表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS watch_data(
@@ -144,6 +153,7 @@ def init_db():
 			)
 			"""
 		)
+		# API端点表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS api_endpoints(
@@ -162,6 +172,7 @@ def init_db():
 			)
 			"""
 		)
+		# 数字员工表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS digital_employees(
@@ -182,6 +193,39 @@ def init_db():
 			)
 			"""
 		)
+		# AI工具表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS ai_tools(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				tool_name TEXT NOT NULL,
+				tool_code TEXT NOT NULL UNIQUE,
+				description TEXT DEFAULT '',
+				tool_type TEXT NOT NULL DEFAULT 'function',
+				parameters_json TEXT DEFAULT '{}',
+				return_schema TEXT DEFAULT '',
+				status INTEGER NOT NULL DEFAULT 1,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				update_at TEXT NOT NULL DEFAULT(datetime('now'))
+			)
+			"""
+		)
+		# 数字员工工具绑定表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS employee_tools(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				employee_id INTEGER NOT NULL,
+				tool_id INTEGER NOT NULL,
+				bind_config_json TEXT DEFAULT '{}',
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				FOREIGN KEY(employee_id) REFERENCES digital_employees(id) ON DELETE CASCADE,
+				FOREIGN KEY(tool_id) REFERENCES ai_tools(id) ON DELETE CASCADE,
+				UNIQUE(employee_id, tool_id)
+			)
+			"""
+		)
+		# 聊天会话表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS chat_conversations(
@@ -196,6 +240,7 @@ def init_db():
 			)
 			"""
 		)
+		# 聊天消息表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS chat_messages(
@@ -209,6 +254,7 @@ def init_db():
 			"""
 		)
 		_ensure_chat_conversation_columns_exist(conn)
+		# 瞭望数据详情表
 		conn.execute(
 			"""
 			CREATE TABLE IF NOT EXISTS watch_data_detail(
@@ -230,6 +276,164 @@ def init_db():
 			)
 			"""
 		)
+		
+		# ==================== 新增：任务二所需表 ====================
+		# 好友关系表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS friends(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL,
+				friend_id INTEGER NOT NULL,
+				status TEXT DEFAULT 'pending',
+				created_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(user_id) REFERENCES users(id),
+				FOREIGN KEY(friend_id) REFERENCES users(id),
+				UNIQUE(user_id, friend_id)
+			)
+			"""
+		)
+		_ensure_friends_table_status_exists(conn)
+		# 群聊表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS groups(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL,
+				creator_id INTEGER NOT NULL,
+				created_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(creator_id) REFERENCES users(id)
+			)
+			"""
+		)
+		# 群成员表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS group_members(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				group_id INTEGER NOT NULL,
+				user_id INTEGER NOT NULL,
+				joined_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(group_id) REFERENCES groups(id),
+				FOREIGN KEY(user_id) REFERENCES users(id),
+				UNIQUE(group_id, user_id)
+			)
+			"""
+		)
+		# 群数字员工表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS group_employees(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				group_id INTEGER NOT NULL,
+				employee_id INTEGER NOT NULL,
+				added_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(group_id) REFERENCES groups(id),
+				FOREIGN KEY(employee_id) REFERENCES digital_employees(id),
+				UNIQUE(group_id, employee_id)
+			)
+			"""
+		)
+		# 聊天文件表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS chat_files(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				original_name TEXT NOT NULL,
+				stored_name TEXT NOT NULL,
+				file_size INTEGER NOT NULL DEFAULT 0,
+				content_type TEXT DEFAULT '',
+				file_hash TEXT DEFAULT '',
+				uploader_id INTEGER,
+				created_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(uploader_id) REFERENCES users(id)
+			)
+			"""
+		)
+		# 聊天服务器表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS chat_servers(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL,
+				host TEXT NOT NULL,
+				port INTEGER NOT NULL DEFAULT 9000,
+				weight INTEGER NOT NULL DEFAULT 100,
+				max_connections INTEGER NOT NULL DEFAULT 1000,
+				description TEXT DEFAULT '',
+				status TEXT NOT NULL DEFAULT 'active',
+				created_at TEXT DEFAULT (datetime('now'))
+			)
+			"""
+		)
+		# ==========================================================
+		
+		# ==================== 新增：聊天消息相关表 ====================
+		# 私聊消息表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS private_messages(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				sender_id INTEGER NOT NULL,
+				receiver_id INTEGER NOT NULL,
+				content TEXT NOT NULL,
+				message_type TEXT DEFAULT 'text',
+				is_read INTEGER DEFAULT 0,
+				read_at TEXT,
+				referenced_message_id INTEGER,
+				created_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(sender_id) REFERENCES users(id),
+				FOREIGN KEY(receiver_id) REFERENCES users(id)
+			)
+			"""
+		)
+		# 群聊消息表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS group_messages(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				group_id INTEGER NOT NULL,
+				sender_id INTEGER NOT NULL,
+				sender_type TEXT DEFAULT 'user',
+				content TEXT NOT NULL,
+				message_type TEXT DEFAULT 'text',
+				referenced_message_id INTEGER,
+				created_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(group_id) REFERENCES groups(id)
+			)
+			"""
+		)
+		# 群消息已读记录表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS group_message_reads(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				message_id INTEGER NOT NULL,
+				user_id INTEGER NOT NULL,
+				read_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(message_id) REFERENCES group_messages(id),
+				FOREIGN KEY(user_id) REFERENCES users(id),
+				UNIQUE(message_id, user_id)
+			)
+			"""
+		)
+		# 数字员工消息表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS employee_messages(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL,
+				employee_id INTEGER NOT NULL,
+				content TEXT NOT NULL,
+				is_user INTEGER NOT NULL DEFAULT 0,
+				created_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(user_id) REFERENCES users(id),
+				FOREIGN KEY(employee_id) REFERENCES digital_employees(id)
+			)
+			"""
+		)
+		# ==========================================================
+		
 		init_default_data(conn)
 
 def _ensure_chat_conversation_columns_exist(conn):
@@ -239,6 +443,19 @@ def _ensure_chat_conversation_columns_exist(conn):
 		if "is_pinned" not in existing_cols:
 			try:
 				conn.execute("ALTER TABLE chat_conversations ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
+				conn.commit()
+			except Exception:
+				pass
+	except Exception:
+		pass
+
+def _ensure_friends_table_status_exists(conn):
+	try:
+		cursor = conn.execute("PRAGMA table_info(friends)")
+		existing_cols = {row[1] for row in cursor.fetchall()}
+		if "status" not in existing_cols:
+			try:
+				conn.execute("ALTER TABLE friends ADD COLUMN status TEXT DEFAULT 'pending'")
 				conn.commit()
 			except Exception:
 				pass
@@ -382,9 +599,15 @@ def init_default_data(conn):
 	ensure_permission("删除数字员工", "admin:employee:delete", "admin:employee:list", "", 3)
 
 	default_employees = [
-		("川小农", "chuan_xiao_nong", "川小农", 1, "LLM", "默认模型 + Prompt 的对话型数字员工", "", "你是数字员工“川小农”，以中文简洁、专业地回答用户问题。优先给出结论与可执行建议。", "", json.dumps({"use_default_model": True}, ensure_ascii=False), 1),
-		("天气", "weather", "天气", 0, "API", "通过接口管理中的天气API返回天气数据；用户输入为城市名称", "", "", "query_tian", json.dumps({"city_param": "city"}, ensure_ascii=False), 1),
-		("音乐", "music", "音乐", 0, "API", "通过接口管理中的随机音乐API返回音乐卡片/数据", "", "", "music_wy_rand", json.dumps({}, ensure_ascii=False), 1),
+		("川农小助手", "chuan_nong_xiao_zhu_shou", "川农小助手", 1, "LLM", 
+		 "负责关于川农的限定范围问题聊天，支持多轮对话", "", 
+		 "你是四川农业大学的专属数字员工助手——川农小助手。你的任务是回答与四川农业大学（川农）相关的问题，包括但不限于：\n1. 学校历史、校区分布、院系设置\n2. 招生信息、专业介绍、录取分数线\n3. 校园生活、住宿条件、食堂美食\n4. 师资力量、科研成果、学术交流\n5. 校园活动、社团组织、体育赛事\n6. 校园设施、图书馆、实验室等\n\n回答要求：\n- 仅回答与川农相关的问题\n- 如用户问题超出范围，礼貌说明你主要专注于川农相关问题\n- 保持专业、友好、耐心的态度\n- 支持多轮对话，记住之前的上下文\n- 提供准确、实用的信息", 
+		 "", json.dumps({"use_default_model": True}, ensure_ascii=False), 1),
+		("天气小助手", "weather", "天气小助手", 0, "API", 
+		 "输入城市名，返回指定城市天气卡片+动态联动的天气特效", "", 
+		 "", "query_tian", json.dumps({"city_param": "city"}, ensure_ascii=False), 1),
+		("毒鸡汤助手", "poison_chicken_soup", "毒鸡汤助手", 0, "API", 
+		 "随机回复毒鸡汤语句", "", "", "", json.dumps({}, ensure_ascii=False), 1),
 	]
 	for employee_name, employee_code, at_alias, category, service_type, description, model_code, prompt, api_code, config_json, status in default_employees:
 		conn.execute(

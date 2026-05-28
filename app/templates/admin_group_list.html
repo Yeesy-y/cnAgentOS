@@ -1,0 +1,149 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            群聊管理
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-form" style="margin-bottom:20px;">
+                <div class="layui-inline">
+                    <form method="get" action="/admin/group/list" style="display:inline-flex;">
+                        <input type="text" name="keyword" value="{{ keyword }}" placeholder="搜索群名称" class="layui-input" style="width:200px; margin-right:10px;">
+                        <button type="submit" class="layui-btn"><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                        <a href="/admin/group/list" class="layui-btn layui-btn-primary" style="margin-left:5px;">重置</a>
+                    </form>
+                </div>
+            </div>
+
+            <form id="groupListForm" action="/admin/group/list" method="post">
+                {% module xsrf_form_html() %}
+                <input type="hidden" name="action" id="groupAction" value="">
+                <input type="hidden" name="group_id" id="groupId" value="">
+                <input type="hidden" name="notice" id="groupNotice" value="">
+
+                <table class="layui-table" lay-skin="line">
+                    <thead>
+                        <tr>
+                            <th style="width:60px;">ID</th>
+                            <th>群名称</th>
+                            <th style="width:100px;">创建者</th>
+                            <th style="width:100px;">成员数</th>
+                            <th style="width:100px;">数字员工</th>
+                            <th style="width:80px;">状态</th>
+                            <th style="width:160px;">创建时间</th>
+                            <th style="width:280px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if groups %}
+                            {% for g in groups %}
+                            <tr>
+                                <td>{{ g['id'] }}</td>
+                                <td>
+                                    <a href="/admin/group/detail?group_id={{ g['id'] }}" style="color:#1E9FFF;">
+                                        <i class="layui-icon layui-icon-group"></i> {{ g['name'] }}
+                                    </a>
+                                </td>
+                                <td>{{ g['creator_name'] }}</td>
+                                <td><span class="layui-badge layui-bg-green">{{ g['member_count'] }}</span></td>
+                                <td><span class="layui-badge layui-bg-orange">{{ g['employee_count'] }}</span></td>
+                                <td>
+                                    {% if g['status'] == 'banned' %}
+                                        <span class="layui-badge layui-bg-red">已封禁</span>
+                                    {% else %}
+                                        <span class="layui-badge layui-bg-green">正常</span>
+                                    {% end %}
+                                </td>
+                                <td>{{ g['created_at'] }}</td>
+                                <td>
+                                    <a href="/admin/group/detail?group_id={{ g['id'] }}" class="layui-btn layui-btn-xs layui-btn-normal">
+                                        <i class="layui-icon layui-icon-about"></i> 详情
+                                    </a>
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-warm" onclick="showNotice('{{ g['id'] }}', '{{ g['name'] }}')">
+                                        <i class="layui-icon layui-icon-speaker"></i> 公告
+                                    </button>
+                                    {% if g['status'] == 'banned' %}
+                                        <button type="button" class="layui-btn layui-btn-xs layui-btn-normal" onclick="updateStatus('{{ g['id'] }}', 'unban')">
+                                            <i class="layui-icon layui-icon-ok-circle"></i> 解封
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="updateStatus('{{ g['id'] }}', 'ban')">
+                                            <i class="layui-icon layui-icon-fire"></i> 封禁
+                                        </button>
+                                    {% end %}
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="deleteGroup('{{ g['id'] }}', '{{ g['name'] }}')">
+                                        <i class="layui-icon layui-icon-delete"></i> 解散
+                                    </button>
+                                </td>
+                            </tr>
+                            {% end %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" style="text-align:center; color:#999; padding:30px;">
+                                    <i class="layui-icon layui-icon-group" style="font-size:40px;"></i>
+                                    <p style="margin-top:10px;">暂无群聊数据</p>
+                                </td>
+                            </tr>
+                        {% end %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['layer', 'form', 'jquery'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.jquery;
+
+    window.deleteGroup = function(groupId, groupName) {
+        layer.confirm('确认解散群聊 "<strong>' + groupName + '</strong>" 吗？<br>解散后将无法恢复！', {
+            icon: 3,
+            title: '解散群聊确认',
+            btn: ['确认解散', '取消']
+        }, function(index){
+            $('#groupAction').val('delete');
+            $('#groupId').val(groupId);
+            $('#groupListForm').submit();
+        });
+    };
+
+    window.updateStatus = function(groupId, action) {
+        var msg = action === 'ban' ? '封禁' : '解封';
+        layer.confirm('确认' + msg + '该群聊吗？', {
+            icon: 3,
+            title: msg + '确认',
+            btn: ['确认', '取消']
+        }, function(index){
+            $('#groupAction').val(action);
+            $('#groupId').val(groupId);
+            $('#groupListForm').submit();
+        });
+    };
+
+    window.showNotice = function(groupId, groupName) {
+        layer.prompt({
+            title: '发送群公告 - ' + groupName,
+            formType: 2,
+            placeholder: '请输入群公告内容...',
+            value: ''
+        }, function(value, index){
+            if(!value || !value.trim()) {
+                layer.msg('公告内容不能为空', {icon: 2});
+                return;
+            }
+            $('#groupAction').val('notice');
+            $('#groupId').val(groupId);
+            $('#groupNotice').val(value);
+            $('#groupListForm').submit();
+            layer.close(index);
+        });
+    };
+});
+</script>
+{% end %}

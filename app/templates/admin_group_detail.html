@@ -1,0 +1,217 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            <i class="layui-icon layui-icon-group"></i> 群聊详情 - {{ group['name'] }}
+            <a href="/admin/group/list" class="layui-btn layui-btn-xs layui-btn-primary" style="margin-left:20px;">
+                <i class="layui-icon layui-icon-return"></i> 返回列表
+            </a>
+        </div>
+        <div class="layui-card-body">
+            <fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+                <legend>基本信息</legend>
+            </fieldset>
+            
+            <div class="layui-form" style="max-width:600px;">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">群ID</label>
+                    <div class="layui-input-block">
+                        <div class="layui-form-mid">{{ group['id'] }}</div>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">群名称</label>
+                    <div class="layui-input-block">
+                        <div class="layui-form-mid">{{ group['name'] }}</div>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">状态</label>
+                    <div class="layui-input-block">
+                        {% if group['status'] == 'banned' %}
+                            <span class="layui-badge layui-bg-red">已封禁</span>
+                        {% else %}
+                            <span class="layui-badge layui-bg-green">正常</span>
+                        {% end %}
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">创建时间</label>
+                    <div class="layui-input-block">
+                        <div class="layui-form-mid">{{ group['created_at'] }}</div>
+                    </div>
+                </div>
+                {% if group['notice'] %}
+                <div class="layui-form-item">
+                    <label class="layui-form-label">群公告</label>
+                    <div class="layui-input-block">
+                        <div class="layui-form-mid" style="color:#FF5722; font-weight:500;">
+                            <i class="layui-icon layui-icon-speaker"></i> {{ group['notice'] }}
+                        </div>
+                    </div>
+                </div>
+                {% end %}
+            </div>
+
+            <fieldset class="layui-elem-field layui-field-title" style="margin-top:30px;">
+                <legend>成员列表 ({{ len(members) }} 人 + {{ len(employees) }} 数字员工)</legend>
+            </fieldset>
+            
+            <div style="margin-bottom:20px;">
+                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" id="removeMemberBtn" disabled>
+                    <i class="layui-icon layui-icon-delete"></i> 移除选中
+                </button>
+            </div>
+
+            <table class="layui-table" lay-skin="line">
+                <thead>
+                    <tr>
+                        <th style="width:40px;"><input type="checkbox" lay-filter="checkAll" lay-skin="primary"></th>
+                        <th style="width:60px;">ID</th>
+                        <th>名称</th>
+                        <th style="width:100px;">类型</th>
+                        <th style="width:180px;">加入时间</th>
+                        <th style="width:80px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in members %}
+                    <tr>
+                        <td><input type="checkbox" name="member" value="{{ m['id'] }}" data-type="user" lay-skin="primary"></td>
+                        <td>{{ m['id'] }}</td>
+                        <td><i class="layui-icon layui-icon-user" style="color:#07C160;"></i> {{ m['name'] }}</td>
+                        <td><span class="layui-badge layui-bg-green">用户</span></td>
+                        <td>{{ m['joined_at'] }}</td>
+                        <td>
+                            <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="removeMember('{{ group['id'] }}', '{{ m['id'] }}', 'user', '{{ m['name'] }}')">
+                                <i class="layui-icon layui-icon-delete"></i> 移除
+                            </button>
+                        </td>
+                    </tr>
+                    {% end %}
+                    {% for e in employees %}
+                    <tr>
+                        <td><input type="checkbox" name="member" value="{{ e['id'] }}" data-type="employee" lay-skin="primary"></td>
+                        <td>{{ e['id'] }}</td>
+                        <td><i class="layui-icon layui-icon-star" style="color:#F59E0B;"></i> {{ e['name'] }} <span style="color:#999; font-size:11px;">@{{ e['at_alias'] }}</span></td>
+                        <td><span class="layui-badge layui-bg-orange">数字员工</span></td>
+                        <td>{{ e['added_at'] }}</td>
+                        <td>
+                            <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="removeMember('{{ group['id'] }}', '{{ e['id'] }}', 'employee', '{{ e['name'] }}')">
+                                <i class="layui-icon layui-icon-delete"></i> 移除
+                            </button>
+                        </td>
+                    </tr>
+                    {% end %}
+                    {% if not members and not employees %}
+                    <tr>
+                        <td colspan="6" style="text-align:center; color:#999; padding:30px;">
+                            <i class="layui-icon layui-icon-user" style="font-size:40px;"></i>
+                            <p style="margin-top:10px;">暂无成员</p>
+                        </td>
+                    </tr>
+                    {% end %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script>
+var groupId = '{{ group['id'] }}';
+
+layui.use(['layer', 'form', 'jquery'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.jquery;
+
+    form.on('checkbox(checkAll)', function(data){
+        $('input[name="member"]').each(function(){
+            this.checked = data.elem.checked;
+        });
+        form.render('checkbox');
+        updateRemoveBtn();
+    });
+
+    $('input[name="member"]').on('click', function(){
+        updateRemoveBtn();
+    });
+
+    function updateRemoveBtn() {
+        var checked = $('input[name="member"]:checked').length;
+        if(checked > 0) {
+            $('#removeMemberBtn').prop('disabled', false);
+        } else {
+            $('#removeMemberBtn').prop('disabled', true);
+        }
+    }
+
+    window.removeMember = function(gid, mid, type, name) {
+        layer.confirm('确认将 "<strong>' + name + '</strong>" 从群中移除吗？', {
+            icon: 3,
+            title: '移除成员',
+            btn: ['确认', '取消']
+        }, function(index){
+            $.ajax({
+                url: '/admin/api/group/members',
+                type: 'POST',
+                data: {
+                    action: 'remove',
+                    group_id: gid,
+                    member_id: mid,
+                    member_type: type
+                },
+                success: function(res) {
+                    if(res.success) {
+                        layer.msg('移除成功', {icon: 1});
+                        setTimeout(function(){
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        layer.msg(res.message || '移除失败', {icon: 2});
+                    }
+                },
+                error: function() {
+                    layer.msg('请求失败', {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    };
+
+    $('#removeMemberBtn').on('click', function(){
+        var checked = $('input[name="member"]:checked');
+        if(checked.length === 0) return;
+
+        layer.confirm('确认移除选中的 ' + checked.length + ' 个成员吗？', {
+            icon: 3,
+            title: '批量移除',
+            btn: ['确认', '取消']
+        }, function(index){
+            checked.each(function(){
+                var $this = $(this);
+                $.ajax({
+                    url: '/admin/api/group/members',
+                    type: 'POST',
+                    data: {
+                        action: 'remove',
+                        group_id: groupId,
+                        member_id: $this.val(),
+                        member_type: $this.data('type')
+                    },
+                    async: false
+                });
+            });
+            layer.msg('批量移除完成', {icon: 1});
+            setTimeout(function(){
+                window.location.reload();
+            }, 1000);
+            layer.close(index);
+        });
+    });
+});
+</script>
+{% end %}
