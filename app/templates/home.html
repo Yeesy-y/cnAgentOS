@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>智能瞭望系统 - 主界面</title>
+	<link rel="stylesheet" href="{{ static_url('dist/layui-v2.13.6/layui/css/layui.css') }}">
+	<link rel="stylesheet" href="{{ static_url('dist/fontawesome-free-5.15.4-web/css/all.min.css') }}">
+	<style>
+		*{margin:0;padding:0;box-sizing:border-box;}
+		html,body{height:100%;width:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Microsoft YaHei",sans-serif;}
+		.home-page{width:100%;height:100%;display:flex;justify-content:center;align-items:center;background:linear-gradient(180deg,#efe4e9 0%,#bdbbbf 100%);position:relative;overflow:hidden;}
+		.home-container{position:relative;z-index:1;width:800px;max-width:95vw;}
+		.home-header{text-align:center;margin-bottom:48px;}
+		.home-logo{display:inline-flex;align-items:center;justify-content:center;width:96px;height:96px;background:linear-gradient(135deg,#5f5f5f,#8a8a8a);border-radius:28px;margin-bottom:24px;box-shadow:0 16px 40px rgba(95,95,95,0.35);}
+		.home-logo i{font-size:44px;color:#fff;}
+		.home-header h1{color:#5f5f5f;font-size:32px;font-weight:800;letter-spacing:0.5px;margin-bottom:12px;}
+		.home-header p{color:rgba(95,95,95,0.7);font-size:16px;margin-bottom:8px;}
+		.home-header .username{color:#5f5f5f;font-size:18px;font-weight:600;}
+		.cards-container{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;}
+		.card{width:360px;background:rgba(255,255,255,0.3);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(255,255,255,0.35);border-radius:24px;padding:36px 28px;box-shadow:0 24px 64px rgba(95,95,95,0.2);transition:all 0.4s ease;cursor:pointer;text-align:center;}
+		.card:hover{transform:translateY(-10px);box-shadow:0 32px 80px rgba(95,95,95,0.3);}
+		.card-icon{width:88px;height:88px;border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:40px;color:#fff;}
+		.card-icon.qa{background:linear-gradient(135deg,#667eea,#764ba2);}
+		.card-icon.chat{background:linear-gradient(135deg,#07C160,#059f50);}
+		.card h3{color:#5f5f5f;font-size:22px;font-weight:700;margin-bottom:12px;}
+		.card p{color:rgba(95,95,95,0.65);font-size:14px;line-height:1.6;}
+		.logout-btn{margin-top:48px;text-align:center;}
+		.logout-btn button{background:linear-gradient(135deg,#C74545,#EF4444);border:none;border-radius:16px;color:#fff;padding:14px 48px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.3s ease;box-shadow:0 8px 24px rgba(239,68,68,0.35);}
+		.logout-btn button:hover{background:linear-gradient(135deg,#EF4444,#C74545);box-shadow:0 12px 32px rgba(239,68,68,0.45);transform:translateY(-2px);}
+		.logout-btn form{display:inline;}
+	</style>
+</head>
+<body>
+<div class="home-page">
+	<div class="home-container">
+		<div class="home-header">
+			<div class="home-logo"><i class="fas fa-eye"></i></div>
+			<h1>AI 智能瞭望系统</h1>
+			<p>欢迎回来</p>
+			<p class="username"><i class="fas fa-user"></i> {{ username }}</p>
+		</div>
+
+		<div class="cards-container">
+			<div class="card" onclick="window.location.href='/user_chat'">
+				<div class="card-icon qa"><i class="fas fa-database"></i></div>
+				<h3>智能问数</h3>
+				<p>AI驱动的数据分析与问答，支持模型服务、历史对话、智能查询</p>
+			</div>
+
+			<div class="card" onclick="window.location.href='/chat'">
+				<div class="card-icon chat"><i class="fas fa-comments"></i></div>
+				<h3>智能聊天</h3>
+				<p>即时通讯与社交功能，支持1v1私聊、群聊、好友管理、数字员工</p>
+			</div>
+		</div>
+
+		<div class="logout-btn">
+			<form action="/logout" method="post">
+				{% module xsrf_form_html() %}
+				<button type="submit"><i class="fas fa-sign-out-alt"></i> 退出登录</button>
+			</form>
+		</div>
+	</div>
+</div>
+</body>
+</html>

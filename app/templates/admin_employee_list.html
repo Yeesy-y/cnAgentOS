@@ -176,6 +176,9 @@
 							<a href="/admin/employee/edit?id={{ e['id'] }}" class="layui-btn layui-btn-xs layui-btn-warm">
 								<i class="layui-icon layui-icon-edit"></i> 编辑
 							</a>
+							<button type="button" class="layui-btn layui-btn-xs layui-btn-normal bind-tools-btn" data-employee-id="{{ e['id'] }}" data-employee-name="{{ e.get('employee_name', '') }}">
+								<i class="layui-icon layui-icon-util"></i> 绑定工具
+							</button>
 							<form action="/admin/employee/list" method="post">
 								{% module xsrf_form_html() %}
 								<input type="hidden" name="action" value="delete">
@@ -208,4 +211,106 @@
 		</div>
 	</div>
 </div>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['layer', 'jquery'], function(){
+    var layer = layui.layer;
+    var $ = layui.jquery;
+
+    $(document).on('click', '.bind-tools-btn', function(){
+        var employeeId = $(this).data('employeeId');
+        var employeeName = $(this).data('employeeName');
+        if (!employeeId) {
+            layer.msg('缺少员工ID', {icon: 2});
+            return;
+        }
+        bindTools(employeeId, employeeName || '');
+    });
+
+    window.bindTools = function(employeeId, employeeName) {
+        $.ajax({
+            url: '/admin/api/tool/bind',
+            type: 'GET',
+            data: { employee_id: employeeId },
+            success: function(res) {
+                if (!res.success) {
+                    layer.msg(res.message || '获取数据失败', {icon: 2});
+                    return;
+                }
+
+                var allTools = res.all_tools || [];
+                var boundToolIds = res.bound_tools || [];
+
+                var html = '<div style="padding:20px;">';
+                html += '<div style="margin-bottom:15px;">正在为数字员工 <strong>' + employeeName + '</strong> 绑定工具</div>';
+
+                if (allTools.length === 0) {
+                    html += '<div style="color:#999; text-align:center; padding:30px;">暂无可用工具，请先在"工具管理"中添加工具</div>';
+                } else {
+                    html += '<div style="max-height:300px; overflow-y:auto;">';
+                    for (var i = 0; i < allTools.length; i++) {
+                        var tool = allTools[i];
+                        var checked = boundToolIds.indexOf(tool.id) >= 0 ? 'checked' : '';
+                        html += '<div style="padding:8px; border-bottom:1px solid #eee;">';
+                        html += '<input type="checkbox" name="tool" value="' + tool.id + '" id="tool_' + tool.id + '" ' + checked + ' style="margin-right:8px;">';
+                        html += '<label for="tool_' + tool.id + '" style="cursor:pointer;">';
+                        html += '<strong>' + tool.tool_name + '</strong>';
+                        html += '<code style="margin-left:8px; color:#666;">' + tool.tool_code + '</code>';
+                        if (tool.description) {
+                            html += '<div style="color:#999; font-size:12px; margin-top:2px;">' + tool.description + '</div>';
+                        }
+                        html += '</label>';
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+                html += '</div>';
+
+                layer.open({
+                    type: 1,
+                    title: '绑定工具',
+                    area: ['400px', '420px'],
+                    content: html,
+                    btn: ['保存绑定', '取消'],
+                    yes: function(index, layero) {
+                        var selectedTools = [];
+                        $('input[name="tool"]:checked', layero).each(function() {
+                            selectedTools.push($(this).val());
+                        });
+
+                        $.ajax({
+                            url: '/admin/api/tool/bind',
+                            type: 'POST',
+                            traditional: true,
+                            data: {
+                                action: 'bind',
+                                employee_id: employeeId,
+                                tool_ids: selectedTools,
+                                _xsrf: $('input[name="_xsrf"]').val()
+                            },
+                            headers: {"X-XSRFToken": $('input[name="_xsrf"]').val()},
+                            success: function(saveRes) {
+                                if (saveRes.success) {
+                                    layer.msg('绑定成功', {icon: 1});
+                                } else {
+                                    layer.msg(saveRes.message || '绑定失败', {icon: 2});
+                                }
+                            },
+                            error: function() {
+                                layer.msg('请求失败', {icon: 2});
+                            }
+                        });
+                        layer.close(index);
+                    }
+                });
+            },
+            error: function() {
+                layer.msg('获取数据失败', {icon: 2});
+            }
+        });
+    };
+});
+</script>
 {% end %}

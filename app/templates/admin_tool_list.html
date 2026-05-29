@@ -1,0 +1,216 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            <i class="layui-icon layui-icon-util"></i> AI工具管理
+        </div>
+        <div class="layui-card-body">
+            <div style="margin-bottom:15px;">
+                <button type="button" class="layui-btn layui-btn-normal" id="addToolBtn">
+                    <i class="layui-icon layui-icon-add-1"></i> 添加工具
+                </button>
+            </div>
+
+            <table class="layui-table" lay-skin="line">
+                <thead>
+                    <tr>
+                        <th style="width:60px;">ID</th>
+                        <th>工具名称</th>
+                        <th>工具代码</th>
+                        <th>类型</th>
+                        <th style="width:300px;">描述</th>
+                        <th style="width:80px;">状态</th>
+                        <th style="width:150px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if tools %}
+                        {% for t in tools %}
+                        <tr>
+                            <td>{{ t['id'] }}</td>
+                            <td>
+                                <i class="layui-icon layui-icon-util" style="color:#1E9FFF;"></i>
+                                <strong>{{ t['tool_name'] }}</strong>
+                            </td>
+                            <td><code>{{ t['tool_code'] }}</code></td>
+                            <td>
+                                {% if t['tool_type'] == 'function' %}
+                                    <span class="layui-badge layui-bg-blue">函数</span>
+                                {% elif t['tool_type'] == 'api' %}
+                                    <span class="layui-badge layui-bg-orange">API</span>
+                                {% else %}
+                                    <span class="layui-badge layui-bg-gray">{{ t['tool_type'] }}</span>
+                                {% end %}
+                            </td>
+                            <td style="color:#666; font-size:12px;">{{ t['description'] }}</td>
+                            <td>
+                                {% if t['status'] == 1 %}
+                                    <span class="layui-badge layui-bg-green">启用</span>
+                                {% else %}
+                                    <span class="layui-badge layui-bg-red">禁用</span>
+                                {% end %}
+                            </td>
+                            <td>
+                                <button type="button" class="layui-btn layui-btn-xs layui-btn-warm" onclick="editTool('{{ t['id'] }}', '{{ t['tool_name'] }}', '{{ t['tool_code'] }}', '{{ t['description'] }}', '{{ t['tool_type'] }}', '{{ t['parameters_json'] }}', '{{ t['return_schema'] }}')">
+                                    <i class="layui-icon layui-icon-edit"></i> 编辑
+                                </button>
+                                {% if t['status'] == 1 %}
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="toggleTool('{{ t['id'] }}', '0')">
+                                        <i class="layui-icon layui-icon-close-fill"></i> 禁用
+                                    </button>
+                                {% else %}
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-normal" onclick="toggleTool('{{ t['id'] }}', '1')">
+                                        <i class="layui-icon layui-icon-ok-circle"></i> 启用
+                                    </button>
+                                {% end %}
+                                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="deleteTool('{{ t['id'] }}', '{{ t['tool_name'] }}')">
+                                    <i class="layui-icon layui-icon-delete"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                        {% end %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align:center; color:#999; padding:30px;">
+                                <i class="layui-icon layui-icon-util" style="font-size:40px;"></i>
+                                <p style="margin-top:10px;">暂无工具配置</p>
+                                <p style="margin-top:5px; font-size:12px;">点击上方"添加工具"按钮添加AI工具</p>
+                            </td>
+                        </tr>
+                    {% end %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<form id="toolForm" action="/admin/tool/list" method="post" style="display:none;">
+    {% module xsrf_form_html() %}
+    <input type="hidden" name="action" id="toolAction" value="">
+    <input type="hidden" name="tool_id" id="toolId" value="">
+    <input type="hidden" name="tool_name" id="toolName" value="">
+    <input type="hidden" name="tool_code" id="toolCode" value="">
+    <input type="hidden" name="description" id="toolDesc" value="">
+    <input type="hidden" name="tool_type" id="toolType" value="">
+    <input type="hidden" name="parameters_json" id="toolParams" value="">
+    <input type="hidden" name="return_schema" id="toolReturn" value="">
+    <input type="hidden" name="status" id="toolStatus" value="">
+</form>
+{% end %}
+
+{% block js %}
+<script>
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+layui.use(['layer', 'form', 'jquery'], function(){
+    var layer = layui.layer;
+    var $ = layui.jquery;
+
+    $('#addToolBtn').on('click', function(){
+        showToolForm();
+    });
+
+    window.editTool = function(id, name, code, desc, type, params, ret) {
+        showToolForm(id, name, code, desc, type, params, ret);
+    };
+
+    function showToolForm(id, name, code, desc, type, params, ret) {
+        id = id || '';
+        name = name || '';
+        code = code || '';
+        desc = desc || '';
+        type = type || 'function';
+        params = params || '{}';
+        ret = ret || '';
+
+        var title = id ? '编辑工具' : '添加工具';
+
+        layer.open({
+            type: 1,
+            title: title,
+            area: ['500px', '420px'],
+            content: '<div style="padding:20px;">'+
+                '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                    '<label class="layui-form-label" style="width:100px;">工具名称</label>'+
+                    '<div class="layui-input-block">'+
+                        '<input type="text" id="form_name" value="'+escapeHtml(name)+'" class="layui-input" placeholder="如：天气查询" style="width:320px;">'+
+                    '</div>'+
+                '</div>'+
+                '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                    '<label class="layui-form-label" style="width:100px;">工具代码</label>'+
+                    '<div class="layui-input-block">'+
+                        '<input type="text" id="form_code" value="'+escapeHtml(code)+'" class="layui-input" placeholder="如：weather_query" style="width:320px;">'+
+                    '</div>'+
+                '</div>'+
+                '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                    '<label class="layui-form-label" style="width:100px;">工具类型</label>'+
+                    '<div class="layui-input-block">'+
+                        '<select id="form_type" class="layui-input" style="width:320px; height:36px;">'+
+                            '<option value="function" '+(type==='function'?'selected':'')+'>函数</option>'+
+                            '<option value="api" '+(type==='api'?'selected':'')+'>API</option>'+
+                        '</select>'+
+                    '</div>'+
+                '</div>'+
+                '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                    '<label class="layui-form-label" style="width:100px;">描述</label>'+
+                    '<div class="layui-input-block">'+
+                        '<textarea id="form_desc" class="layui-textarea" placeholder="工具功能描述" style="width:320px; height:60px;">'+escapeHtml(desc)+'</textarea>'+
+                    '</div>'+
+                '</div>'+
+            '</div>',
+            btn: ['保存', '取消'],
+            yes: function(index, layero){
+                var name = $('#layui-layer'+index+' #form_name').val().trim();
+                var code = $('#layui-layer'+index+' #form_code').val().trim();
+                var type = $('#layui-layer'+index+' #form_type').val();
+                var desc = $('#layui-layer'+index+' #form_desc').val().trim();
+
+                if(!name || !code){
+                    layer.msg('请填写工具名称和代码', {icon: 2});
+                    return;
+                }
+
+                $('#toolAction').val(id ? 'edit' : 'add');
+                if(id) $('#toolId').val(id);
+                $('#toolName').val(name);
+                $('#toolCode').val(code);
+                $('#toolType').val(type);
+                $('#toolDesc').val(desc);
+                $('#toolForm').submit();
+                layer.close(index);
+            }
+        });
+    }
+
+    window.toggleTool = function(id, status){
+        var action = status === '1' ? '启用' : '禁用';
+        layer.confirm('确认'+action+'该工具吗？', {
+            icon: 3,
+            title: action+'确认',
+            btn: ['确认', '取消']
+        }, function(index){
+            $('#toolAction').val('toggle');
+            $('#toolId').val(id);
+            $('#toolStatus').val(status);
+            $('#toolForm').submit();
+        });
+    };
+
+    window.deleteTool = function(id, name){
+        layer.confirm('确认删除工具 "<strong>'+name+'</strong>" 吗？<br>删除后已绑定该工具的数字员工将失去此工具权限。', {
+            icon: 3,
+            title: '删除确认',
+            btn: ['确认删除', '取消']
+        }, function(index){
+            $('#toolAction').val('delete');
+            $('#toolId').val(id);
+            $('#toolForm').submit();
+        });
+    };
+});
+</script>
+{% end %}

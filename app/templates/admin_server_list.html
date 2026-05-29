@@ -1,0 +1,325 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<div style="padding: 20px;">
+    <div class="layui-card">
+        <div class="layui-card-header" style="font-size:18px; font-weight:600;">
+            <i class="layui-icon layui-icon-server"></i> 聊天服务器管理
+        </div>
+        <div class="layui-card-body">
+            <div class="layui-row layui-col-space15" style="margin-bottom:20px;">
+                <div class="layui-col-md4">
+                    <div class="layuiadmin-card-box" style="background:#009688; color:#fff; padding:20px; border-radius:8px; text-align:center;">
+                        <div style="font-size:36px; font-weight:600;">{{ total_count }}</div>
+                        <div style="font-size:14px; opacity:0.9;">服务器总数</div>
+                    </div>
+                </div>
+                <div class="layui-col-md4">
+                    <div class="layuiadmin-card-box" style="background:#1E9FFF; color:#fff; padding:20px; border-radius:8px; text-align:center;">
+                        <div style="font-size:36px; font-weight:600;">{{ active_count }}</div>
+                        <div style="font-size:14px; opacity:0.9;">在线服务器</div>
+                    </div>
+                </div>
+                <div class="layui-col-md4">
+                    <div class="layuiadmin-card-box" style="background:#FF5722; color:#fff; padding:20px; border-radius:8px; text-align:center;">
+                        <div style="font-size:36px; font-weight:600;">{{ total_count - active_count }}</div>
+                        <div style="font-size:14px; opacity:0.9;">离线服务器</div>
+                    </div>
+                </div>
+                <div class="layui-col-md4">
+                    <div class="layuiadmin-card-box" style="background:#5FB878; color:#fff; padding:20px; border-radius:8px; text-align:center;">
+                        <div style="font-size:36px; font-weight:600;">{{ healthy_count }}</div>
+                        <div style="font-size:14px; opacity:0.9;">健康服务器</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <button type="button" class="layui-btn layui-btn-normal" id="addServerBtn">
+                    <i class="layui-icon layui-icon-add-1"></i> 添加服务器
+                </button>
+            </div>
+
+            <table class="layui-table" lay-skin="line">
+                <thead>
+                    <tr>
+                        <th style="width:60px;">ID</th>
+                        <th>服务器名称</th>
+                        <th>地址</th>
+                        <th style="width:80px;">权重</th>
+                        <th style="width:100px;">最大连接</th>
+                        <th style="width:80px;">状态</th>
+                        <th style="width:120px;">健康状态</th>
+                        <th style="width:200px;">描述</th>
+                        <th style="width:220px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if servers %}
+                        {% for s in servers %}
+                        <tr>
+                            <td>{{ s['id'] }}</td>
+                            <td>
+                                <i class="layui-icon layui-icon-server" style="color:#1E9FFF;"></i>
+                                <strong>{{ s['name'] }}</strong>
+                                {% if s['is_current'] %}
+                                    <span class="layui-badge layui-bg-blue" style="margin-left:5px;">当前</span>
+                                {% end %}
+                            </td>
+                            <td>
+                                <code>{{ s['host'] }}:{{ s['port'] }}</code>
+                            </td>
+                            <td>
+                                <span class="layui-badge layui-bg-gray">{{ s['weight'] }}</span>
+                            </td>
+                            <td>{{ s['max_connections'] }}</td>
+                            <td>
+                                {% if s['status'] == 'active' %}
+                                    <span class="layui-badge layui-bg-green">在线</span>
+                                {% else %}
+                                    <span class="layui-badge layui-bg-red">离线</span>
+                                {% end %}
+                            </td>
+                            <td>
+                                {% if s['status'] == 'active' %}
+                                    {% if s['healthy'] %}
+                                        <span class="layui-badge layui-bg-green" title="延迟: {{ s['latency'] }}ms">健康</span>
+                                    {% else %}
+                                        <span class="layui-badge layui-bg-red" title="{{ s['health_message'] }}">异常</span>
+                                    {% end %}
+                                {% else %}
+                                    <span class="layui-badge layui-bg-gray">未检测</span>
+                                {% end %}
+                            </td>
+                            <td style="color:#666; font-size:12px;">{{ s['description'] }}</td>
+                            <td>
+                                <button type="button" class="layui-btn layui-btn-xs layui-btn-warm" onclick="editServer('{{ s['id'] }}', '{{ s['name'] }}', '{{ s['host'] }}', '{{ s['port'] }}', '{{ s['weight'] }}', '{{ s['max_connections'] }}', '{{ s['description'] }}')">
+                                    <i class="layui-icon layui-icon-edit"></i> 编辑
+                                </button>
+                                {% if s['status'] == 'active' %}
+                                    {% if not s['is_current'] %}
+                                        <button type="button" class="layui-btn layui-btn-xs layui-btn-blue" onclick="switchToServer('{{ s['id'] }}', '{{ s['name'] }}')">
+                                            <i class="layui-icon layui-icon-switch"></i> 切换
+                                        </button>
+                                    {% end %}
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="toggleServer('{{ s['id'] }}', 'inactive')">
+                                        <i class="layui-icon layui-icon-close-fill"></i> 禁用
+                                    </button>
+                                {% else %}
+                                    <button type="button" class="layui-btn layui-btn-xs layui-btn-normal" onclick="toggleServer('{{ s['id'] }}', 'active')">
+                                        <i class="layui-icon layui-icon-ok-circle"></i> 启用
+                                    </button>
+                                {% end %}
+                                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="deleteServer('{{ s['id'] }}', '{{ s['name'] }}')">
+                                    <i class="layui-icon layui-icon-delete"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                        {% end %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" style="text-align:center; color:#999; padding:30px;">
+                                <i class="layui-icon layui-icon-server" style="font-size:40px;"></i>
+                                <p style="margin-top:10px;">暂无服务器配置</p>
+                                <p style="margin-top:5px; font-size:12px;">点击上方"添加服务器"按钮添加第一个聊天服务器</p>
+                            </td>
+                        </tr>
+                    {% end %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<form id="serverForm" action="/admin/server/list" method="post" style="display:none;">
+    {% module xsrf_form_html() %}
+    <input type="hidden" name="action" id="serverAction" value="">
+    <input type="hidden" name="server_id" id="serverId" value="">
+    <input type="hidden" name="name" id="serverName" value="">
+    <input type="hidden" name="host" id="serverHost" value="">
+    <input type="hidden" name="port" id="serverPort" value="">
+    <input type="hidden" name="weight" id="serverWeight" value="">
+    <input type="hidden" name="max_connections" id="serverMaxConn" value="">
+    <input type="hidden" name="description" id="serverDesc" value="">
+    <input type="hidden" name="status" id="serverStatus" value="">
+</form>
+{% end %}
+
+{% block js %}
+<script>
+layui.use(['layer', 'form', 'jquery'], function(){
+    var layer = layui.layer;
+    var $ = layui.jquery;
+
+    $('#addServerBtn').on('click', function(){
+        layer.open({
+            type: 1,
+            title: '添加服务器',
+            area: ['400px', '400px'],
+            content: buildFormHtml(),
+            btn: ['保存', '取消'],
+            yes: function(index, layero){
+                var name = $('#layui-layer'+index+' #form_name').val().trim();
+                var host = $('#layui-layer'+index+' #form_host').val().trim();
+                var port = parseInt($('#layui-layer'+index+' #form_port').val()) || 9000;
+                var weight = parseInt($('#layui-layer'+index+' #form_weight').val()) || 100;
+                var maxConn = parseInt($('#layui-layer'+index+' #form_max_conn').val()) || 1000;
+                var desc = $('#layui-layer'+index+' #form_desc').val().trim();
+
+                if(!name || !host){
+                    layer.msg('请填写服务器名称和地址', {icon: 2});
+                    return;
+                }
+
+                $('#serverAction').val('add');
+                $('#serverName').val(name);
+                $('#serverHost').val(host);
+                $('#serverPort').val(port);
+                $('#serverWeight').val(weight);
+                $('#serverMaxConn').val(maxConn);
+                $('#serverDesc').val(desc);
+                $('#serverForm').submit();
+                layer.close(index);
+            }
+        });
+    });
+
+    window.editServer = function(id, name, host, port, weight, maxConn, desc){
+        layer.open({
+            type: 1,
+            title: '编辑服务器',
+            area: ['400px', '400px'],
+            content: buildFormHtml(name, host, port, weight, maxConn, desc),
+            btn: ['保存', '取消'],
+            yes: function(index, layero){
+                var name = $('#layui-layer'+index+' #form_name').val().trim();
+                var host = $('#layui-layer'+index+' #form_host').val().trim();
+                var port = parseInt($('#layui-layer'+index+' #form_port').val()) || 9000;
+                var weight = parseInt($('#layui-layer'+index+' #form_weight').val()) || 100;
+                var maxConn = parseInt($('#layui-layer'+index+' #form_max_conn').val()) || 1000;
+                var desc = $('#layui-layer'+index+' #form_desc').val().trim();
+
+                if(!name || !host){
+                    layer.msg('请填写服务器名称和地址', {icon: 2});
+                    return;
+                }
+
+                $('#serverAction').val('edit');
+                $('#serverId').val(id);
+                $('#serverName').val(name);
+                $('#serverHost').val(host);
+                $('#serverPort').val(port);
+                $('#serverWeight').val(weight);
+                $('#serverMaxConn').val(maxConn);
+                $('#serverDesc').val(desc);
+                $('#serverForm').submit();
+                layer.close(index);
+            }
+        });
+    };
+
+    function buildFormHtml(name, host, port, weight, maxConn, desc){
+        name = name || '';
+        host = host || '';
+        port = port || '9000';
+        weight = weight || '100';
+        maxConn = maxConn || '1000';
+        desc = desc || '';
+
+        return '<div style="padding:20px;">'+
+            '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                '<label class="layui-form-label" style="width:100px;">服务器名称</label>'+
+                '<div class="layui-input-block">'+
+                    '<input type="text" id="form_name" value="'+name+'" class="layui-input" placeholder="如：主服务器1" style="width:240px;">'+
+                '</div>'+
+            '</div>'+
+            '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                '<label class="layui-form-label" style="width:100px;">服务器地址</label>'+
+                '<div class="layui-input-block">'+
+                    '<input type="text" id="form_host" value="'+host+'" class="layui-input" placeholder="如：192.168.1.100" style="width:240px;">'+
+                '</div>'+
+            '</div>'+
+            '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                '<label class="layui-form-label" style="width:100px;">端口</label>'+
+                '<div class="layui-input-block">'+
+                    '<input type="number" id="form_port" value="'+port+'" class="layui-input" placeholder="9000" style="width:240px;">'+
+                '</div>'+
+            '</div>'+
+            '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                '<label class="layui-form-label" style="width:100px;">权重</label>'+
+                '<div class="layui-input-block">'+
+                    '<input type="number" id="form_weight" value="'+weight+'" class="layui-input" placeholder="100" style="width:240px;">'+
+                    '<div style="color:#999; font-size:12px; margin-top:5px;">权重越高越优先分配连接</div>'+
+                '</div>'+
+            '</div>'+
+            '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                '<label class="layui-form-label" style="width:100px;">最大连接数</label>'+
+                '<div class="layui-input-block">'+
+                    '<input type="number" id="form_max_conn" value="'+maxConn+'" class="layui-input" placeholder="1000" style="width:240px;">'+
+                '</div>'+
+            '</div>'+
+            '<div class="layui-form-item" style="margin-bottom:15px;">'+
+                '<label class="layui-form-label" style="width:100px;">描述</label>'+
+                '<div class="layui-input-block">'+
+                    '<textarea id="form_desc" class="layui-textarea" placeholder="可选" style="width:240px; height:60px;">'+desc+'</textarea>'+
+                '</div>'+
+            '</div>'+
+        '</div>';
+    }
+
+    window.switchToServer = function(id, name){
+        layer.confirm('确认切换到服务器 "<strong>'+name+'</strong>" 吗？', {
+            icon: 3,
+            title: '切换服务器',
+            btn: ['确认切换', '取消']
+        }, function(index){
+            $.ajax({
+                url: '/admin/api/server/switch',
+                type: 'POST',
+                data: {
+                    server_id: id
+                },
+                success: function(res){
+                    if(res.success){
+                        layer.msg('切换成功', {icon: 1});
+                        setTimeout(function(){
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        layer.msg(res.message || '切换失败', {icon: 2});
+                    }
+                },
+                error: function(){
+                    layer.msg('切换失败', {icon: 2});
+                }
+            });
+        });
+    };
+
+    window.toggleServer = function(id, status){
+        var action = status === 'active' ? '启用' : '禁用';
+        layer.confirm('确认'+action+'该服务器吗？', {
+            icon: 3,
+            title: action+'确认',
+            btn: ['确认', '取消']
+        }, function(index){
+            $('#serverAction').val('toggle');
+            $('#serverId').val(id);
+            $('#serverStatus').val(status);
+            $('#serverForm').submit();
+        });
+    };
+
+    window.deleteServer = function(id, name){
+        layer.confirm('确认删除服务器 "<strong>'+name+'</strong>" 吗？', {
+            icon: 3,
+            title: '删除确认',
+            btn: ['确认删除', '取消']
+        }, function(index){
+            $('#serverAction').val('delete');
+            $('#serverId').val(id);
+            $('#serverForm').submit();
+        });
+    };
+});
+</script>
+{% end %}
