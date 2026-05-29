@@ -7,6 +7,45 @@ import tornado.ioloop
 import tornado.web
 from tornado.httpserver import HTTPServer
 
+# 导入 user_profile
+from app.controllers.user_profile import UserProfileHandler, UserProfileSaveHandler, UserProfileAvatarHandler
+
+# 导入 user_home
+from app.controllers.user_home import UserHomeHandler
+
+# 导入 user_qa
+from app.controllers.user_qa import UserQaHandler
+
+# 导入 user_chat 中的所有 Handler
+from app.controllers.user_chat import (
+    UserChatHandler,
+    ChatWebSocketHandler,
+    UserSearchHandler,
+    UserFriendAddHandler,
+    UserFriendRequestHandler,
+    UserFriendAcceptHandler,
+    UserFriendRejectHandler,
+    UserFriendPendingHandler,
+    UserFriendClearHandler,
+    UserGroupCreateHandler,
+	UserGroupInviteHandler,
+	UserGroupMembersHandler,
+	UserGroupClearHandler,
+	UserFriendsHandler,
+	UserGroupsHandler,
+	UserEmployeesHandler,
+    UserFileUploadHandler,
+    UserMessageHistoryHandler,
+    UserInfoHandler,
+    UserUnreadCountHandler,
+    UserMarkReadHandler,
+    UserMessageSearchHandler,
+    UserMessageForwardHandler,
+    UserMessageReferenceHandler,
+    UserFriendsWithUnreadHandler,
+    UserGroupsWithUnreadHandler,
+)
+
 #引入admin-controller层
 from app.controllers.admin_auth import AdminLoginHandler,AdminLogoutHandler
 from app.controllers.admin_home import AdminIndexHandler
@@ -15,11 +54,14 @@ from app.controllers.admin_rbac import AdminPermissionListHandler,AdminPermissio
 from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,AdminRoleEditHandler
 from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandler,AdminModelEditHandler,AdminModelTestHandler
 from app.controllers.admin_employee import AdminEmployeeListHandler,AdminEmployeeAddHandler,AdminEmployeeEditHandler
+from app.controllers.admin_group import AdminGroupListHandler,AdminGroupDetailHandler,AdminGroupMembersHandler,AdminGroupMessagesHandler
+from app.controllers.admin_file import AdminFileListHandler,AdminFileStatsHandler
+from app.controllers.admin_server import AdminServerListHandler,AdminServerStatusHandler,AdminServerSwitchHandler
+from app.controllers.admin_tool import AdminToolListHandler,AdminToolBindHandler
 from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSourceAddHandler,AdminWatchSourceEditHandler
 from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler,AdminWatchDeepCollectHandler
 from app.controllers.admin_api import AdminApiListHandler,AdminApiAddHandler,AdminApiEditHandler,AdminApiTestHandler
 from app.controllers.user_auth import UserLoginHandler,UserLogoutHandler,UserRegisterHandler
-from app.controllers.user_chat import UserChatPageHandler
 from app.controllers.user_api import UserModelsHandler,UserConversationsHandler,UserMessagesHandler,UserSendHandler,UserStreamHandler,UserConversationActionHandler
 #引入db-model层
 from app.models.db import init_db
@@ -86,16 +128,49 @@ def make_app():
 	)
 	return tornado.web.Application([
 		# 用户侧路由
+		(r"/",UserHomeHandler),
+		(r"/home",UserHomeHandler),
 		(r"/login",UserLoginHandler),
 		(r"/register",UserRegisterHandler),
 		(r"/logout",UserLogoutHandler),
-		(r"/chat",UserChatPageHandler),
+		(r"/chat",UserChatHandler),
+		(r"/user_chat",UserQaHandler),
+		(r"/chat/ws", ChatWebSocketHandler),
+		(r"/profile", UserProfileHandler),
+		(r"/user/profile", UserProfileHandler),
+		(r"/user/profile/save", UserProfileSaveHandler),
+		(r"/user/profile/avatar", UserProfileAvatarHandler),
+		(r"/user/api/friends", UserFriendsHandler),
+		(r"/user/api/groups", UserGroupsHandler),
+		(r"/user/api/employees", UserEmployeesHandler),	
 		(r"/user/api/models",UserModelsHandler),
+		(r"/user/api/search", UserSearchHandler),
 		(r"/user/api/conversations",UserConversationsHandler),
 		(r"/user/api/messages",UserMessagesHandler),
+		(r"/user/api/messages/history", UserMessageHistoryHandler),
+		(r"/user/api/info", UserInfoHandler),
 		(r"/user/api/send",UserSendHandler),
 		(r"/user/api/conversation/action",UserConversationActionHandler),
 		(r"/user/api/stream",UserStreamHandler),
+		(r"/user/api/friend/add", UserFriendAddHandler),
+		(r"/user/api/friend/request", UserFriendRequestHandler),
+		(r"/user/api/friend/accept", UserFriendAcceptHandler),
+		(r"/user/api/friend/reject", UserFriendRejectHandler),
+		(r"/user/api/friend/pending", UserFriendPendingHandler),
+		(r"/user/api/group/create", UserGroupCreateHandler),
+		(r"/user/api/group/invite", UserGroupInviteHandler),
+		(r"/user/api/group/members", UserGroupMembersHandler),
+		(r"/user/api/group/clear", UserGroupClearHandler),
+		(r"/user/api/friend/clear", UserFriendClearHandler),
+		(r"/user/api/file/upload", UserFileUploadHandler),
+		(r"/user/api/message/history", UserMessageHistoryHandler),
+		(r"/user/api/unread/count", UserUnreadCountHandler),
+		(r"/user/api/mark/read", UserMarkReadHandler),
+		(r"/user/api/message/search", UserMessageSearchHandler),
+		(r"/user/api/message/forward", UserMessageForwardHandler),
+		(r"/user/api/message/reference", UserMessageReferenceHandler),
+		(r"/user/api/friends/unread", UserFriendsWithUnreadHandler),
+		(r"/user/api/groups/unread", UserGroupsWithUnreadHandler),
 		# admin后台路由
 		(r"/admin/login",AdminLoginHandler),
 		(r"/admin/logout",AdminLogoutHandler),
@@ -114,6 +189,17 @@ def make_app():
 		(r"/admin/employee/list",AdminEmployeeListHandler),
 		(r"/admin/employee/add",AdminEmployeeAddHandler),
 		(r"/admin/employee/edit",AdminEmployeeEditHandler),
+		(r"/admin/group/list",AdminGroupListHandler),
+		(r"/admin/group/detail",AdminGroupDetailHandler),
+		(r"/admin/api/group/members",AdminGroupMembersHandler),
+		(r"/admin/api/group/messages",AdminGroupMessagesHandler),
+		(r"/admin/file/list",AdminFileListHandler),
+		(r"/admin/api/file/stats",AdminFileStatsHandler),
+		(r"/admin/server/list",AdminServerListHandler),
+		(r"/admin/api/server/status",AdminServerStatusHandler),
+		(r"/admin/api/server/switch",AdminServerSwitchHandler),
+		(r"/admin/tool/list",AdminToolListHandler),
+		(r"/admin/api/tool/bind",AdminToolBindHandler),
 		# 瞭望管理路由
 		(r"/admin/watch/source/list",AdminWatchSourceListHandler),
 		(r"/admin/watch/source/add",AdminWatchSourceAddHandler),

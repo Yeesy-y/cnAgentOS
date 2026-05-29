@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block body %}
+<style>
+    .profile-card {
+        max-width: 600px;
+        margin: 40px auto;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 24px;
+        padding: 48px;
+        box-shadow: 0 20px 60px rgba(95, 95, 95, 0.15);
+    }
+    .profile-header {
+        text-align: center;
+        margin-bottom: 36px;
+        position: relative;
+    }
+    .avatar-container {
+        position: relative;
+        display: inline-block;
+    }
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 50px;
+        color: #efe4e9;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 24px rgba(95, 95, 95, 0.3);
+        cursor: pointer;
+        transition: transform 0.3s ease;
+        object-fit: cover;
+    }
+    .profile-avatar:hover {
+        transform: scale(1.05);
+    }
+    .avatar-upload-btn {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(95, 95, 95, 0.3);
+        transition: all 0.3s ease;
+    }
+    .avatar-upload-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(95, 95, 95, 0.4);
+    }
+    #avatarInput {
+        display: none;
+    }
+    .profile-name {
+        font-size: 28px;
+        font-weight: 700;
+        color: #5f5f5f;
+        margin-bottom: 8px;
+    }
+    .profile-tag {
+        display: inline-block;
+        padding: 6px 18px;
+        background: linear-gradient(135deg, #bdbbbf 0%, #a8a6ab 100%);
+        color: #5f5f5f;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+    .profile-info {
+        margin: 36px 0;
+    }
+    .info-item {
+        display: flex;
+        align-items: center;
+        padding: 18px 0;
+        border-bottom: 1px solid rgba(95, 95, 95, 0.08);
+    }
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    .info-label {
+        width: 100px;
+        color: rgba(95, 95, 95, 0.6);
+        font-size: 14px;
+        font-weight: 500;
+        flex-shrink: 0;
+    }
+    .info-value {
+        flex: 1;
+        color: #5f5f5f;
+        font-size: 15px;
+        font-weight: 500;
+        min-width: 0;
+    }
+    .info-value input,
+    .info-value textarea {
+        width: 100%;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 15px;
+        color: #5f5f5f;
+        background: #fafafa;
+        outline: none;
+        transition: all 0.3s ease;
+        font-family: inherit;
+    }
+    .info-value input:focus,
+    .info-value textarea:focus {
+        border-color: #5f5f5f;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(95, 95, 95, 0.1);
+    }
+    .info-value textarea {
+        resize: vertical;
+        min-height: 80px;
+        line-height: 1.5;
+    }
+    .profile-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 36px;
+    }
+    .profile-btn {
+        flex: 1;
+        padding: 14px 24px;
+        border: none;
+        border-radius: 14px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        text-align: center;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .profile-btn.primary {
+        background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%);
+        color: #efe4e9;
+    }
+    .profile-btn.primary:hover {
+        box-shadow: 0 8px 24px rgba(95, 95, 95, 0.35);
+        transform: translateY(-2px);
+    }
+    .profile-btn.secondary {
+        background: rgba(189, 187, 191, 0.4);
+        color: #5f5f5f;
+    }
+    .profile-btn.secondary:hover {
+        background: rgba(189, 187, 191, 0.6);
+    }
+    .save-status {
+        text-align: center;
+        margin-top: 16px;
+        font-size: 14px;
+        color: #07C160;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .save-status.show {
+        opacity: 1;
+    }
+</style>
+{% set has_user = user is not None %}
+{% set user_avatar_url = user["avatar_url"] if (has_user and "avatar_url" in user) else "" %}
+{% set user_username = user["username"] if (has_user and "username" in user) else "" %}
+{% set user_nickname = user["nickname"] if (has_user and "nickname" in user) else "" %}
+{% set user_create_at = user["create_at"] if (has_user and "create_at" in user) else "" %}
+{% set user_signature = user["signature"] if (has_user and "signature" in user) else "" %}
+{% set user_bio = user["bio"] if (has_user and "bio" in user) else "" %}
+<div class="profile-card">
+    <div class="profile-header">
+        <div class="avatar-container">
+            {% if has_user and user_avatar_url %}
+                <img class="profile-avatar" src="{{ user_avatar_url }}" alt="头像">
+            {% else %}
+                <div class="profile-avatar">
+                    {{ user_username[0].upper() if user_username else "U" }}
+                </div>
+            {% end %}
+            <label class="avatar-upload-btn" for="avatarInput">
+                <i class="fas fa-camera"></i>
+            </label>
+            <input type="file" id="avatarInput" accept="image/*">
+        </div>
+        <div class="profile-name">{{ username }}</div>
+        <span class="profile-tag">普通用户</span>
+    </div>
+    <div class="profile-info">
+        <div class="info-item">
+            <div class="info-label">用户名</div>
+            <div class="info-value">
+                <input type="text" id="editUsername" value="{{ user_username }}" placeholder="请输入用户名">
+            </div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">昵称</div>
+            <div class="info-value">
+                <input type="text" id="editNickname" value="{{ user_nickname }}" placeholder="请输入昵称">
+            </div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">注册时间</div>
+            <div class="info-value">{{ user_create_at if user_create_at else '未知' }}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">角色</div>
+            <div class="info-value">普通用户</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">个人签名</div>
+            <div class="info-value">
+                <textarea id="editSignature" placeholder="请输入个人签名">{{ user_signature }}</textarea>
+            </div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">简介</div>
+            <div class="info-value">
+                <textarea id="editBio" placeholder="请输入个人简介">{{ user_bio }}</textarea>
+            </div>
+        </div>
+    </div>
+    <div class="profile-actions">
+        <a href="/chat" class="profile-btn secondary">
+            <i class="fas fa-arrow-left"></i> 返回聊天
+        </a>
+        <button class="profile-btn primary" id="saveProfileBtn">
+            <i class="fas fa-save"></i> 保存修改
+        </button>
+    </div>
+    <div class="save-status" id="saveStatus">✓ 保存成功</div>
+</div>
+
+<script>
+    function initProfile() {
+        if (typeof layui === 'undefined') {
+            setTimeout(initProfile, 100);
+            return;
+        }
+        layui.use(['layer', 'jquery'], function() {
+            var $ = layui.jquery;
+            var layer = layui.layer;
+
+            $('#avatarInput').on('change', function(e) {
+                var file = e.target.files[0];
+                if (file) {
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        var avatar = $('.profile-avatar');
+                        if (avatar.is('img')) {
+                            avatar.attr('src', e.target.result);
+                        } else {
+                            avatar.replaceWith('<img class="profile-avatar" src="' + e.target.result + '" alt="avatar">');
+                        }
+                    };
+                    reader.readAsDataURL(file);
+
+                    var formData = new FormData();
+                    formData.append('avatar', file);
+                    formData.append('action', 'upload-avatar');
+
+                    $.ajax({
+                        url: '/user/profile',
+                        type: 'POST',
+                        data: formData,
+                        contentType: false,
+                        processData: false,
+                        success: function(res) {
+                            if (res.success) {
+                                layer.msg('头像上传成功', { icon: 1 });
+                            } else {
+                                layer.msg('上传失败：' + res.message, { icon: 2 });
+                            }
+                        },
+                        error: function() {
+                            layer.msg('上传失败', { icon: 2 });
+                        }
+                    });
+                }
+            });
+
+            $('#saveProfileBtn').on('click', function() {
+                var xsrfToken = $('input[name="_xsrf"]').val();
+                var data = {
+                    username: $('#editUsername').val().trim(),
+                    nickname: $('#editNickname').val().trim(),
+                    signature: $('#editSignature').val().trim(),
+                    bio: $('#editBio').val().trim(),
+                    _xsrf: xsrfToken
+                };
+
+                $.ajax({
+                    url: '/user/profile',
+                    type: 'POST',
+                    headers: {"X-XSRFToken": xsrfToken},
+                    data: JSON.stringify(data),
+                    contentType: 'application/json',
+                    success: function(res) {
+                        if (res.success) {
+                            $('#saveStatus').addClass('show');
+                            setTimeout(function() {
+                                $('#saveStatus').removeClass('show');
+                            }, 2000);
+                            layer.msg('保存成功', { icon: 1 });
+                        } else {
+                            layer.msg('保存失败：' + res.message, { icon: 2 });
+                        }
+                    },
+                    error: function() {
+                        layer.msg('保存失败', { icon: 2 });
+                    }
+                });
+            });
+        });
+    }
+    initProfile();
+</script>
+{% end %}

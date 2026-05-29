@@ -39,10 +39,15 @@ class UserLoginHandler(UserBaseHandler):
 			self.clear_cookie("remember_username")
 
 		self.set_secure_cookie("username", username)
-		self.redirect("/chat")
+		self.redirect("/home")
 
 
 class UserLogoutHandler(UserBaseHandler):
+	@tornado.web.authenticated
+	def get(self):
+		self.clear_cookie("username")
+		self.redirect("/login")
+
 	@tornado.web.authenticated
 	def post(self):
 		self.clear_cookie("username")
