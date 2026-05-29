@@ -1,2 +1,23 @@
 /database
 /venv
+
+# Python 缓存（关键！就是你现在要屏蔽的）
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+# 编辑器配置
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 日志
+*.log
+
+# 系统文件
+.DS_Store

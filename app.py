@@ -21,7 +21,11 @@ from app.controllers.admin_api import AdminApiListHandler,AdminApiAddHandler,Adm
 from app.controllers.user_auth import UserLoginHandler,UserLogoutHandler,UserRegisterHandler
 from app.controllers.user_chat import UserChatPageHandler
 from app.controllers.user_api import UserModelsHandler,UserConversationsHandler,UserMessagesHandler,UserSendHandler,UserStreamHandler,UserConversationActionHandler
-#引入db-model层
+#数智大屏相关导入
+from app.controllers.admin_dashboard import DashboardIndexHandler,DashboardDataHandler
+#智能舆情相关导入
+from app.controllers.admin_public_sentiment import PublicSentimentIndexHandler,SentimentAnalysisHandler,WatchDataSentimentHandler,ChatDataSentimentHandler
+#引入 db-model 层
 from app.models.db import init_db
 
 
@@ -129,14 +133,20 @@ def make_app():
 		(r"/admin/role/add",AdminRoleAddHandler),
 		(r"/admin/role/edit",AdminRoleEditHandler),
 		# 接口管理路由
-		(r"/admin/api/list",AdminApiListHandler),
-		(r"/admin/api/add",AdminApiAddHandler),
-		(r"/admin/api/edit",AdminApiEditHandler),
-		(r"/admin/api/test",AdminApiTestHandler)
-
-		],
-		**settings
-		)
+(r"/admin/api/list", AdminApiListHandler),
+(r"/admin/api/add", AdminApiAddHandler),
+(r"/admin/api/edit", AdminApiEditHandler),
+(r"/admin/api/test", AdminApiTestHandler),
+# 数智大屏路由
+(r"/admin/dashboard", DashboardIndexHandler),
+(r"/api/dashboard/data", DashboardDataHandler),
+# 智能舆情路由
+(r"/admin/public-sentiment", PublicSentimentIndexHandler),
+(r"/api/public-sentiment/analyze", SentimentAnalysisHandler),
+(r"/api/public-sentiment/watch-data", WatchDataSentimentHandler),
+(r"/api/public-sentiment/chat-data", ChatDataSentimentHandler)
+], **settings
+)
 
 
 

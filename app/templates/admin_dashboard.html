@@ -1,0 +1,995 @@
+{% extends "admin_base.html" %}
+{% block content %}
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .dashboard-container {
+        min-height: calc(100vh - 80px);
+        background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1428 100%);
+        padding: 20px;
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    .dashboard-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background:
+            radial-gradient(circle at 20% 30%, rgba(67, 187, 255, 0.08) 0%, transparent 40%),
+            radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
+            linear-gradient(45deg, rgba(67, 187, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(-45deg, rgba(168, 85, 247, 0.03) 1px, transparent 1px);
+        background-size: 60px 60px;
+        z-index: 0;
+        pointer-events: none;
+    }
+
+    .dashboard-header {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        margin-bottom: 24px;
+        padding: 20px 40px;
+        background: linear-gradient(90deg, rgba(67, 187, 255, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+        border-radius: 16px;
+        border: 1px solid rgba(67, 187, 255, 0.3);
+        box-shadow: 0 8px 32px rgba(67, 187, 255, 0.15);
+    }
+
+    .dashboard-title {
+        font-size: 42px;
+        font-weight: 800;
+        background: linear-gradient(90deg, #43BBFF 0%, #A855F7 50%, #EC4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 0 60px rgba(67, 187, 255, 0.4);
+        letter-spacing: 0.15em;
+        margin-bottom: 8px;
+    }
+
+    .dashboard-subtitle {
+        font-size: 14px;
+        color: rgba(167, 167, 167, 0.7);
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .data-card {
+        background: linear-gradient(145deg, rgba(26, 31, 58, 0.8) 0%, rgba(15, 20, 40, 0.9) 100%);
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid rgba(67, 187, 255, 0.2);
+        box-shadow:
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .data-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, #43BBFF 0%, #A855F7 50%, #EC4899 100%);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .data-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .data-card:hover {
+        transform: translateY(-4px);
+        box-shadow:
+            0 12px 48px rgba(67, 187, 255, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        border-color: rgba(67, 187, 255, 0.4);
+    }
+
+    .data-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .data-card-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: rgba(239, 239, 239, 0.9);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .data-card-title i {
+        color: #43BBFF;
+        font-size: 18px;
+    }
+
+    .data-card-value {
+        font-size: 42px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #43BBFF 0%, #A855F7 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 12px 0;
+        text-shadow: 0 0 40px rgba(67, 187, 255, 0.3);
+    }
+
+    .data-card-change {
+        font-size: 13px;
+        color: rgba(167, 167, 167, 0.8);
+    }
+
+    .data-card-change.positive {
+        color: #10B981;
+    }
+
+    .data-card-change.negative {
+        color: #EF4444;
+    }
+
+    /* 词云卡片 */
+    .word-cloud-card {
+        grid-column: span 2;
+        height: 400px;
+    }
+
+    .word-cloud-container {
+        width: 100%;
+        height: calc(100% - 70px);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .word-cloud-item {
+        position: absolute;
+        color: rgba(239, 239, 239, 0.95);
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        font-weight: bold;
+    }
+
+    .word-cloud-item:hover {
+        color: #43BBFF !important;
+        transform: scale(1.15);
+        text-shadow: 0 0 30px rgba(67, 187, 255, 0.6);
+        z-index: 10 !important;
+    }
+
+    /* 图表容器 */
+    .chart-card {
+        height: 400px;
+    }
+
+    .chart-wrapper {
+        width: 100%;
+        height: calc(100% - 70px);
+        position: relative;
+    }
+
+    canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* 3D 地球模型卡片 */
+    .earth-model-card {
+        grid-column: span 2;
+        height: 400px;
+    }
+
+    .earth-container {
+        width: 100%;
+        height: calc(100% - 70px);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .earth-canvas {
+        max-width: 100%;
+        max-height: 100%;
+    }
+
+    /* 数据表格卡片 */
+    .table-card {
+        grid-column: span 4;
+    }
+
+    .table-wrapper {
+        height: calc(100% - 70px);
+        overflow-y: auto;
+    }
+
+    .layui-table {
+        background: transparent !important;
+    }
+
+    .layui-table th {
+        background: linear-gradient(135deg, rgba(67, 187, 255, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%) !important;
+        color: #43BBFF !important;
+        font-weight: 600 !important;
+        border-color: rgba(67, 187, 255, 0.2) !important;
+    }
+
+    .layui-table tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.02) !important;
+    }
+
+    .layui-table-tr:hover {
+        background: rgba(67, 187, 255, 0.1) !important;
+    }
+
+    .layui-table td {
+        border-color: rgba(67, 187, 255, 0.1) !important;
+        color: rgba(239, 239, 239, 0.85) !important;
+    }
+
+    /* 加载动画 */
+    .loading-dots {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        height: 100%;
+        justify-content: center;
+    }
+
+    .loading-dots span {
+        width: 12px;
+        height: 12px;
+        background: linear-gradient(135deg, #43BBFF 0%, #A855F7 100%);
+        border-radius: 50%;
+        animation: pulse 1.4s infinite ease-in-out both;
+    }
+
+    .loading-dots span:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+
+    .loading-dots span:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        80%,
+        100% {
+            transform: scale(0.8);
+            opacity: 0.5;
+        }
+
+        40% {
+            transform: scale(1);
+            opacity: 1;
+            box-shadow: 0 0 20px rgba(67, 187, 255, 0.8);
+        }
+    }
+
+    /* 时间显示 */
+    .realtime-clock {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(26, 31, 58, 0.9);
+        border: 1px solid rgba(67, 187, 255, 0.3);
+        border-radius: 12px;
+        padding: 12px 20px;
+        color: #43BBFF;
+        font-family: 'Courier New', monospace;
+        font-size: 18px;
+        font-weight: 700;
+        z-index: 1000;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 1600px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .word-cloud-card,
+        .earth-model-card,
+        .table-card {
+            grid-column: span 2;
+        }
+    }
+
+    @media (max-width: 1024px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .word-cloud-card,
+        .earth-model-card,
+        .table-card,
+        .chart-card {
+            grid-column: span 1;
+        }
+
+        .dashboard-title {
+            font-size: 32px;
+        }
+    }
+</style>
+
+<div class="dashboard-container">
+    <div class="realtime-clock" id="clock"></div>
+
+    <div class="dashboard-header">
+        <div class="dashboard-title">数智大屏</div>
+        <div class="dashboard-subtitle">Intelligence &amp; Digital Visualization Platform</div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- 数据概览卡片 -->
+        <div class="data-card">
+            <div class="data-card-header">
+                <div class="data-card-title">
+                    <i class="fas fa-database"></i>
+                    总采集量
+                </div>
+            </div>
+            <div class="data-card-value" id="totalRecords">--</div>
+            <div class="data-card-change positive">
+                <i class="fas fa-arrow-up"></i> 今日新增 <span id="todayRecords">--</span>
+            </div>
+        </div>
+
+        <div class="data-card">
+            <div class="data-card-header">
+                <div class="data-card-title">
+                    <i class="fas fa-key"></i>
+                    关键词总数
+                </div>
+            </div>
+            <div class="data-card-value" id="keywordTotal">--</div>
+            <div class="data-card-change positive">
+                <i class="fas fa-arrow-up"></i> 覆盖领域广泛
+            </div>
+        </div>
+
+        <div class="data-card">
+            <div class="data-card-header">
+                <div class="data-card-title">
+                    <i class="fas fa-satellite"></i>
+                    采集源数量
+                </div>
+            </div>
+            <div class="data-card-value" id="sourceTotal">--</div>
+            <div class="data-card-change positive">
+                <i class="fas fa-check-circle"></i> 持续监控中
+            </div>
+        </div>
+
+        <div class="data-card">
+            <div class="data-card-header">
+                <div class="data-card-title">
+                    <i class="fas fa-chart-line"></i>
+                    实时趋势
+                </div>
+            </div>
+            <canvas id="trendChart"></canvas>
+        </div>
+
+        <!-- 词云可视化 -->
+        <div class="data-card word-cloud-card">
+            <div class="data-card-header">
+                <div class="data-card-title">
+                    <i class="fas fa-cloud"></i>
+                    高频关键词词云
+                </div>
+            </div>
+            <div class="word-cloud-container" id="wordCloud"></div>
+        </div>
+
+        <!-- 3D 地球模型 -->
+        <div class="data-card earth-model-card">
+            <div class="data-card-header">
+                <div class="data-card-title">
+                    <i class="fas fa-globe-americas"></i>
+                    地域分布热力
+                </div>
+            </div>
+            <div class="earth-container" id="earthModel">
+                <div class="loading-dots" id="earthLoading">
+                    <span></span><span></span><span></span>
+                </div>
+                <canvas id="earthCanvas" style="display:none;"></canvas>
+            </div>
+        </div>
+
+        <!-- 周统计图表 -->
+        <div class="data-card chart-card">
+            <div class="data-card-header">
+                <div class="data-card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    采集趋势分析
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 数据来源分布 -->
+        <div class="data-card chart-card">
+            <div class="data-card-header">
+                <div class="data-card-title">
+                    <i class="fas fa-project-diagram"></i>
+                    来源渠道分布
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="sourceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 高频关键词表格 -->
+        <div class="data-card table-card">
+            <div class="data-card-header">
+                <div class="data-card-title">
+                    <i class="fas fa-list-alt"></i>
+                    高频关键词排行 TOP 20
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table class="layui-table">
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>关键词</th>
+                            <th>出现频次</th>
+                            <th>最后采集时间</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="keywordsTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align:center;padding:40px;">
+                                <div class="loading-dots">
+                                    <span></span><span></span><span></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+<script>
+    // 实时时钟
+    function updateClock() {
+        const now = new Date();
+        const timeStr = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0') + ' ' +
+            String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0') + ':' +
+            String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('clock').textContent = timeStr;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // 加载所有数据
+    function loadDashboardData() {
+        Promise.all([
+            loadOverviewData(),
+            loadWordCloud(),
+            loadEarthModel(),
+            loadChartData(),
+            loadKeywordsTable()
+        ]).then(() => {
+            console.log('Dashboard loaded successfully');
+        }).catch(err => {
+            console.error('Error loading dashboard:', err);
+        });
+    }
+
+    // 加载概览数据
+    function loadOverviewData() {
+        return fetch('/api/dashboard/data?type=overview')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('totalRecords').textContent = data.data.total_records.toLocaleString();
+                    document.getElementById('keywordTotal').textContent = data.data.keyword_total.toLocaleString();
+                    document.getElementById('sourceTotal').textContent = data.data.source_total.toLocaleString();
+                    document.getElementById('todayRecords').textContent = data.data.today_records.toLocaleString();
+
+                    // 渲染趋势图
+                    renderTrendChart(data.data);
+                }
+            });
+    }
+
+    // 加载词云数据
+    function loadWordCloud() {
+        return fetch('/api/dashboard/data?type=keywords')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    renderWordCloud(data.data);
+                } else {
+                    document.getElementById('wordCloud').innerHTML = '<div style="color:rgba(167,167,167,0.6)">暂无词云数据</div>';
+                }
+            });
+    }
+
+    // 加载 3D 地球模型数据
+    function loadEarthModel() {
+        return fetch('/api/dashboard/data?type=earth_model')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    renderEarthModel(data.data);
+                } else {
+                    document.getElementById('earthLoading').innerHTML = '<div style="color:rgba(167,167,167,0.6)">暂无地球数据</div>';
+                }
+            });
+    }
+
+    // 加载图表数据
+    function loadChartData() {
+        return fetch('/api/dashboard/data?type=chart_stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderWeeklyChart(data.data);
+                    renderSourceChart(data.data);
+                }
+            });
+    }
+
+    // 加载关键词表格数据
+    function loadKeywordsTable() {
+        return fetch('/api/dashboard/data?type=keywords')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    const keywords = data.data.slice(0, 20);
+                    const tbody = document.getElementById('keywordsTableBody');
+
+                    tbody.innerHTML = keywords.map((item, index) => `
+                    <tr>
+                        <td><span style="background:linear-gradient(135deg, #43BBFF, #A855F7);padding:4px 12px;border-radius:8px;font-weight:bold;">${index + 1}</span></td>
+                        <td style="color:#43BBFF;font-weight:600;">${item.name}</td>
+                        <td><span style="color:#10B981;font-weight:bold;">${item.value}</span></td>
+                        <td>${new Date().toLocaleString('zh-CN')}</td>
+                        <td><span class="layui-badge layui-bg-green">正常</span></td>
+                    </tr>
+                `).join('');
+                }
+            });
+    }
+
+    // 存储所有图表实例的变量
+    let trendChartInstance = null;
+    let weeklyChartInstance = null;
+    let sourceChartInstance = null;
+
+    // 渲染趋势图
+    function renderTrendChart(data) {
+        trendChartInstance = echarts.init(document.getElementById('trendChart'));
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(26, 31, 58, 0.95)',
+                borderColor: '#43BBFF',
+                textStyle: { color: '#fff' },
+                borderWidth: 1,
+                padding: 12,
+                axisPointer: { type: 'shadow' }
+            },
+            grid: { top: 30, right: 20, bottom: 25, left: 40, containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: data.trend_dates,
+                axisLine: { lineStyle: { color: 'rgba(167,167,167,0.4)' } },
+                axisLabel: { color: 'rgba(167,167,167,0.8)' }
+            },
+            yAxis: {
+                type: 'value',
+                splitLine: { lineStyle: { color: 'rgba(167,167,167,0.1)' } },
+                axisLabel: { color: 'rgba(167,167,167,0.8)' }
+            },
+            series: [{
+                data: data.trend_values,
+                type: 'line',
+                smooth: true,
+                symbol: 'circle',
+                symbolSize: 8,
+                itemStyle: {
+                    color: '#43BBFF',
+                    shadowColor: 'rgba(67,187,255,0.5)',
+                    shadowBlur: 10
+                },
+                lineStyle: {
+                    width: 3,
+                    color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                        { offset: 0, color: '#43BBFF' },
+                        { offset: 1, color: '#A855F7' }
+                    ])
+                },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(67,187,255,0.4)' },
+                        { offset: 1, color: 'rgba(168,85,247,0.1)' }
+                    ])
+                }
+            }]
+        };
+        trendChartInstance.setOption(option);
+    }
+
+    // 渲染词云
+    function renderWordCloud(data) {
+        const container = document.getElementById('wordCloud');
+        const maxValue = Math.max(...data.map(d => d.value));
+
+        // 计算颜色
+        function getColor(value) {
+            const hue = Math.floor((value / maxValue) * 240);
+            return `hsl(${hue}, 80%, 60%)`;
+        }
+
+        // 计算字体大小
+        function getFontSize(value) {
+            const minSize = 14;
+            const maxSize = 48;
+            return minSize + ((value / maxValue) * (maxSize - minSize));
+        }
+
+        container.innerHTML = '';
+
+        data.forEach((item, index) => {
+            const element = document.createElement('div');
+            element.className = 'word-cloud-item';
+            element.textContent = item.name;
+            element.style.fontSize = getFontSize(item.value) + 'px';
+            element.style.color = getColor(item.value);
+
+            // 随机位置（避免重叠）
+            const padding = getFontSize(item.value) / 2;
+            const x = padding + Math.random() * (container.offsetWidth - getFontSize(item.value) - padding * 2);
+            const y = padding + Math.random() * (container.offsetHeight - getFontSize(item.value) - padding * 2);
+
+            element.style.left = x + 'px';
+            element.style.top = y + 'px';
+            element.style.zIndex = Math.floor(item.value / maxValue * 100);
+
+            container.appendChild(element);
+        });
+    }
+
+    // 渲染地球模型（模拟 2D 地球效果）
+    function renderEarthModel(locations) {
+        const canvas = document.getElementById('earthCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('earthModel');
+
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = Math.min(canvas.width, canvas.height) / 2 - 20;
+
+        document.getElementById('earthLoading').style.display = 'none';
+        canvas.style.display = 'block';
+
+        function drawEarth() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制地球背景
+            const gradient = ctx.createRadialGradient(centerX, centerY, radius * 0.3, centerX, centerY, radius);
+            gradient.addColorStop(0, '#1a4a7c');
+            gradient.addColorStop(0.5, '#0d3a6e');
+            gradient.addColorStop(1, '#051d3a');
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // 绘制经纬线
+            ctx.strokeStyle = 'rgba(67,187,255,0.1)';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i <= 6; i++) {
+                const angle = (Math.PI * 2 * i) / 6;
+                const x1 = centerX + Math.cos(angle) * radius * 0.8;
+                const y1 = centerY + Math.sin(angle) * radius * 0.8;
+                const x2 = centerX + Math.cos(angle) * radius;
+                const y2 = centerY + Math.sin(angle) * radius;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+
+            // 绘制数据点
+            locations.forEach((location, index) => {
+                const angle = (Math.PI * 2 * index) / locations.length;
+                const dist = radius * 0.6;
+                const x = centerX + Math.cos(angle) * dist;
+                const y = centerY + Math.sin(angle) * dist;
+
+                // 脉冲效果
+                const pulseScale = 1 + Math.sin(Date.now() / 500 + index) * 0.2;
+                const pointRadius = 8 * pulseScale;
+
+                // 光晕
+                const glowGradient = ctx.createRadialGradient(x, y, 0, x, y, pointRadius * 3);
+                glowGradient.addColorStop(0, 'rgba(67,187,255,0.6)');
+                glowGradient.addColorStop(0.5, 'rgba(67,187,255,0.2)');
+                glowGradient.addColorStop(1, 'rgba(67,187,255,0)');
+
+                ctx.beginPath();
+                ctx.arc(x, y, pointRadius * 3, 0, Math.PI * 2);
+                ctx.fillStyle = glowGradient;
+                ctx.fill();
+
+                // 数据点
+                ctx.beginPath();
+                ctx.arc(x, y, pointRadius, 0, Math.PI * 2);
+                ctx.fillStyle = '#43BBFF';
+                ctx.shadowColor = '#43BBFF';
+                ctx.shadowBlur = 20;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // 标签
+                ctx.fillStyle = '#A855F7';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(location.name, x, y - pointRadius - 10);
+
+                // 数值
+                ctx.fillStyle = 'rgba(239,239,239,0.8)';
+                ctx.font = '11px Arial';
+                ctx.fillText(location.value.toString(), x, y - pointRadius - 22);
+            });
+
+            requestAnimationFrame(drawEarth);
+        }
+
+        drawEarth();
+    }
+
+    // 渲染周统计图表
+    function renderWeeklyChart(data) {
+        weeklyChartInstance = echarts.init(document.getElementById('weeklyChart'));
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(26, 31, 58, 0.95)',
+                borderColor: '#43BBFF',
+                textStyle: { color: '#fff' },
+                borderWidth: 1,
+                padding: 12
+            },
+            legend: {
+                data: ['采集数量'],
+                textStyle: { color: 'rgba(239,239,239,0.8)' },
+                top: 0
+            },
+            grid: { top: 40, right: 20, bottom: 25, left: 40, containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: data.week_labels,
+                axisLine: { lineStyle: { color: 'rgba(167,167,167,0.4)' } },
+                axisLabel: { color: 'rgba(167,167,167,0.8)' }
+            },
+            yAxis: {
+                type: 'value',
+                splitLine: { lineStyle: { color: 'rgba(167,167,167,0.1)' } },
+                axisLabel: { color: 'rgba(167,167,167,0.8)' }
+            },
+            series: [{
+                name: '采集数量',
+                type: 'bar',
+                barWidth: '40%',
+                data: data.weekly_data,
+                itemStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: '#43BBFF' },
+                        { offset: 1, color: '#A855F7' }
+                    ]),
+                    borderRadius: [4, 4, 0, 0]
+                }
+            }]
+        };
+        chart.setOption(option);
+    }
+
+    // 渲染来源分布图表
+    function renderSourceChart(data) {
+        const chart = echarts.init(document.getElementById('sourceChart'));
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'item',
+                backgroundColor: 'rgba(26, 31, 58, 0.95)',
+                borderColor: '#43BBFF',
+                textStyle: { color: '#fff' },
+                borderWidth: 1,
+                padding: 12,
+                formatter: '{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                right: 10,
+                top: 'middle',
+                textStyle: { color: 'rgba(239,239,239,0.8)' },
+                formatter: function (name) {
+                    return name.length > 8 ? name.substring(0, 8) + '...' : name;
+                }
+            },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['35%', '50%'],
+                avoidLabelOverlap: false,
+                itemStyle: {
+                    borderRadius: 8,
+                    borderColor: '#1a1f3a',
+                    borderWidth: 2
+                },
+                label: {
+                    show: true,
+                    formatter: '{b}',
+                    color: 'rgba(239,239,239,0.9)',
+                    fontSize: 11
+                },
+                emphasis: {
+                    label: {
+                        show: true,
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                        color: '#fff'
+                    }
+                },
+                labelLine: {
+                    show: true,
+                    lineStyle: { color: 'rgba(167,167,167,0.4)' }
+                },
+                data: data.source_names.map((name, index) => ({
+                    name: name,
+                    value: data.source_counts[index] || 0,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: `hsl(${index * 40 + 200}, 70%, 60%)` },
+                            { offset: 1, color: `hsl(${index * 40 + 220}, 70%, 50%)` }
+                        ])
+                    }
+                }))
+            }]
+        };
+        weeklyChartInstance.setOption(option);
+    }
+
+    // 渲染来源分布图表
+    function renderSourceChart(data) {
+        sourceChartInstance = echarts.init(document.getElementById('sourceChart'));
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'item',
+                backgroundColor: 'rgba(26, 31, 58, 0.95)',
+                borderColor: '#43BBFF',
+                textStyle: { color: '#fff' },
+                borderWidth: 1,
+                padding: 12,
+                formatter: '{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                right: 10,
+                top: 'middle',
+                textStyle: { color: 'rgba(239,239,239,0.8)' },
+                formatter: function (name) {
+                    return name.length > 8 ? name.substring(0, 8) + '...' : name;
+                }
+            },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['35%', '50%'],
+                avoidLabelOverlap: false,
+                itemStyle: {
+                    borderRadius: 8,
+                    borderColor: '#1a1f3a',
+                    borderWidth: 2
+                },
+                label: {
+                    show: true,
+                    formatter: '{b}',
+                    color: 'rgba(239,239,239,0.9)',
+                    fontSize: 11
+                },
+                emphasis: {
+                    label: {
+                        show: true,
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                        color: '#fff'
+                    }
+                },
+                labelLine: {
+                    show: true,
+                    lineStyle: { color: 'rgba(167,167,167,0.4)' }
+                },
+                data: data.source_names.map((name, index) => ({
+                    name: name,
+                    value: data.source_counts[index] || 0,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: `hsl(${index * 40 + 200}, 70%, 60%)` },
+                            { offset: 1, color: `hsl(${index * 40 + 220}, 70%, 50%)` }
+                        ])
+                    }
+                }))
+            }]
+        };
+        sourceChartInstance.setOption(option);
+    }
+
+    // 窗口大小改变时重绘所有图表
+    window.addEventListener('resize', () => {
+        if (trendChartInstance) trendChartInstance.resize();
+        if (weeklyChartInstance) weeklyChartInstance.resize();
+        if (sourceChartInstance) sourceChartInstance.resize();
+    });
+
+    // 页面加载时启动
+    document.addEventListener('DOMContentLoaded', function () {
+        loadDashboardData();
+
+        // 定时刷新数据（每 60 秒）
+        setInterval(loadOverviewData, 60000);
+    });
+</script>
+{% end %}
