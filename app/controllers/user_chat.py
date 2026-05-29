@@ -583,7 +583,12 @@ class UserGroupMembersHandler(UserBaseHandler):
             ).fetchall()
             
             employee_rows = conn.execute(
-                "SELECT employee_id FROM group_employees WHERE group_id = ?",
+                """
+                SELECT de.id, de.employee_name, de.at_alias
+                FROM group_employees ge
+                JOIN digital_employees de ON de.id = ge.employee_id
+                WHERE ge.group_id = ?
+                """,
                 (group_id,)
             ).fetchall()
         
@@ -599,18 +604,13 @@ class UserGroupMembersHandler(UserBaseHandler):
                 })
         
         for row in employee_rows:
-            emp = conn.execute(
-                "SELECT id, employee_name, at_alias FROM digital_employees WHERE id = ?",
-                (row["employee_id"],)
-            ).fetchone()
-            if emp:
-                members.append({
-                    "id": emp["id"],
-                    "name": emp["employee_name"],
-                    "at_alias": emp["at_alias"],
-                    "avatar": emp["employee_name"][0].upper() if emp["employee_name"] else "E",
-                    "type": "employee"
-                })
+            members.append({
+                "id": row["id"],
+                "name": row["employee_name"],
+                "at_alias": row["at_alias"],
+                "avatar": row["employee_name"][0].upper() if row["employee_name"] else "E",
+                "type": "employee"
+            })
         
         self.write({
             "success": True,
@@ -739,7 +739,9 @@ class UserEmployeesHandler(UserBaseHandler):
                     "preview": "数字员工",
                     "time": "在线",
                     "badge": 0,
-                    "type": "bot"
+                    "type": "bot",
+                    "is_employee": True,
+                    "at_alias": row["at_alias"]
                 })
             
             self.write({"success": True, "employees": employees})
@@ -860,11 +862,8 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
             if message_type == "private":
                 self.handle_private_message(data)
             elif message_type == "group":
-                # 群聊中@数字员工需要特殊处理
-                if content.strip().startswith("@"):
-                    self.handle_digital_employee(message_type, data)
-                else:
-                    self.handle_group_message(data)
+                self.handle_group_message(data)
+                self.handle_group_employee_mentions(data)
             else:
                 self.write_message(json.dumps({
                     "type": "error",
@@ -908,6 +907,84 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         else:
             # 支持原有系统中的其他数字员工
             self.handle_other_employees(employee_name, message_content, message_type, data)
+
+    def handle_group_employee_mentions(self, data):
+        import re
+        group_id = data.get("group_id")
+        content = (data.get("content", "") or "").strip()
+        if group_id is None or not content or "@" not in content:
+            return
+        from app.models.db import get_connection
+        gid = int(group_id)
+        mention_parts = re.findall(r"@([^\s@]+)", content)
+        if not mention_parts:
+            return
+        punct = "，。,.!！？:：;；"
+        mention_tokens = []
+        seen = set()
+        for p in mention_parts:
+            token = (p or "").strip().strip(punct)
+            if not token or token in seen:
+                continue
+            seen.add(token)
+            mention_tokens.append(token)
+        if not mention_tokens:
+            return
+
+        for token in mention_tokens:
+            employee = None
+            try:
+                with get_connection() as conn:
+                    row = conn.execute(
+                        """
+                        SELECT * FROM digital_employees
+                        WHERE status = 1 AND (employee_name = ? OR at_alias = ?)
+                        LIMIT 1
+                        """,
+                        (token, token)
+                    ).fetchone()
+                    if row:
+                        employee = dict(row)
+            except Exception as e:
+                logging.error(f"读取数字员工失败({token}): {e}")
+                employee = None
+
+            if not employee:
+                continue
+
+            clean_message = content
+            clean_message = re.sub(r"@" + re.escape(token) + r"(?=\s|$|[，。,.\!！\?？:：;；])", " ", clean_message)
+            clean_message = clean_message.replace("@" + token, " ")
+            clean_message = re.sub(r"\s+", " ", clean_message).strip()
+            if not clean_message:
+                clean_message = "你好"
+
+            emp_name = (employee.get("employee_name") or "").strip()
+            try:
+                if emp_name == "天气小助手":
+                    city = clean_message
+                    try:
+                        parts = [p for p in re.split(r"\s+", clean_message) if p]
+                        if parts:
+                            city = parts[-1].strip(punct)
+                    except Exception:
+                        city = clean_message
+                    self.call_weather_api(city, "group", {"group_id": gid, "content": content})
+                elif emp_name == "毒鸡汤助手":
+                    self.send_poison_chicken_soup("group", {"group_id": gid, "content": content})
+                else:
+                    reply = self.generate_employee_reply_text(employee, clean_message)
+                    if reply:
+                        self.send_employee_response(emp_name, reply, "group", {"group_id": gid, "content": content})
+            except Exception as e:
+                logging.error(f"群聊数字员工回复失败({emp_name}): {e}")
+
+    def generate_employee_reply_text(self, employee: dict, user_text: str) -> str:
+        from app.models.chat_service import EmployeeOrchestrator
+        parts = []
+        for chunk in EmployeeOrchestrator.generate_employee_stream(employee, user_text, fallback_model_service_id=0):
+            parts.append(chunk)
+        return "".join(parts).strip()
 
     def call_ai_assistant(self, prompt, message_type, original_data):
         import urllib.request
@@ -1014,6 +1091,22 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         self.send_employee_response("天气小助手", json.dumps(weather_card), message_type, original_data)
 
     def send_poison_chicken_soup(self, message_type, original_data):
+        from app.models.api_service import ApiEndpointRepository
+        try:
+            result = ApiEndpointRepository.call_api("wl_yan_du", params={"type": "text"}, timeout=15)
+            if result.get("success") is True:
+                data = result.get("data")
+                if isinstance(data, dict):
+                    text = data.get("data") or data.get("text") or data.get("content")
+                    if isinstance(text, str) and text.strip():
+                        self.send_employee_response("毒鸡汤助手", text.strip(), message_type, original_data)
+                        return
+                if isinstance(data, str) and data.strip():
+                    self.send_employee_response("毒鸡汤助手", data.strip(), message_type, original_data)
+                    return
+        except Exception:
+            pass
+
         soup_list = [
             "努力不一定成功，但不努力一定会很舒服。",
             "你无法改变世界，但你可以改变自己——然后发现世界还是没变。",
@@ -1043,20 +1136,21 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
             with get_connection() as conn:
                 # 查询数字员工是否存在
                 cursor = conn.execute("SELECT * FROM digital_employees WHERE employee_name = ?", (employee_name,))
-                employee = cursor.fetchone()
+                employee_row = cursor.fetchone()
                 
-                if employee:
+                if employee_row:
+                    employee = dict(employee_row)
                     # 数字员工存在，根据类型处理
                     service_type = employee["service_type"]
                     
                     if service_type == "LLM":
-                        # 调用AI模型
-                        self.call_ai_assistant(content, message_type, original_data)
+                        reply = self.generate_employee_reply_text(employee, content)
+                        if reply:
+                            self.send_employee_response(employee_name, reply, message_type, original_data)
                     elif service_type == "API":
-                        # 调用API
-                        api_code = employee.get("api_code", "")
-                        if api_code:
-                            self.call_api_employee(employee, content, message_type, original_data)
+                        reply = self.generate_employee_reply_text(employee, content)
+                        if reply:
+                            self.send_employee_response(employee_name, reply, message_type, original_data)
                         else:
                             self.send_employee_response(employee_name, f"我是{employee_name}，很高兴为您服务！", message_type, original_data)
                     else:
@@ -1092,12 +1186,58 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
             "from": employee_name,
             "content": content
         }
-        
         if message_type == "group":
-            response["group_id"] = original_data.get("group_id")
-            self.write_message(json.dumps(response))
-        else:
-            self.write_message(json.dumps(response))
+            from app.models.db import get_connection
+            from app.models.user import UserRepository
+            group_id = original_data.get("group_id")
+            if group_id is None:
+                self.write_message(json.dumps(response, ensure_ascii=False))
+                return
+            group_id_int = int(group_id)
+            employee_id = 0
+            message_id = None
+            try:
+                with get_connection() as conn:
+                    row = conn.execute(
+                        "SELECT id FROM digital_employees WHERE employee_name = ?",
+                        (employee_name,)
+                    ).fetchone()
+                    if row:
+                        employee_id = int(row["id"])
+                    if employee_id:
+                        cursor = conn.execute(
+                            """
+                            INSERT INTO group_messages (group_id, sender_id, sender_type, content, message_type, referenced_message_id)
+                            VALUES (?, ?, 'employee', ?, 'text', NULL)
+                            """,
+                            (group_id_int, employee_id, content)
+                        )
+                        message_id = cursor.lastrowid
+                        conn.commit()
+            except Exception as e:
+                logging.error(f"保存数字员工群聊消息失败: {e}")
+
+            try:
+                with get_connection() as conn:
+                    rows = conn.execute(
+                        "SELECT user_id FROM group_members WHERE group_id = ?",
+                        (group_id_int,)
+                    ).fetchall()
+                member_usernames = []
+                for r in rows:
+                    u = UserRepository.get_user_by_id(r["user_id"])
+                    if u:
+                        member_usernames.append(u["username"])
+                response["group_id"] = group_id_int
+                response["message_id"] = message_id or 0
+                for uname in member_usernames:
+                    if uname in online_users:
+                        online_users[uname].write_message(json.dumps(response, ensure_ascii=False))
+            except Exception as e:
+                logging.error(f"推送数字员工群聊消息失败: {e}")
+            return
+
+        self.write_message(json.dumps(response, ensure_ascii=False))
 
     def handle_private_message(self, data):
         to_user = data.get("to")
@@ -1134,20 +1274,20 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
                     "content": "消息已发送",
                     "message_id": 0
                 }))
-                
-                # 模拟群聊的消息格式来调用数字员工
+
                 employee_name = employee["employee_name"]
                 message_type = "private"
                 original_data = {"to": to_user, "content": content}
-                
-                if employee_name == "川农小助手":
-                    self.call_ai_assistant(content, message_type, original_data)
-                elif employee_name == "天气小助手":
+                if employee_name == "天气小助手":
                     self.call_weather_api(content, message_type, original_data)
                 elif employee_name == "毒鸡汤助手":
                     self.send_poison_chicken_soup(message_type, original_data)
                 else:
-                    self.handle_other_employees(employee_name, content, message_type, original_data)
+                    reply = self.generate_employee_reply_text(employee, content)
+                    if reply:
+                        self.send_employee_response(employee_name, reply, message_type, original_data)
+                    else:
+                        self.send_employee_response(employee_name, f"我是{employee_name}，很高兴为您服务！", message_type, original_data)
                 return
             else:
                 # 前端标记为数字员工但数据库中不存在，返回错误
@@ -1161,10 +1301,42 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         target_user = UserRepository.get_user_by_username(to_user)
         
         if not target_user:
+            employee = None
+            try:
+                with get_connection() as conn:
+                    employee_row = conn.execute(
+                        "SELECT * FROM digital_employees WHERE employee_name = ? AND status = 1",
+                        (to_user,)
+                    ).fetchone()
+                    if employee_row:
+                        employee = dict(employee_row)
+            except Exception:
+                employee = None
+            if employee:
+                self.write_message(json.dumps({
+                    "type": "success",
+                    "content": "消息已发送",
+                    "message_id": 0
+                }, ensure_ascii=False))
+                employee_name = employee["employee_name"]
+                message_type = "private"
+                original_data = {"to": to_user, "content": content}
+                if employee_name == "天气小助手":
+                    self.call_weather_api(content, message_type, original_data)
+                elif employee_name == "毒鸡汤助手":
+                    self.send_poison_chicken_soup(message_type, original_data)
+                else:
+                    reply = self.generate_employee_reply_text(employee, content)
+                    if reply:
+                        self.send_employee_response(employee_name, reply, message_type, original_data)
+                    else:
+                        self.send_employee_response(employee_name, f"我是{employee_name}，很高兴为您服务！", message_type, original_data)
+                return
+
             self.write_message(json.dumps({
                 "type": "error",
                 "content": f"用户 {to_user} 不存在"
-            }))
+            }, ensure_ascii=False))
             return
         
         # 保存消息到数据库

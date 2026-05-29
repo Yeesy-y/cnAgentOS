@@ -567,6 +567,13 @@ def init_default_data(conn):
 				("三日天气查询", "query_tian", "https://api.52vmy.cn/api/query/tian?city=北京市", "GET", "JSON", "每2秒最多4次（携带Token可无视限制）", "", "点击前往三日天气API", 1),
 			]
 		)
+	conn.execute(
+		"""
+		INSERT OR IGNORE INTO api_endpoints(api_name, api_code, api_url, request_method, response_format, qps_limit, token, remark, status)
+		VALUES(?,?,?,?,?,?,?,?,?)
+		""",
+		("毒鸡汤", "wl_yan_du", "https://api.52vmy.cn/api/wl/yan/du", "GET", "JSON", "每2秒最多4次（携带Token可无视限制）", "", "请求示例：/api/wl/yan/du?type=text", 1)
+	)
 
 	def ensure_permission(perm_name: str, perm_code: str, parent_code: str = "", menu_url: str = "", sort_order: int = 0):
 		perm_code = (perm_code or "").strip()

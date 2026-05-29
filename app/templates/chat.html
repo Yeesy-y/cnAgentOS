@@ -754,6 +754,131 @@
         .weather-info-value {
             font-weight: 500;
         }
+
+        .api-card {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(95, 95, 95, 0.12);
+            border-radius: 16px;
+            padding: 14px;
+            min-width: 280px;
+            overflow: hidden;
+        }
+        .api-card-title {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .api-card-title .name {
+            font-weight: 800;
+            color: rgba(32, 32, 32, 0.88);
+        }
+        .api-card-title .meta {
+            font-size: 12px;
+            color: rgba(95, 95, 95, 0.75);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .api-card .weather-main {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .api-card .weather-temp {
+            font-size: 36px;
+            font-weight: 900;
+            color: #5f5f5f;
+            line-height: 1;
+        }
+        .api-card .weather-desc {
+            margin-top: 6px;
+            color: rgba(95, 95, 95, 0.85);
+            font-weight: 700;
+        }
+        .api-card .weather-kv {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .api-card .weather-tag {
+            background: rgba(95, 95, 95, 0.06);
+            border: 1px solid rgba(95, 95, 95, 0.08);
+            border-radius: 12px;
+            padding: 6px 10px;
+            font-size: 12px;
+            color: #5f5f5f;
+        }
+        .api-card .forecast {
+            margin-top: 10px;
+            border-top: 1px dashed rgba(95, 95, 95, 0.16);
+            padding-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .api-card .forecast-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 12px;
+            color: rgba(95, 95, 95, 0.9);
+        }
+        .music-wrap {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .music-cover {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            object-fit: cover;
+            border: 1px solid rgba(95, 95, 95, 0.12);
+        }
+        .music-meta {
+            min-width: 0;
+            flex: 1;
+        }
+        .music-name {
+            font-weight: 900;
+            color: #5f5f5f;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .music-singer {
+            font-size: 12px;
+            color: rgba(95, 95, 95, 0.75);
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .music-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+        .music-btn {
+            height: 32px;
+            padding: 0 12px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, #5f5f5f 0%, #8a8a8a 100%);
+            color: #efe4e9;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .music-btn.secondary {
+            background: rgba(95, 95, 95, 0.08);
+            color: #5f5f5f;
+            border: 1px solid rgba(95, 95, 95, 0.12);
+        }
         
         @keyframes float {
             0%, 100% { transform: translateY(0); }
@@ -1413,26 +1538,39 @@
                     var messageContentHtml;
                     var fileData = null;
                     var weatherData = null;
+                    var musicData = null;
                     
                     var locationData = null;
                     var voiceData = null;
                     var parsedContent = null;
                     
-                    // 尝试解析JSON字符串
                     try {
                         parsedContent = JSON.parse(content);
-                        fileData = parsedContent;
-                        if (fileData.file_url && fileData.file_name) {
-                            isFile = true;
-                        } else if (fileData.type === 'weather_card') {
-                            weatherData = fileData;
-                        } else if (fileData.type === 'location') {
-                            locationData = fileData;
-                        } else if (fileData.type === 'voice') {
-                            voiceData = fileData;
-                        }
                     } catch (e) {
-                        // 如果解析失败，parsedContent保持为null
+                    }
+                    if (!parsedContent) {
+                        parsedContent = extractJsonFromText(content);
+                    }
+
+                    fileData = parsedContent;
+                    if (fileData && fileData.file_url && fileData.file_name) {
+                            isFile = true;
+                    } else if (fileData && fileData.type === 'location') {
+                        locationData = fileData;
+                    } else if (fileData && fileData.type === 'voice') {
+                        voiceData = fileData;
+                    }
+
+                    var payload = parsedContent;
+                    if (payload && payload.data && typeof payload.data === 'object') {
+                        payload = payload.data;
+                    }
+                    if (payload && typeof payload === 'object') {
+                        if (payload.type === 'weather_card' || (payload.city && (payload.weather || payload.temp || payload.current))) {
+                            weatherData = payload;
+                        } else if (payload.song || payload.singer || payload.cover || payload.Music || payload.music) {
+                            musicData = payload;
+                        }
                     }
                     
                     if (isFile && fileData) {
@@ -1445,6 +1583,8 @@
                         '</div>';
                     } else if (weatherData) {
                         messageContentHtml = renderWeatherCard(weatherData);
+                    } else if (musicData) {
+                        messageContentHtml = renderMusicCard(musicData);
                     } else if (locationData) {
                         // 处理位置消息
                         var lat = locationData.latitude;
@@ -2365,11 +2505,6 @@
                     }
                 }
                 ws.send(JSON.stringify(message));
-                
-                // 如果是群聊且消息中包含@数字员工，调用数字员工接口获取回复
-                if (selectedContact.type === 'group') {
-                    processEmployeeMention(text, selectedContact.id);
-                }
             }
             
             // ==================== 处理@数字员工消息 ====================
@@ -2463,28 +2598,132 @@
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
             }
             
-            function renderWeatherCard(data) {
-                var effectClass = data.effect || 'sunny';
-                
-                return '<div class="weather-card ' + effectClass + '">' +
-                    '<div class="weather-emoji">' + data.emoji + '</div>' +
-                    '<div class="weather-city">' + data.city + '</div>' +
-                    '<div class="weather-temp">' + data.temp + '°C</div>' +
-                    '<div class="weather-info">' +
-                        '<div class="weather-info-item">' +
-                            '<span class="weather-info-label">天气</span>' +
-                            '<span class="weather-info-value">' + data.weather + '</span>' +
+            function extractJsonFromText(text){
+                var raw = String(text || '').trim();
+                if(!raw){
+                    return null;
+                }
+                var m = raw.match(/```(?:json)?\n([\s\S]*?)```/i);
+                if(m && m[1]){
+                    raw = String(m[1] || '').trim();
+                }
+                if(!raw){
+                    return null;
+                }
+                try{
+                    return JSON.parse(raw);
+                }catch(e){
+                    return null;
+                }
+            }
+
+            function safeUrl(u){
+                var s = String(u || '').trim().replace(/\s+/g, '');
+                if(s.indexOf('http://') === 0){
+                    s = 'https://' + s.slice('http://'.length);
+                }
+                return s;
+            }
+
+            function proxyMediaUrl(u){
+                var s = String(u || '').trim();
+                if(!s){
+                    return '';
+                }
+                if(s.indexOf('http://') === 0 || s.indexOf('https://') === 0){
+                    return '/user/api/media/proxy?url=' + encodeURIComponent(s);
+                }
+                return s;
+            }
+
+            function renderWeatherCard(d) {
+                if(!d){
+                    return '';
+                }
+                var city = String(d.city || (d.current && d.current.city) || '');
+                var time = String(d.time || (d.current && d.current.time) || '');
+                var temp = d.temp !== undefined ? String(d.temp) : '';
+                var tempn = d.tempn !== undefined ? String(d.tempn) : '';
+                var weather = String(d.weather || (d.current && d.current.weather) || '');
+                var wind = String(d.wind || (d.current && d.current.wind) || '');
+                var windSpeed = String(d.windSpeed || (d.current && d.current.windSpeed) || '');
+                var humidity = String(d.humidity || (d.current && d.current.humidity) || '');
+                var pressure = String((d.current && d.current.pressure) || '');
+                var visibility = String((d.current && d.current.visibility) || '');
+
+                if(!city || (!weather && !temp)){
+                    return '';
+                }
+
+                var forecast = d.forecast || d.future || d.days || null;
+                var forecastRows = '';
+                if(Array.isArray(forecast) && forecast.length){
+                    forecast.slice(0, 3).forEach(function(it){
+                        var day = it.date || it.day || it.time || it.week || '';
+                        var w = it.weather || it.wea || it.type || '';
+                        var t = it.temp || it.temperature || '';
+                        forecastRows += '<div class="forecast-row"><div>' + escapeHtml(String(day || '')) + '</div><div>' + escapeHtml(String(w || '')) + '</div><div>' + escapeHtml(String(t || '')) + '</div></div>';
+                    });
+                }
+
+                var kv = '';
+                if(wind){ kv += '<span class="weather-tag">风向：' + escapeHtml(wind) + '</span>'; }
+                if(windSpeed){ kv += '<span class="weather-tag">风速：' + escapeHtml(windSpeed) + '</span>'; }
+                if(humidity){ kv += '<span class="weather-tag">湿度：' + escapeHtml(humidity) + '</span>'; }
+                if(pressure){ kv += '<span class="weather-tag">气压：' + escapeHtml(pressure) + '</span>'; }
+                if(visibility){ kv += '<span class="weather-tag">能见度：' + escapeHtml(visibility) + '</span>'; }
+
+                var bgColor = String(d.bgColor || '').trim();
+                var styleAttr = bgColor ? (' style="background:' + escapeHtml(bgColor) + ';"') : '';
+
+                return '' +
+                    '<div class="api-card weather-card"' + styleAttr + '>' +
+                        '<div class="api-card-title">' +
+                            '<div class="name">天气卡片</div>' +
+                            '<div class="meta">' + escapeHtml(city) + (time ? ' · ' + escapeHtml(time) : '') + '</div>' +
                         '</div>' +
-                        '<div class="weather-info-item">' +
-                            '<span class="weather-info-label">风力</span>' +
-                            '<span class="weather-info-value">' + data.wind + '</span>' +
+                        '<div class="weather-main">' +
+                            '<div>' +
+                                '<div class="weather-temp">' + escapeHtml(temp) + '°</div>' +
+                                '<div class="weather-desc">' + escapeHtml(weather || '') + (tempn ? '（体感 ' + escapeHtml(tempn) + '°）' : '') + '</div>' +
+                            '</div>' +
                         '</div>' +
-                        '<div class="weather-info-item">' +
-                            '<span class="weather-info-label">湿度</span>' +
-                            '<span class="weather-info-value">' + data.humidity + '</span>' +
+                        '<div class="weather-kv">' + kv + '</div>' +
+                        (forecastRows ? '<div class="forecast">' + forecastRows + '</div>' : '') +
+                    '</div>';
+            }
+
+            function renderMusicCard(d){
+                if(!d || (!d.song && !d.singer && !d.Music && !d.cover)){
+                    return '';
+                }
+                var song = String(d.song || '');
+                var singer = String(d.singer || '');
+                var cover = proxyMediaUrl(safeUrl(d.cover || ''));
+                var audioUrl = proxyMediaUrl(safeUrl(d.Music || d.music || ''));
+                if(!audioUrl){
+                    return '';
+                }
+                var coverHtml = cover ? '<img class="music-cover" src="' + escapeHtml(cover) + '" alt="cover">' : '<div class="music-cover" style="display:flex;align-items:center;justify-content:center;background:rgba(95,95,95,0.06);"><i class="fas fa-music"></i></div>';
+                return '' +
+                    '<div class="api-card music-card" data-audio="' + escapeHtml(audioUrl) + '">' +
+                        '<div class="api-card-title">' +
+                            '<div class="name">音乐播放器</div>' +
+                            '<div class="meta">随机推荐</div>' +
                         '</div>' +
-                    '</div>' +
-                '</div>';
+                        '<div class="music-wrap">' +
+                            coverHtml +
+                            '<div class="music-meta">' +
+                                '<div class="music-name">' + escapeHtml(song || '未知歌曲') + '</div>' +
+                                '<div class="music-singer">' + escapeHtml(singer || '') + '</div>' +
+                            '</div>' +
+                            '<div class="music-actions">' +
+                                '<button type="button" class="music-btn music-play">播放</button>' +
+                                '<button type="button" class="music-btn secondary music-open">打开</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<audio preload="none" src="' + escapeHtml(audioUrl) + '"></audio>' +
+                    '</div>';
             }
 
             function sendFileMessage(fileUrl, fileName, fileSize) {
@@ -3446,6 +3685,42 @@
                     $btn.find('i').removeClass('fa-pause-circle').addClass('fa-play-circle');
                 }
             };
+
+            $(document).on('click', '.music-open', function(){
+                var $card = $(this).closest('.music-card');
+                var url = $card.attr('data-audio') || '';
+                if(url){
+                    window.open(url, '_blank');
+                }
+            });
+
+            $(document).on('click', '.music-play', function(){
+                var $btn = $(this);
+                var $card = $btn.closest('.music-card');
+                var audio = $card.find('audio')[0];
+                if(!audio){
+                    return;
+                }
+                $('audio').each(function(){
+                    if(this !== audio){
+                        try{ this.pause(); }catch(e){}
+                    }
+                });
+                if(audio.paused){
+                    audio.play().then(function(){
+                        $('.music-play').text('播放');
+                        $btn.text('暂停');
+                    }).catch(function(){
+                        layer.msg('播放失败', {icon:2});
+                    });
+                } else {
+                    audio.pause();
+                    $btn.text('播放');
+                }
+                audio.onended = function(){
+                    $btn.text('播放');
+                };
+            });
             
             $('#locationBtn').on('click', function() {
                 if (!selectedContact) {
@@ -3968,6 +4243,24 @@
                 
                 if (!username || username.trim() === '') {
                     layer.msg('无法识别用户', { icon: 2 });
+                    return;
+                }
+
+                var existingBot = null;
+                if (contacts.bots) {
+                    for (var j = 0; j < contacts.bots.length; j++) {
+                        if (contacts.bots[j].name === username) {
+                            existingBot = contacts.bots[j];
+                            break;
+                        }
+                    }
+                }
+                
+                if (existingBot) {
+                    existingBot.is_employee = true;
+                    selectedContact = existingBot;
+                    updateChatHeader(selectedContact);
+                    renderMessages(selectedContact.id);
                     return;
                 }
                 

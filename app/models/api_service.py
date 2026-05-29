@@ -158,7 +158,11 @@ class ApiEndpointRepository:
 				resp = requests.post(url, headers=headers, data=params, timeout=timeout)
 			content_type = (resp.headers.get("Content-Type") or "").lower()
 			if "application/json" in content_type:
-				return {"success": True, "status_code": resp.status_code, "data": resp.json()}
+				try:
+					data = resp.json()
+				except Exception:
+					data = resp.text
+				return {"success": True, "status_code": resp.status_code, "data": data}
 			return {"success": True, "status_code": resp.status_code, "data": resp.text}
 		except Exception as e:
 			return {"success": False, "message": str(e), "status_code": 500}

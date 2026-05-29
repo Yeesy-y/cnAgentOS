@@ -62,7 +62,7 @@ from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSo
 from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler,AdminWatchDeepCollectHandler
 from app.controllers.admin_api import AdminApiListHandler,AdminApiAddHandler,AdminApiEditHandler,AdminApiTestHandler
 from app.controllers.user_auth import UserLoginHandler,UserLogoutHandler,UserRegisterHandler
-from app.controllers.user_api import UserModelsHandler,UserConversationsHandler,UserMessagesHandler,UserSendHandler,UserStreamHandler,UserConversationActionHandler
+from app.controllers.user_api import UserModelsHandler,UserConversationsHandler,UserMessagesHandler,UserSendHandler,UserStreamHandler,UserConversationActionHandler,UserMediaProxyHandler
 #引入db-model层
 from app.models.db import init_db
 
@@ -152,6 +152,7 @@ def make_app():
 		(r"/user/api/send",UserSendHandler),
 		(r"/user/api/conversation/action",UserConversationActionHandler),
 		(r"/user/api/stream",UserStreamHandler),
+		(r"/user/api/media/proxy",UserMediaProxyHandler),
 		(r"/user/api/friend/add", UserFriendAddHandler),
 		(r"/user/api/friend/request", UserFriendRequestHandler),
 		(r"/user/api/friend/accept", UserFriendAcceptHandler),

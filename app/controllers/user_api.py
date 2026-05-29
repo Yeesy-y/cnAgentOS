@@ -1,6 +1,8 @@
 import json
 import re
 import tornado.web
+import urllib.parse
+import requests
 from app.controllers.user_base import UserBaseHandler
 from app.models.chat_service import ChatRepository, ChatRuntime, ModelRuntime, ChatOrchestrator, EmployeeOrchestrator
 from app.models.digital_employee import DigitalEmployeeRepository
@@ -225,3 +227,61 @@ class UserStreamHandler(UserBaseHandler):
 				ChatRepository.create_message(conversation_id, "assistant", full)
 			write_sse("[DONE]")
 			self.finish()
+
+class UserMediaProxyHandler(UserBaseHandler):
+	@tornado.web.authenticated
+	def get(self):
+		url = (self.get_argument("url", "") or "").strip()
+		if not url:
+			self.set_status(400)
+			return
+		try:
+			parsed = urllib.parse.urlparse(url)
+			if parsed.scheme not in ("http", "https"):
+				self.set_status(400)
+				return
+			host = (parsed.hostname or "").lower()
+			allow_suffixes = (
+				"music.163.com",
+				"music.126.net",
+				"p1.music.126.net",
+				"p2.music.126.net",
+				"p3.music.126.net",
+				"p4.music.126.net",
+				"p5.music.126.net",
+				"m7.music.126.net",
+				"m701.music.126.net",
+				"m801.music.126.net",
+			)
+			ok = host in allow_suffixes or host.endswith(".music.126.net")
+			if not ok:
+				self.set_status(403)
+				return
+
+			headers = {
+				"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+				"Accept": "*/*",
+			}
+			range_header = (self.request.headers.get("Range") or "").strip()
+			if range_header:
+				headers["Range"] = range_header
+			resp = requests.get(url, headers=headers, timeout=(10, 60), allow_redirects=True, stream=True)
+			ct = resp.headers.get("Content-Type") or "application/octet-stream"
+			self.set_status(resp.status_code)
+			self.set_header("Content-Type", ct)
+			if resp.headers.get("Accept-Ranges"):
+				self.set_header("Accept-Ranges", resp.headers.get("Accept-Ranges"))
+			else:
+				self.set_header("Accept-Ranges", "bytes")
+			if resp.headers.get("Content-Range"):
+				self.set_header("Content-Range", resp.headers.get("Content-Range"))
+			if resp.headers.get("Content-Length"):
+				self.set_header("Content-Length", resp.headers.get("Content-Length"))
+			self.set_header("Cache-Control", "public, max-age=3600")
+			for chunk in resp.iter_content(chunk_size=64 * 1024):
+				if not chunk:
+					continue
+				self.write(chunk)
+		except Exception:
+			self.set_status(502)
+			return

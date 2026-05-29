@@ -168,7 +168,22 @@ layui.use(['layer', 'jquery', 'dropdown'], function(){
 	}
 
 	function safeUrl(u){
-		return String(u || '').trim().replace(/\s+/g, '');
+		var s = String(u || '').trim().replace(/\s+/g, '');
+		if(s.indexOf('http://') === 0){
+			s = 'https://' + s.slice('http://'.length);
+		}
+		return s;
+	}
+
+	function proxyMediaUrl(u){
+		var s = String(u || '').trim();
+		if(!s){
+			return '';
+		}
+		if(s.indexOf('http://') === 0 || s.indexOf('https://') === 0){
+			return '/user/api/media/proxy?url=' + encodeURIComponent(s);
+		}
+		return s;
 	}
 
 	function renderWeatherCard(d){
@@ -227,8 +242,8 @@ layui.use(['layer', 'jquery', 'dropdown'], function(){
 		}
 		var song = String(d.song || '');
 		var singer = String(d.singer || '');
-		var cover = safeUrl(d.cover || '');
-		var audioUrl = safeUrl(d.Music || d.music || '');
+		var cover = proxyMediaUrl(safeUrl(d.cover || ''));
+		var audioUrl = proxyMediaUrl(safeUrl(d.Music || d.music || ''));
 		if(!audioUrl){
 			return '';
 		}
