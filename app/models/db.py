@@ -388,6 +388,25 @@ def init_db():
 			)
 			"""
 		)
+		# 数字员工私聊消息表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS employee_private_messages(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL,
+				employee_id INTEGER NOT NULL,
+				sender_type TEXT NOT NULL DEFAULT 'user',
+				content TEXT NOT NULL,
+				message_type TEXT DEFAULT 'text',
+				is_read INTEGER DEFAULT 0,
+				read_at TEXT,
+				referenced_message_id INTEGER,
+				created_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY(user_id) REFERENCES users(id),
+				FOREIGN KEY(employee_id) REFERENCES digital_employees(id)
+			)
+			"""
+		)
 		# 群聊消息表
 		conn.execute(
 			"""

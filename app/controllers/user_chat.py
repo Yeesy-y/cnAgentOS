@@ -773,50 +773,76 @@ class UserMessageHistoryHandler(UserBaseHandler):
         
         with get_connection() as conn:
             if chat_type == "private":
-                # 获取私聊消息
-                rows = conn.execute("""
-                    SELECT 
-                        m.id,
-                        m.conversation_id,
-                        m.role as sender,
-                        m.content,
-                        m.create_at as time,
-                        CASE WHEN m.role = ? THEN 1 ELSE 0 END as is_own
-                    FROM chat_messages m
-                    JOIN chat_conversations c ON m.conversation_id = c.id
-                    WHERE c.user_id = ? AND c.title = ?
-                    ORDER BY m.create_at ASC
-                """, (self.current_user, current_user["id"], chat_id)).fetchall()
-                
-                for row in rows:
-                    messages.append({
-                        "id": row["id"],
-                        "sender": row["sender"],
-                        "content": row["content"],
-                        "time": row["time"],
-                        "is_own": bool(row["is_own"])
-                    })
+                target_user = UserRepository.get_user_by_username(chat_id)
+                if target_user:
+                    rows = conn.execute(
+                        """
+                        SELECT id, sender_id, receiver_id, content, referenced_message_id, created_at
+                        FROM private_messages
+                        WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+                        ORDER BY created_at ASC
+                        LIMIT 200
+                        """,
+                        (current_user["id"], target_user["id"], target_user["id"], current_user["id"])
+                    ).fetchall()
+                    for row in rows:
+                        sender_id = int(row["sender_id"])
+                        sender_name = self.current_user if sender_id == int(current_user["id"]) else target_user["username"]
+                        messages.append({
+                            "id": row["id"],
+                            "sender": sender_name,
+                            "content": row["content"],
+                            "time": row["created_at"],
+                            "is_own": sender_id == int(current_user["id"]),
+                            "referenced_message_id": row["referenced_message_id"]
+                        })
+                else:
+                    emp = conn.execute(
+                        "SELECT id FROM digital_employees WHERE status = 1 AND (employee_name = ? OR at_alias = ?) LIMIT 1",
+                        (chat_id, chat_id)
+                    ).fetchone()
+                    if emp:
+                        messages = []
+                    else:
+                        messages = []
             elif chat_type == "group":
-                # 获取群聊消息
-                rows = conn.execute("""
-                    SELECT 
-                        m.id,
-                        m.role as sender,
-                        m.content,
-                        m.create_at as time,
-                        CASE WHEN m.role = ? THEN 1 ELSE 0 END as is_own
-                    FROM chat_messages m
-                    WHERE m.conversation_id = ?
-                    ORDER BY m.create_at ASC
-                """, (self.current_user, chat_id)).fetchall()
-                
+                if not str(chat_id).isdigit():
+                    self.write({"success": False, "message": "群聊ID不合法"})
+                    return
+                group_id = int(chat_id)
+                member = conn.execute(
+                    "SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?",
+                    (group_id, int(current_user["id"]))
+                ).fetchone()
+                if not member:
+                    self.write({"success": False, "message": "无权限"})
+                    return
+                rows = conn.execute(
+                    """
+                    SELECT
+                        m.id, m.group_id, m.sender_id, m.sender_type, m.content, m.referenced_message_id, m.created_at,
+                        u.username as sender_name, de.employee_name as employee_name
+                    FROM group_messages m
+                    LEFT JOIN users u ON m.sender_id = u.id AND m.sender_type = 'user'
+                    LEFT JOIN digital_employees de ON m.sender_id = de.id AND m.sender_type = 'employee'
+                    WHERE m.group_id = ?
+                    ORDER BY m.created_at ASC
+                    LIMIT 200
+                    """,
+                    (group_id,)
+                ).fetchall()
                 for row in rows:
+                    sender_type = row["sender_type"]
+                    sender_name = row["sender_name"] if sender_type == "user" else row["employee_name"]
+                    is_own = sender_type == "user" and int(row["sender_id"]) == int(current_user["id"])
                     messages.append({
                         "id": row["id"],
-                        "sender": row["sender"],
+                        "group_id": row["group_id"],
+                        "sender": sender_name or "",
                         "content": row["content"],
-                        "time": row["time"],
-                        "is_own": bool(row["is_own"])
+                        "time": row["created_at"],
+                        "is_own": is_own,
+                        "referenced_message_id": row["referenced_message_id"]
                     })
         
         self.write({"success": True, "messages": messages})
@@ -1237,6 +1263,29 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
                 logging.error(f"推送数字员工群聊消息失败: {e}")
             return
 
+        if message_type == "private":
+            from app.models.db import get_connection
+            from app.models.user import UserRepository
+            try:
+                user = UserRepository.get_user_by_username(self.username)
+                if user:
+                    with get_connection() as conn:
+                        emp_row = conn.execute(
+                            "SELECT id FROM digital_employees WHERE employee_name = ? AND status = 1",
+                            (employee_name,)
+                        ).fetchone()
+                        if emp_row:
+                            conn.execute(
+                                """
+                                INSERT INTO employee_private_messages(user_id, employee_id, sender_type, content, message_type, is_read, referenced_message_id)
+                                VALUES(?, ?, 'employee', ?, 'text', 0, NULL)
+                                """,
+                                (int(user["id"]), int(emp_row["id"]), content)
+                            )
+                            conn.commit()
+            except Exception:
+                pass
+
         self.write_message(json.dumps(response, ensure_ascii=False))
 
     def handle_private_message(self, data):
@@ -1269,10 +1318,23 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
                     employee = dict(employee_row)
             
             if employee:
+                try:
+                    with get_connection() as conn:
+                        cursor = conn.execute(
+                            """
+                            INSERT INTO employee_private_messages(user_id, employee_id, sender_type, content, message_type, is_read, referenced_message_id)
+                            VALUES(?, ?, 'user', ?, 'text', 1, ?)
+                            """,
+                            (int(current_user["id"]), int(employee["id"]), content, referenced_message_id)
+                        )
+                        conn.commit()
+                        message_id = cursor.lastrowid
+                except Exception:
+                    message_id = 0
                 self.write_message(json.dumps({
                     "type": "success",
                     "content": "消息已发送",
-                    "message_id": 0
+                    "message_id": message_id
                 }))
 
                 employee_name = employee["employee_name"]
@@ -1313,10 +1375,23 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
             except Exception:
                 employee = None
             if employee:
+                try:
+                    with get_connection() as conn:
+                        cursor = conn.execute(
+                            """
+                            INSERT INTO employee_private_messages(user_id, employee_id, sender_type, content, message_type, is_read, referenced_message_id)
+                            VALUES(?, ?, 'user', ?, 'text', 1, ?)
+                            """,
+                            (int(current_user["id"]), int(employee["id"]), content, referenced_message_id)
+                        )
+                        conn.commit()
+                        message_id = cursor.lastrowid
+                except Exception:
+                    message_id = 0
                 self.write_message(json.dumps({
                     "type": "success",
                     "content": "消息已发送",
-                    "message_id": 0
+                    "message_id": message_id
                 }, ensure_ascii=False))
                 employee_name = employee["employee_name"]
                 message_type = "private"
@@ -1507,6 +1582,9 @@ class UserMessageHistoryHandler(UserBaseHandler):
         from app.models.db import get_connection
         
         current_user = UserRepository.get_user_by_username(self.current_user)
+        if not current_user:
+            self.write({"success": False, "message": "用户不存在"})
+            return
         chat_type = self.get_argument("type", "")
         target_id = self.get_argument("id", None)
         limit = int(self.get_argument("limit", 50))
@@ -1522,7 +1600,38 @@ class UserMessageHistoryHandler(UserBaseHandler):
                 # 获取私聊消息
                 target_user = UserRepository.get_user_by_username(target_id)
                 if not target_user:
-                    self.write({"success": False, "message": "用户不存在"})
+                    emp = conn.execute(
+                        "SELECT id, employee_name FROM digital_employees WHERE status = 1 AND (employee_name = ? OR at_alias = ?) LIMIT 1",
+                        (target_id, target_id)
+                    ).fetchone()
+                    if not emp:
+                        self.write({"success": True, "messages": []})
+                        return
+                    rows = conn.execute(
+                        """
+                        SELECT id, sender_type, content, message_type, is_read, read_at, referenced_message_id, created_at
+                        FROM employee_private_messages
+                        WHERE user_id = ? AND employee_id = ?
+                        ORDER BY created_at DESC
+                        LIMIT ?
+                        """,
+                        (int(current_user["id"]), int(emp["id"]), int(limit))
+                    ).fetchall()
+                    for row in rows:
+                        messages.append({
+                            "id": row["id"],
+                            "content": row["content"],
+                            "type": row["message_type"],
+                            "sender": self.current_user if row["sender_type"] == "user" else emp["employee_name"],
+                            "receiver": emp["employee_name"] if row["sender_type"] == "user" else self.current_user,
+                            "is_own": row["sender_type"] == "user",
+                            "is_read": bool(row["is_read"]),
+                            "read_at": row["read_at"],
+                            "referenced_message_id": row["referenced_message_id"],
+                            "time": row["created_at"]
+                        })
+                    messages.reverse()
+                    self.write({"success": True, "messages": messages})
                     return
                 
                 rows = conn.execute("""
@@ -1565,6 +1674,18 @@ class UserMessageHistoryHandler(UserBaseHandler):
                 
             elif chat_type == "group":
                 # 获取群聊消息
+                try:
+                    group_id = int(target_id)
+                except Exception:
+                    self.write({"success": False, "message": "群聊ID不合法"})
+                    return
+                member = conn.execute(
+                    "SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ? LIMIT 1",
+                    (group_id, current_user["id"])
+                ).fetchone()
+                if not member:
+                    self.write({"success": False, "message": "无权限"})
+                    return
                 rows = conn.execute("""
                     SELECT 
                         m.id, m.group_id, m.sender_id, m.sender_type, m.content,
@@ -1576,7 +1697,7 @@ class UserMessageHistoryHandler(UserBaseHandler):
                     WHERE m.group_id = ?
                     ORDER BY m.created_at DESC
                     LIMIT ?
-                """, (int(target_id), limit)).fetchall()
+                """, (group_id, limit)).fetchall()
                 
                 for row in rows:
                     sender_name = row["sender_name"] if row["sender_type"] == "user" else row["employee_name"]
@@ -1715,7 +1836,23 @@ class UserMarkReadHandler(UserBaseHandler):
             if chat_type == "private":
                 target_user = UserRepository.get_user_by_username(target_id)
                 if not target_user:
-                    self.write({"success": False, "message": "用户不存在"})
+                    emp = conn.execute(
+                        "SELECT id FROM digital_employees WHERE status = 1 AND (employee_name = ? OR at_alias = ?) LIMIT 1",
+                        (target_id, target_id)
+                    ).fetchone()
+                    if not emp:
+                        self.write({"success": True, "message": "已标记为已读"})
+                        return
+                    conn.execute(
+                        """
+                        UPDATE employee_private_messages
+                        SET is_read = 1, read_at = datetime('now')
+                        WHERE user_id = ? AND employee_id = ? AND sender_type = 'employee' AND is_read = 0
+                        """,
+                        (int(current_user["id"]), int(emp["id"]))
+                    )
+                    conn.commit()
+                    self.write({"success": True, "message": "已标记为已读"})
                     return
                 
                 conn.execute("""
