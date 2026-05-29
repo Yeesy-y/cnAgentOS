@@ -415,6 +415,53 @@
         color: rgba(167, 167, 167, 0.6);
     }
 
+    .source-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .source-tab {
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 68, 68, 0.3);
+        background: rgba(0, 0, 0, 0.3);
+        color: rgba(239, 239, 239, 0.8);
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+    }
+
+    .source-tab.active {
+        background: linear-gradient(135deg, #FF4444, #FF6B6B);
+        border-color: #FF4444;
+        color: white;
+    }
+
+    .risk-stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    .risk-stat-card {
+        background: rgba(255, 68, 68, 0.1);
+        border: 1px solid rgba(255, 68, 68, 0.3);
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .risk-stat-card h4 {
+        color: #FFD700;
+        margin: 0 0 12px 0;
+        font-size: 14px;
+    }
+
+    .full-width-card {
+        grid-column: 1 / -1;
+    }
+
     /* 响应式设计 */
     @media (max-width: 1200px) {
         .dashboard-grid {
@@ -501,7 +548,7 @@
         </div>
 
         <!-- 监控数据分析 -->
-        <div class="card data-sources-section">
+        <div class="card data-sources-section full-width-card" style="grid-column:1/-1;">
             <div class="card-header">
                 <div class="card-title">
                     <i class="fas fa-radar"></i>
@@ -520,18 +567,42 @@
         </div>
 
         <!-- 聊天数据分析 -->
-        <div class="card data-sources-section">
+        <div class="card data-sources-section full-width-card" style="grid-column:1/-1;">
             <div class="card-header">
                 <div class="card-title">
                     <i class="fas fa-comments"></i>
-                    <span>聊天系统数据分析</span>
+                    <span>聊天子系统数据分析（智能问数 / 智能聊天）</span>
                 </div>
                 <button onclick="loadChatData()" style="background:linear-gradient(135deg, #FF4444, #FF6B6B);border:none;border-radius:8px;padding:8px 16px;color:white;font-size:13px;cursor:pointer;">
                     <i class="fas fa-sync-alt"></i> 刷新
                 </button>
             </div>
+
+            <div class="source-tabs">
+                <div class="source-tab active" id="tabQa" onclick="switchChatTab('qa')">智能问数</div>
+                <div class="source-tab" id="tabIm" onclick="switchChatTab('im')">智能聊天</div>
+                <div class="source-tab" id="tabAll" onclick="switchChatTab('all')">全部</div>
+            </div>
             
             <div id="chatDataContainer">
+                <div class="data-loading">
+                    <i class="fas fa-spinner fa-spin"></i> 加载中...
+                </div>
+            </div>
+        </div>
+
+        <!-- 高风险用户统计 -->
+        <div class="card data-sources-section full-width-card" style="grid-column:1/-1;">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-user-shield"></i>
+                    <span>高风险用户统计</span>
+                </div>
+                <button onclick="loadRiskStats()" style="background:linear-gradient(135deg, #FF4444, #FF6B6B);border:none;border-radius:8px;padding:8px 16px;color:white;font-size:13px;cursor:pointer;">
+                    <i class="fas fa-sync-alt"></i> 刷新
+                </button>
+            </div>
+            <div id="riskStatsContainer">
                 <div class="data-loading">
                     <i class="fas fa-spinner fa-spin"></i> 加载中...
                 </div>
@@ -544,6 +615,8 @@
 {% block js %}
 <script>
 let currentAnalysisResult = null;
+let chatDataCache = { qa_data: [], im_data: [], data: [] };
+let currentChatTab = 'qa';
 
 // 分析文本
 async function analyzeText() {
@@ -739,6 +812,69 @@ async function loadWatchData() {
     }
 }
 
+// 切换聊天数据标签
+function switchChatTab(tab) {
+    currentChatTab = tab;
+    ['tabQa', 'tabIm', 'tabAll'].forEach(id => {
+        document.getElementById(id).classList.remove('active');
+    });
+    document.getElementById(tab === 'qa' ? 'tabQa' : tab === 'im' ? 'tabIm' : 'tabAll').classList.add('active');
+    renderChatTable();
+}
+
+function renderChatTable() {
+    const container = document.getElementById('chatDataContainer');
+    let items = [];
+    if (currentChatTab === 'qa') items = chatDataCache.qa_data || [];
+    else if (currentChatTab === 'im') items = chatDataCache.im_data || [];
+    else items = chatDataCache.data || [];
+
+    if (!items.length) {
+        container.innerHTML = '<div class="data-loading">暂无聊天数据</div>';
+        return;
+    }
+
+    const highRiskItems = items.filter(item => item.risk_level === 'high');
+    container.innerHTML = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>来源</th>
+                    <th>用户</th>
+                    <th>内容预览</th>
+                    <th>风险等级</th>
+                    <th>风险词次数</th>
+                    <th>发送时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${items.map((item, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${escapeHtml(item.source || '-')}</td>
+                        <td><strong style="color:#FFD700;">${escapeHtml(item.sender || '未知')}</strong></td>
+                        <td style="word-break:break-all;">${escapeHtml(item.content_preview)}</td>
+                        <td>
+                            <span class="status-badge status-${item.risk_level}">
+                                ${item.risk_level === 'high' ? '高风险' : item.risk_level === 'medium' ? '中风险' : '低风险'}
+                            </span>
+                        </td>
+                        <td><strong style="color:${getRiskColor(item.risk_score)};">${item.keyword_total || 0}</strong></td>
+                        <td>${formatDate(item.create_at)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        ${highRiskItems.length > 0 ? `
+            <div style="margin-top:16px;padding:12px;background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.3);border-radius:8px;">
+                <i class="fas fa-exclamation-triangle" style="color:#FF4444;"></i>
+                <strong>警告：</strong> 发现 ${highRiskItems.length} 条高风险聊天内容，已记录至风险统计！
+            </div>
+        ` : ''}
+    `;
+}
+
 // 加载聊天数据
 async function loadChatData() {
     const container = document.getElementById('chatDataContainer');
@@ -751,49 +887,102 @@ async function loadChatData() {
         
         const result = await response.json();
         
-        if (result.success && result.data.length > 0) {
-            const highRiskItems = result.data.filter(item => item.risk_level === 'high');
-            const mediumRiskItems = result.data.filter(item => item.risk_level === 'medium');
-            
-            container.innerHTML = `
-                <table class="layui-table">
-                    <thead>
-                        <tr>
-                            <th>序号</th>
-                            <th>内容预览</th>
-                            <th>会话标题</th>
-                            <th>风险等级</th>
-                            <th>风险分数</th>
-                            <th>发送时间</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${result.data.map((item, index) => `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td style="word-break:break-all;">${escapeHtml(item.content_preview)}</td>
-                                <td>${escapeHtml(item.conversation_title || '未知会话')}</td>
-                                <td>
-                                    <span class="status-badge status-${item.risk_level}">
-                                        ${item.risk_level === 'high' ? '高风险' : item.risk_level === 'medium' ? '中风险' : '低风险'}
-                                    </span>
-                                </td>
-                                <td><strong style="color:${getRiskColor(item.risk_score)};">${item.risk_score}/10</strong></td>
-                                <td>${formatDate(item.create_at)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                ${highRiskItems.length > 0 ? `
-                    <div style="margin-top:16px;padding:12px;background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.3);border-radius:8px;">
-                        <i class="fas fa-exclamation-triangle" style="color:#FF4444;"></i>
-                        <strong>警告：</strong> 发现 ${highRiskItems.length} 条高风险聊天内容，建议引导用户减少此类话题！
-                    </div>
-                ` : ''}
-            `;
+        if (result.success) {
+            chatDataCache = result;
+            renderChatTable();
+            if ((result.summary && result.summary.high) > 0) {
+                document.getElementById('globalAlert').classList.add('show');
+                document.getElementById('alertText').textContent =
+                    `聊天系统发现 ${result.summary.high} 条高风险内容！`;
+            }
         } else {
             container.innerHTML = '<div class="data-loading">暂无聊天数据</div>';
         }
+    } catch (error) {
+        container.innerHTML = '<div class="data-loading" style="color:#FF4444;">加载失败</div>';
+    }
+}
+
+// 加载高风险用户统计
+async function loadRiskStats() {
+    const container = document.getElementById('riskStatsContainer');
+    container.innerHTML = '<div class="data-loading"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+
+    try {
+        const response = await fetch('/api/public-sentiment/risk-stats', { method: 'POST' });
+        const result = await response.json();
+
+        if (!result.success) {
+            container.innerHTML = '<div class="data-loading" style="color:#FF4444;">加载失败</div>';
+            return;
+        }
+
+        const highUsers = result.high_risk_users || [];
+        const recent = result.recent_records || [];
+
+        if (!highUsers.length && !recent.length) {
+            container.innerHTML = '<div class="data-loading">暂无高风险记录，系统持续监测中</div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="risk-stats-grid">
+                <div class="risk-stat-card">
+                    <h4><i class="fas fa-user-times"></i> 高风险用户汇总</h4>
+                    ${highUsers.length ? `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>用户名</th>
+                                    <th>风险等级</th>
+                                    <th>风险词总次数</th>
+                                    <th>触发次数</th>
+                                    <th>最近检测</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${highUsers.map(u => `
+                                    <tr>
+                                        <td><strong style="color:#FF4444;">${escapeHtml(u.username)}</strong></td>
+                                        <td><span class="status-badge status-high">高风险</span></td>
+                                        <td><strong>${u.keyword_total}</strong></td>
+                                        <td>${u.event_count}</td>
+                                        <td>${formatDate(u.last_detected)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<div style="color:rgba(167,167,167,0.6);padding:20px;text-align:center;">暂无高风险用户</div>'}
+                </div>
+                <div class="risk-stat-card">
+                    <h4><i class="fas fa-history"></i> 最近风险记录</h4>
+                    ${recent.length ? `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>用户</th>
+                                    <th>来源</th>
+                                    <th>风险词次数</th>
+                                    <th>内容预览</th>
+                                    <th>时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${recent.slice(0, 10).map(r => `
+                                    <tr>
+                                        <td>${escapeHtml(r.username)}</td>
+                                        <td>${escapeHtml(r.source_name)}</td>
+                                        <td><strong style="color:#FF4444;">${r.keyword_count}</strong></td>
+                                        <td style="word-break:break-all;">${escapeHtml(r.content_preview || '')}</td>
+                                        <td>${formatDate(r.create_at)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<div style="color:rgba(167,167,167,0.6);padding:20px;text-align:center;">暂无记录</div>'}
+                </div>
+            </div>
+        `;
     } catch (error) {
         container.innerHTML = '<div class="data-loading" style="color:#FF4444;">加载失败</div>';
     }
@@ -828,11 +1017,13 @@ function formatDate(dateStr) {
 document.addEventListener('DOMContentLoaded', function() {
     loadWatchData();
     loadChatData();
+    loadRiskStats();
     
     // 设置自动刷新（每 2 分钟）
     setInterval(() => {
         loadWatchData();
         loadChatData();
+        loadRiskStats();
     }, 120000);
 });
 </script>

@@ -438,6 +438,27 @@ def init_db():
 			"""
 		)
 		# ==========================================================
+
+		# 舆情风险记录表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS risk_records(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				username TEXT NOT NULL DEFAULT '',
+				user_id INTEGER DEFAULT 0,
+				risk_level TEXT NOT NULL,
+				source_type TEXT NOT NULL,
+				source_name TEXT DEFAULT '',
+				risk_keywords TEXT DEFAULT '[]',
+				keyword_count INTEGER DEFAULT 0,
+				risk_score INTEGER DEFAULT 0,
+				content_preview TEXT DEFAULT '',
+				ref_id INTEGER DEFAULT 0,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				UNIQUE(source_type, ref_id)
+			)
+			"""
+		)
 		
 		init_default_data(conn)
 
