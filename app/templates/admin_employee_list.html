@@ -176,7 +176,7 @@
 							<a href="/admin/employee/edit?id={{ e['id'] }}" class="layui-btn layui-btn-xs layui-btn-warm">
 								<i class="layui-icon layui-icon-edit"></i> 编辑
 							</a>
-							<button type="button" class="layui-btn layui-btn-xs layui-btn-normal" onclick="bindTools('{{ e['id'] }}', '{{ e.get('employee_name', '') }}')">
+							<button type="button" class="layui-btn layui-btn-xs layui-btn-normal bind-tools-btn" data-employee-id="{{ e['id'] }}" data-employee-name="{{ e.get('employee_name', '') }}">
 								<i class="layui-icon layui-icon-util"></i> 绑定工具
 							</button>
 							<form action="/admin/employee/list" method="post">
@@ -218,6 +218,16 @@
 layui.use(['layer', 'jquery'], function(){
     var layer = layui.layer;
     var $ = layui.jquery;
+
+    $(document).on('click', '.bind-tools-btn', function(){
+        var employeeId = $(this).data('employeeId');
+        var employeeName = $(this).data('employeeName');
+        if (!employeeId) {
+            layer.msg('缺少员工ID', {icon: 2});
+            return;
+        }
+        bindTools(employeeId, employeeName || '');
+    });
 
     window.bindTools = function(employeeId, employeeName) {
         $.ajax({
@@ -273,11 +283,14 @@ layui.use(['layer', 'jquery'], function(){
                         $.ajax({
                             url: '/admin/api/tool/bind',
                             type: 'POST',
+                            traditional: true,
                             data: {
                                 action: 'bind',
                                 employee_id: employeeId,
-                                tool_ids: selectedTools
+                                tool_ids: selectedTools,
+                                _xsrf: $('input[name="_xsrf"]').val()
                             },
+                            headers: {"X-XSRFToken": $('input[name="_xsrf"]').val()},
                             success: function(saveRes) {
                                 if (saveRes.success) {
                                     layer.msg('绑定成功', {icon: 1});

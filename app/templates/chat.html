@@ -1948,28 +1948,37 @@
                     } catch (e) {
                         // 如果解析失败，parsedContent保持为null
                     }
+                    if (parsedContent === null) {
+                        parsedContent = extractJsonFromText(rawContent);
+                    }
                 }
                 
                 // 使用解析后的对象，如果解析失败则使用原始内容
                 var contentToCheck = parsedContent !== null ? parsedContent : rawContent;
                 
                 if (typeof contentToCheck === 'object' && contentToCheck !== null) {
+                    var payload = contentToCheck;
+                    if (payload && payload.data && typeof payload.data === 'object') {
+                        payload = payload.data;
+                    }
                     if ('file_url' in contentToCheck && 'file_name' in contentToCheck) {
-                        messageContentHtml = '<div class="file-message" onclick="window.open(\'' + escapeHtml(contentToCheck.file_url) + '\', \'_blank\')">' +
+                        messageContentHtml = referenceHtml + '<div class="file-message" onclick="window.open(\'' + escapeHtml(contentToCheck.file_url) + '\', \'_blank\')">' +
                             '<div class="file-icon"><i class="fas fa-file"></i></div>' +
                             '<div class="file-info">' +
                                 '<div class="file-name">' + escapeHtml(contentToCheck.file_name) + '</div>' +
                                 '<div class="file-size">' + formatFileSize(contentToCheck.file_size || 0) + '</div>' +
                             '</div>' +
                         '</div>';
-                    } else if (contentToCheck.type === 'weather_card') {
-                        messageContentHtml = renderWeatherCard(contentToCheck);
+                    } else if (payload && (payload.type === 'weather_card' || (payload.city && (payload.weather || payload.temp || payload.current)))) {
+                        messageContentHtml = referenceHtml + renderWeatherCard(payload);
+                    } else if (payload && (payload.song || payload.singer || payload.cover || payload.Music || payload.music)) {
+                        messageContentHtml = referenceHtml + renderMusicCard(payload);
                     } else if (contentToCheck.type === 'location') {
                         // 处理位置消息
                         var lat = contentToCheck.latitude;
                         var lng = contentToCheck.longitude;
                         var acc = contentToCheck.accuracy || 0;
-                        messageContentHtml = '<div class="location-message" style="background: #f5f5f5; border-radius: 8px; padding: 10px; cursor: pointer;" onclick="window.open(\'https://uri.amap.com/marker?position=' + lng + ',' + lat + '&coordinate=gaode&callnative=0\', \'_blank\')">' +
+                        messageContentHtml = referenceHtml + '<div class="location-message" style="background: #f5f5f5; border-radius: 8px; padding: 10px; cursor: pointer;" onclick="window.open(\'https://uri.amap.com/marker?position=' + lng + ',' + lat + '&coordinate=gaode&callnative=0\', \'_blank\')">' +
                             '<div style="display: flex; align-items: center; margin-bottom: 5px;">' +
                                 '<i class="fas fa-map-marker-alt" style="color: #07C160; font-size: 18px; margin-right: 8px;"></i>' +
                                 '<span style="font-weight: bold;">位置</span>' +
@@ -1979,7 +1988,7 @@
                     } else if (contentToCheck.type === 'voice') {
                         // 处理语音消息
                         var voiceUrl = contentToCheck.url;
-                        messageContentHtml = '<div class="voice-message">' +
+                        messageContentHtml = referenceHtml + '<div class="voice-message">' +
                             '<button class="voice-play-btn" onclick="playVoice(this)" data-url="' + escapeHtml(voiceUrl) + '">' +
                                 '<i class="fas fa-play-circle" style="color: #07C160; font-size: 24px;"></i>' +
                             '</button>' +
@@ -1995,7 +2004,7 @@
                             '</div>' +
                         '</div>';
                     } else {
-                        messageContentHtml = escapeHtml(JSON.stringify(contentToCheck));
+                        messageContentHtml = referenceHtml + escapeHtml(JSON.stringify(contentToCheck));
                     }
                 } else if (typeof rawContent === 'string') {
                     var content = escapeHtml(rawContent);

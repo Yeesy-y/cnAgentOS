@@ -575,6 +575,45 @@ def init_default_data(conn):
 		("毒鸡汤", "wl_yan_du", "https://api.52vmy.cn/api/wl/yan/du", "GET", "JSON", "每2秒最多4次（携带Token可无视限制）", "", "请求示例：/api/wl/yan/du?type=text", 1)
 	)
 
+	cursor = conn.execute("SELECT COUNT(*) FROM ai_tools")
+	if cursor.fetchone()[0] == 0:
+		conn.executemany(
+			"""
+			INSERT OR IGNORE INTO ai_tools(tool_name, tool_code, description, tool_type, parameters_json, return_schema, status)
+			VALUES(?,?,?,?,?,?,?)
+			""",
+			[
+				("接口调用", "tool_call_api", "通过接口管理调用已配置的API端点", "function",
+				 json.dumps({
+					 "type": "object",
+					 "properties": {
+						 "api_code": {"type": "string", "description": "接口编码（接口管理中的api_code）"},
+						 "params": {"type": "object", "description": "请求参数对象"},
+						 "timeout": {"type": "integer", "description": "超时时间（秒）", "default": 30}
+					 },
+					 "required": ["api_code"]
+				 }, ensure_ascii=False),
+				 json.dumps({"type": "object"}, ensure_ascii=False),
+				 1),
+				("天气查询", "tool_weather_query", "查询指定城市天气（默认使用三日天气查询接口）", "function",
+				 json.dumps({
+					 "type": "object",
+					 "properties": {"city": {"type": "string", "description": "城市名称，如：北京市"}},
+					 "required": ["city"]
+				 }, ensure_ascii=False),
+				 json.dumps({"type": "object"}, ensure_ascii=False),
+				 1),
+				("随机音乐", "tool_music_random", "随机获取网易云音乐推荐", "function",
+				 json.dumps({"type": "object", "properties": {}}, ensure_ascii=False),
+				 json.dumps({"type": "object"}, ensure_ascii=False),
+				 1),
+				("毒鸡汤", "tool_poison_soup", "随机获取毒鸡汤语句", "function",
+				 json.dumps({"type": "object", "properties": {}}, ensure_ascii=False),
+				 json.dumps({"type": "object"}, ensure_ascii=False),
+				 1),
+			]
+		)
+
 	def ensure_permission(perm_name: str, perm_code: str, parent_code: str = "", menu_url: str = "", sort_order: int = 0):
 		perm_code = (perm_code or "").strip()
 		if not perm_code:

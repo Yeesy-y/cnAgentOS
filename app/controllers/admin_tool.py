@@ -15,6 +15,12 @@ class AdminToolListHandler(AdminBaseHandler):
 		
 		tools = []
 		for row in rows:
+			create_at = ""
+			try:
+				if "create_at" in row.keys() and row["create_at"]:
+					create_at = str(row["create_at"])[:19]
+			except Exception:
+				create_at = ""
 			tools.append({
 				"id": row["id"],
 				"tool_name": row["tool_name"],
@@ -24,7 +30,7 @@ class AdminToolListHandler(AdminBaseHandler):
 				"parameters_json": row["parameters_json"] or "{}",
 				"return_schema": row["return_schema"] or "",
 				"status": row["status"],
-				"create_at": row["create_at"][:19] if row.get("create_at") else ""
+				"create_at": create_at
 			})
 		
 		self.render(
@@ -108,15 +114,16 @@ class AdminToolListHandler(AdminBaseHandler):
 class AdminToolBindHandler(AdminBaseHandler):
 	@tornado.web.authenticated
 	def get(self):
+		self.set_header("Content-Type", "application/json")
 		employee_id = int(self.get_argument("employee_id", "0"))
 		
 		if not employee_id:
-			return self.write(json.dumps({"success": False, "message": "缺少员工ID"}))
+			return self.write(json.dumps({"success": False, "message": "缺少员工ID"}, ensure_ascii=False))
 		
 		with get_connection() as conn:
 			employee = conn.execute("SELECT * FROM digital_employees WHERE id = ?", (employee_id,)).fetchone()
 			if not employee:
-				return self.write(json.dumps({"success": False, "message": "员工不存在"}))
+				return self.write(json.dumps({"success": False, "message": "员工不存在"}, ensure_ascii=False))
 			
 			bound_tools = conn.execute("""
 				SELECT t.* FROM ai_tools t
@@ -139,15 +146,16 @@ class AdminToolBindHandler(AdminBaseHandler):
 				"tool_code": t["tool_code"],
 				"description": t["description"]
 			} for t in all_tools]
-		}))
+		}, ensure_ascii=False))
 	
 	def post(self):
+		self.set_header("Content-Type", "application/json")
 		action = self.get_body_argument("action", "")
 		employee_id = int(self.get_body_argument("employee_id", "0"))
 		tool_ids = self.get_body_arguments("tool_ids")
 		
 		if not employee_id:
-			return self.write(json.dumps({"success": False, "message": "缺少员工ID"}))
+			return self.write(json.dumps({"success": False, "message": "缺少员工ID"}, ensure_ascii=False))
 		
 		with get_connection() as conn:
 			if action == "bind":
@@ -161,6 +169,6 @@ class AdminToolBindHandler(AdminBaseHandler):
 						""", (employee_id, int(tool_id)))
 				
 				conn.commit()
-				return self.write(json.dumps({"success": True, "message": "绑定成功"}))
+				return self.write(json.dumps({"success": True, "message": "绑定成功"}, ensure_ascii=False))
 		
-		return self.write(json.dumps({"success": False, "message": "未知操作"}))
+		return self.write(json.dumps({"success": False, "message": "未知操作"}, ensure_ascii=False))
