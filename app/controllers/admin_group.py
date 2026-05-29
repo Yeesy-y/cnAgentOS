@@ -54,8 +54,8 @@ class AdminGroupListHandler(AdminBaseHandler):
 				"creator_name": row["creator_name"] or "未知",
 				"member_count": row["member_count"],
 				"employee_count": row["employee_count"],
-				"status": row.get("status", "normal"),
-				"created_at": row["created_at"][:19] if row.get("created_at") else ""
+				"status": row["status"] if "status" in row else "normal",
+				"created_at": row["created_at"][:19] if "created_at" in row and row["created_at"] else ""
 			})
 		
 		self.render(
