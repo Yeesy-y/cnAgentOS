@@ -618,6 +618,61 @@ class UserGroupMembersHandler(UserBaseHandler):
         })
 
 
+class UserFriendClearHandler(UserBaseHandler):
+    """清空私聊记录"""
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.authenticated
+    def post(self):
+        from app.models.user import UserRepository
+        from app.models.db import get_connection
+        
+        current_user = UserRepository.get_user_by_username(self.current_user)
+        friend_name = self.get_body_argument("friend_name", "")
+        
+        if not friend_name:
+            self.write({"success": False, "message": "请指定好友名称"})
+            return
+        
+        friend = UserRepository.get_user_by_username(friend_name)
+        if not friend:
+            self.write({"success": False, "message": "好友不存在"})
+            return
+        
+        with get_connection() as conn:
+            conn.execute("""
+                DELETE FROM private_messages
+                WHERE (sender_id = ? AND receiver_id = ?)
+                   OR (sender_id = ? AND receiver_id = ?)
+            """, (current_user["id"], friend["id"], friend["id"], current_user["id"]))
+        
+        self.write({"success": True, "message": "聊天记录已清空"})
+
+
+class UserGroupClearHandler(UserBaseHandler):
+    """清空群聊记录"""
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.authenticated
+    def post(self):
+        from app.models.db import get_connection
+        
+        group_id = self.get_body_argument("group_id", "")
+        
+        if not group_id:
+            self.write({"success": False, "message": "请指定群聊ID"})
+            return
+        
+        with get_connection() as conn:
+            conn.execute("DELETE FROM group_messages WHERE group_id = ?", (group_id,))
+        
+        self.write({"success": True, "message": "群聊记录已清空"})
+
+
 class UserFileUploadHandler(UserBaseHandler):
     """文件上传处理器"""
 
@@ -689,6 +744,80 @@ class UserEmployeesHandler(UserBaseHandler):
             
             self.write({"success": True, "employees": employees})
 
+class UserMessageHistoryHandler(UserBaseHandler):
+    """获取消息历史"""
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.authenticated
+    def get(self):
+        from app.models.user import UserRepository
+        from app.models.db import get_connection
+        
+        chat_type = self.get_argument("type", "")
+        chat_id = self.get_argument("id", "")
+        
+        if not chat_type or not chat_id:
+            self.write({"success": False, "message": "缺少参数"})
+            return
+        
+        current_user = UserRepository.get_user_by_username(self.current_user)
+        if not current_user:
+            self.write({"success": False, "message": "用户不存在"})
+            return
+        
+        messages = []
+        
+        with get_connection() as conn:
+            if chat_type == "private":
+                # 获取私聊消息
+                rows = conn.execute("""
+                    SELECT 
+                        m.id,
+                        m.conversation_id,
+                        m.role as sender,
+                        m.content,
+                        m.create_at as time,
+                        CASE WHEN m.role = ? THEN 1 ELSE 0 END as is_own
+                    FROM chat_messages m
+                    JOIN chat_conversations c ON m.conversation_id = c.id
+                    WHERE c.user_id = ? AND c.title = ?
+                    ORDER BY m.create_at ASC
+                """, (self.current_user, current_user["id"], chat_id)).fetchall()
+                
+                for row in rows:
+                    messages.append({
+                        "id": row["id"],
+                        "sender": row["sender"],
+                        "content": row["content"],
+                        "time": row["time"],
+                        "is_own": bool(row["is_own"])
+                    })
+            elif chat_type == "group":
+                # 获取群聊消息
+                rows = conn.execute("""
+                    SELECT 
+                        m.id,
+                        m.role as sender,
+                        m.content,
+                        m.create_at as time,
+                        CASE WHEN m.role = ? THEN 1 ELSE 0 END as is_own
+                    FROM chat_messages m
+                    WHERE m.conversation_id = ?
+                    ORDER BY m.create_at ASC
+                """, (self.current_user, chat_id)).fetchall()
+                
+                for row in rows:
+                    messages.append({
+                        "id": row["id"],
+                        "sender": row["sender"],
+                        "content": row["content"],
+                        "time": row["time"],
+                        "is_own": bool(row["is_own"])
+                    })
+        
+        self.write({"success": True, "messages": messages})
 
 class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
     """WebSocket聊天处理器"""
@@ -728,14 +857,14 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
                 }))
                 return
 
-            if content.strip().startswith("@"):
-                self.handle_digital_employee(message_type, data)
-                return
-
             if message_type == "private":
                 self.handle_private_message(data)
             elif message_type == "group":
-                self.handle_group_message(data)
+                # 群聊中@数字员工需要特殊处理
+                if content.strip().startswith("@"):
+                    self.handle_digital_employee(message_type, data)
+                else:
+                    self.handle_group_message(data)
             else:
                 self.write_message(json.dumps({
                     "type": "error",
@@ -765,6 +894,10 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         
         employee_name = parts[0][1:]
         message_content = parts[1].strip() if len(parts) > 1 else ""
+        
+        # 先保存群聊消息到数据库
+        if message_type == "group":
+            self.save_group_message(data)
         
         if employee_name == "川农小助手":
             self.call_ai_assistant(message_content, message_type, data)
@@ -929,16 +1062,24 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
                     else:
                         self.send_employee_response(employee_name, f"我是{employee_name}，{employee.get('description', '')}", message_type, original_data)
                 else:
-                    self.write_message(json.dumps({
-                        "type": "error",
-                        "content": f"未知的数字员工: {employee_name}"
-                    }))
+                    # @的不是数字员工（可能是普通好友），不报错，仅记录日志
+                    logging.info(f"@了非数字员工: {employee_name}")
+                    # 如果是群聊，发送成功响应
+                    if message_type == "group":
+                        self.write_message(json.dumps({
+                            "type": "success",
+                            "content": "消息已发送",
+                            "message_id": original_data.get("message_id", 0)
+                        }))
         except Exception as e:
             logging.error(f"处理数字员工 {employee_name} 失败: {e}")
-            self.write_message(json.dumps({
-                "type": "error",
-                "content": f"调用数字员工 {employee_name} 失败，请稍后重试"
-            }))
+            # 不向客户端发送错误，避免干扰正常聊天
+            if message_type == "group":
+                self.write_message(json.dumps({
+                    "type": "success",
+                    "content": "消息已发送",
+                    "message_id": original_data.get("message_id", 0)
+                }))
     
     def call_api_employee(self, employee, content, message_type, original_data):
         """调用API类型的数字员工"""
@@ -946,20 +1087,6 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         self.send_employee_response(employee_name, f"{employee_name}正在处理您的请求：{content}", message_type, original_data)
 
     def send_employee_response(self, employee_name, content, message_type, original_data):
-        from app.models.user import UserRepository
-        from app.models.db import get_connection
-        
-        # 保存数字员工的回复
-        employee_id = original_data.get("employee_id")
-        if employee_id:
-            current_user = UserRepository.get_user_by_username(self.username)
-            with get_connection() as conn:
-                conn.execute("""
-                    INSERT INTO employee_messages (user_id, employee_id, content, is_user)
-                    VALUES (?, ?, ?, 0)
-                """, (current_user["id"], employee_id, content))
-                conn.commit()
-        
         response = {
             "type": message_type,
             "from": employee_name,
@@ -976,6 +1103,7 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         to_user = data.get("to")
         content = data.get("content")
         referenced_message_id = data.get("referenced_message_id", None)
+        is_employee = data.get("is_employee", False)
         
         if not to_user or not content:
             self.write_message(json.dumps({
@@ -989,45 +1117,45 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         
         current_user = UserRepository.get_user_by_username(self.username)
         
-        # 先检查是否是数字员工
-        employee = None
-        with get_connection() as conn:
-            employee_row = conn.execute(
-                "SELECT * FROM digital_employees WHERE employee_name = ?", (to_user,)
-            ).fetchone()
-            if employee_row:
-                employee = dict(employee_row)
-        
-        if employee:
-            # 是数字员工，处理数字员工消息
-            # 保存用户的消息
+        # 根据前端标记判断是否是数字员工
+        if is_employee:
+            # 前端标记为数字员工，处理数字员工消息
+            employee = None
             with get_connection() as conn:
-                conn.execute("""
-                    INSERT INTO employee_messages (user_id, employee_id, content, is_user)
-                    VALUES (?, ?, ?, 1)
-                """, (current_user["id"], employee["id"], content))
-                conn.commit()
+                employee_row = conn.execute(
+                    "SELECT * FROM digital_employees WHERE employee_name = ?", (to_user,)
+                ).fetchone()
+                if employee_row:
+                    employee = dict(employee_row)
             
-            self.write_message(json.dumps({
-                "type": "success",
-                "content": "消息已发送",
-                "message_id": 0
-            }))
-            
-            # 模拟群聊的消息格式来调用数字员工
-            employee_name = employee["employee_name"]
-            message_type = "private"
-            original_data = {"to": to_user, "content": content, "employee_id": employee["id"]}
-            
-            if employee_name == "川农小助手":
-                self.call_ai_assistant(content, message_type, original_data)
-            elif employee_name == "天气小助手":
-                self.call_weather_api(content, message_type, original_data)
-            elif employee_name == "毒鸡汤助手":
-                self.send_poison_chicken_soup(message_type, original_data)
+            if employee:
+                self.write_message(json.dumps({
+                    "type": "success",
+                    "content": "消息已发送",
+                    "message_id": 0
+                }))
+                
+                # 模拟群聊的消息格式来调用数字员工
+                employee_name = employee["employee_name"]
+                message_type = "private"
+                original_data = {"to": to_user, "content": content}
+                
+                if employee_name == "川农小助手":
+                    self.call_ai_assistant(content, message_type, original_data)
+                elif employee_name == "天气小助手":
+                    self.call_weather_api(content, message_type, original_data)
+                elif employee_name == "毒鸡汤助手":
+                    self.send_poison_chicken_soup(message_type, original_data)
+                else:
+                    self.handle_other_employees(employee_name, content, message_type, original_data)
+                return
             else:
-                self.handle_other_employees(employee_name, content, message_type, original_data)
-            return
+                # 前端标记为数字员工但数据库中不存在，返回错误
+                self.write_message(json.dumps({
+                    "type": "error",
+                    "content": f"未知的数字员工: {to_user}"
+                }))
+                return
         
         # 是真实用户，继续原有逻辑
         target_user = UserRepository.get_user_by_username(to_user)
@@ -1051,10 +1179,20 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         
         # 如果用户在线，实时推送
         if to_user in online_users:
+            # 检查是否是文件消息
+            is_file = False
+            try:
+                parsed_content = json.loads(content)
+                if isinstance(parsed_content, dict) and 'file_url' in parsed_content and 'file_name' in parsed_content:
+                    is_file = True
+            except (json.JSONDecodeError, TypeError):
+                pass
+            
             online_users[to_user].write_message(json.dumps({
                 "type": "private",
                 "from": self.username,
                 "content": content,
+                "is_file": is_file,
                 "message_id": message_id,
                 "referenced_message_id": referenced_message_id
             }))
@@ -1069,6 +1207,31 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
                 "content": "消息已保存，等待对方上线",
                 "message_id": message_id
             }))
+
+    def save_group_message(self, data):
+        """保存群聊消息到数据库"""
+        group_id = data.get("group_id")
+        content = data.get("content")
+        referenced_message_id = data.get("referenced_message_id", None)
+        
+        if group_id is None or not content:
+            return None
+        
+        from app.models.db import get_connection
+        from app.models.user import UserRepository
+        
+        current_user = UserRepository.get_user_by_username(self.username)
+        
+        message_id = None
+        with get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO group_messages (group_id, sender_id, sender_type, content, message_type, referenced_message_id)
+                VALUES (?, ?, 'user', ?, 'text', ?)
+            """, (int(group_id), current_user["id"], content, referenced_message_id))
+            message_id = cursor.lastrowid
+            conn.commit()
+        
+        return message_id
 
     def handle_group_message(self, data):
         group_id = data.get("group_id")
@@ -1088,14 +1251,7 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         current_user = UserRepository.get_user_by_username(self.username)
         
         # 保存消息到数据库
-        message_id = None
-        with get_connection() as conn:
-            cursor = conn.execute("""
-                INSERT INTO group_messages (group_id, sender_id, sender_type, content, message_type, referenced_message_id)
-                VALUES (?, ?, 'user', ?, 'text', ?)
-            """, (int(group_id), current_user["id"], content, referenced_message_id))
-            message_id = cursor.lastrowid
-            conn.commit()
+        message_id = self.save_group_message(data)
         
         # 从数据库获取群成员
         with get_connection() as conn:
@@ -1115,11 +1271,21 @@ class ChatWebSocketHandler(tornado.websocket.WebSocketHandler):
         sent_count = 0
         for member in member_usernames:
             if member != self.username and member in online_users:
+                # 检查是否是文件消息
+                is_file = False
+                try:
+                    parsed_content = json.loads(content)
+                    if isinstance(parsed_content, dict) and 'file_url' in parsed_content and 'file_name' in parsed_content:
+                        is_file = True
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                
                 online_users[member].write_message(json.dumps({
                     "type": "group",
                     "group_id": group_id,
                     "from": self.username,
                     "content": content,
+                    "is_file": is_file,
                     "message_id": message_id,
                     "referenced_message_id": referenced_message_id
                 }))
@@ -1180,66 +1346,50 @@ class UserMessageHistoryHandler(UserBaseHandler):
         messages = []
         
         with get_connection() as conn:
-            if chat_type == "private" or chat_type == "bot":
-                # 检查是否是数字员工
-                employee = conn.execute(
-                    "SELECT * FROM digital_employees WHERE employee_name = ?", (target_id,)
-                ).fetchone()
+            if chat_type == "private":
+                # 获取私聊消息
+                target_user = UserRepository.get_user_by_username(target_id)
+                if not target_user:
+                    self.write({"success": False, "message": "用户不存在"})
+                    return
                 
-                if employee:
-                    # 获取数字员工的消息历史
-                    rows = conn.execute("""
-                        SELECT id, content, is_user, created_at
-                        FROM employee_messages
-                        WHERE user_id = ? AND employee_id = ?
-                        ORDER BY created_at DESC
-                        LIMIT ?
-                    """, (current_user["id"], employee["id"], limit)).fetchall()
+                rows = conn.execute("""
+                    SELECT 
+                        m.id, m.sender_id, m.receiver_id, m.content, m.message_type,
+                        m.is_read, m.read_at, m.referenced_message_id, m.created_at,
+                        s.username as sender_name, r.username as receiver_name
+                    FROM private_messages m
+                    JOIN users s ON m.sender_id = s.id
+                    JOIN users r ON m.receiver_id = r.id
+                    WHERE 
+                        (m.sender_id = ? AND m.receiver_id = ?) OR
+                        (m.sender_id = ? AND m.receiver_id = ?)
+                    ORDER BY m.created_at DESC
+                    LIMIT ?
+                """, (current_user["id"], target_user["id"], target_user["id"], current_user["id"], limit)).fetchall()
+                
+                for row in rows:
+                    content = row["content"]
+                    # 检查是否是文件消息（JSON格式包含file_url和file_name）
+                    try:
+                        parsed_content = json.loads(content)
+                        if isinstance(parsed_content, dict) and 'file_url' in parsed_content and 'file_name' in parsed_content:
+                            content = parsed_content
+                    except (json.JSONDecodeError, TypeError):
+                        pass
                     
-                    for row in rows:
-                        messages.append({
-                            "id": row["id"],
-                            "content": row["content"],
-                            "type": "text",
-                            "sender": self.current_user if row["is_user"] else target_id,
-                            "is_own": bool(row["is_user"]),
-                            "time": row["created_at"]
-                        })
-                else:
-                    # 获取普通私聊消息
-                    target_user = UserRepository.get_user_by_username(target_id)
-                    if not target_user:
-                        self.write({"success": False, "message": "用户不存在"})
-                        return
-                    
-                    rows = conn.execute("""
-                        SELECT 
-                            m.id, m.sender_id, m.receiver_id, m.content, m.message_type,
-                            m.is_read, m.read_at, m.referenced_message_id, m.created_at,
-                            s.username as sender_name, r.username as receiver_name
-                        FROM private_messages m
-                        JOIN users s ON m.sender_id = s.id
-                        JOIN users r ON m.receiver_id = r.id
-                        WHERE 
-                            (m.sender_id = ? AND m.receiver_id = ?) OR
-                            (m.sender_id = ? AND m.receiver_id = ?)
-                        ORDER BY m.created_at DESC
-                        LIMIT ?
-                    """, (current_user["id"], target_user["id"], target_user["id"], current_user["id"], limit)).fetchall()
-                    
-                    for row in rows:
-                        messages.append({
-                            "id": row["id"],
-                            "content": row["content"],
-                            "type": row["message_type"],
-                            "sender": row["sender_name"],
-                            "receiver": row["receiver_name"],
-                            "is_own": row["sender_id"] == current_user["id"],
-                            "is_read": bool(row["is_read"]),
-                            "read_at": row["read_at"],
-                            "referenced_message_id": row["referenced_message_id"],
-                            "time": row["created_at"]
-                        })
+                    messages.append({
+                        "id": row["id"],
+                        "content": content,
+                        "type": row["message_type"],
+                        "sender": row["sender_name"],
+                        "receiver": row["receiver_name"],
+                        "is_own": row["sender_id"] == current_user["id"],
+                        "is_read": bool(row["is_read"]),
+                        "read_at": row["read_at"],
+                        "referenced_message_id": row["referenced_message_id"],
+                        "time": row["created_at"]
+                    })
                 
             elif chat_type == "group":
                 # 获取群聊消息
@@ -1258,9 +1408,18 @@ class UserMessageHistoryHandler(UserBaseHandler):
                 
                 for row in rows:
                     sender_name = row["sender_name"] if row["sender_type"] == "user" else row["employee_name"]
+                    content = row["content"]
+                    # 检查是否是文件消息（JSON格式包含file_url和file_name）
+                    try:
+                        parsed_content = json.loads(content)
+                        if isinstance(parsed_content, dict) and 'file_url' in parsed_content and 'file_name' in parsed_content:
+                            content = parsed_content
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                    
                     messages.append({
                         "id": row["id"],
-                        "content": row["content"],
+                        "content": content,
                         "type": row["message_type"],
                         "sender": sender_name,
                         "sender_type": row["sender_type"],
@@ -1273,6 +1432,40 @@ class UserMessageHistoryHandler(UserBaseHandler):
         messages.reverse()
         
         self.write({"success": True, "messages": messages})
+
+
+class UserInfoHandler(UserBaseHandler):
+    """获取用户信息"""
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.authenticated
+    def get(self):
+        from app.models.user import UserRepository
+        
+        username = self.get_argument("username", "")
+        if not username:
+            self.write({"success": False, "message": "缺少用户名参数"})
+            return
+        
+        user_row = UserRepository.get_user_by_username(username)
+        if not user_row:
+            self.write({"success": False, "message": "用户不存在"})
+            return
+        
+        user = dict(user_row) if user_row else {}
+        
+        self.write({
+            "success": True,
+            "user": {
+                "username": user.get("username", ""),
+                "real_name": user.get("real_name", ""),
+                "email": user.get("email", ""),
+                "phone": user.get("phone", ""),
+                "create_at": user.get("create_at", "")
+            }
+        })
 
 
 class UserUnreadCountHandler(UserBaseHandler):
@@ -1625,9 +1818,18 @@ class UserMessageReferenceHandler(UserBaseHandler):
                 sender_name = row.get("sender_name", "") if message_type == "private" else (
                     row["sender_name"] if row["sender_type"] == "user" else row["employee_name"]
                 )
+                content = row["content"]
+                # 检查是否是文件消息（JSON格式包含file_url和file_name）
+                try:
+                    parsed_content = json.loads(content)
+                    if isinstance(parsed_content, dict) and 'file_url' in parsed_content and 'file_name' in parsed_content:
+                        content = parsed_content
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                
                 message_data = {
                     "id": row["id"],
-                    "content": row["content"],
+                    "content": content,
                     "type": row["message_type"],
                     "sender": sender_name,
                     "time": row["created_at"]

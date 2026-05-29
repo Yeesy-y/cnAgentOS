@@ -2,7 +2,7 @@ import tornado.web
 
 from app.controllers.admin_base import AdminBaseHandler
 from app.models.admin_user import AdminUserRepository
-from app.models.db import get_connection
+from app.models.user_service import UserRepository
 
 class AdminLoginHandler(AdminBaseHandler):
 	def get(self):
@@ -17,9 +17,12 @@ class AdminLoginHandler(AdminBaseHandler):
 		if not username or not password:
 			return self.render("admin_login.html", title="管理后台登录", error="用户名或密码不能为空", saved_username="")
 
-		user = AdminUserRepository.get_user_by_username(username)
-		if not user:
+		user_row = AdminUserRepository.get_user_by_username(username)
+		if not user_row:
 			return self.render("admin_login.html", title="管理后台登录", error="用户不存在", saved_username=username)
+
+		# 将 sqlite3.Row 对象转换为字典
+		user = dict(user_row) if user_row else {}
 
 		try:
 			user_status = user["status"]
@@ -30,19 +33,13 @@ class AdminLoginHandler(AdminBaseHandler):
 
 		if not AdminUserRepository.verify_user(username, password):
 			return self.render("admin_login.html", title="管理后台登录", error="用户名或密码错误", saved_username=username)
-		
-		# 验证用户是否具有管理员角色
-		has_admin_role = False
-		with get_connection() as conn:
-			roles = conn.execute("""
-				SELECT r.role_code FROM roles r
-				INNER JOIN user_roles ur ON r.id = ur.role_id
-				WHERE ur.user_id = ? AND r.role_code IN ('super_admin', 'admin_user')
-			""", (user["id"],)).fetchall()
-			has_admin_role = len(roles) > 0
-		
-		if not has_admin_role:
-			return self.render("admin_login.html", title="管理后台登录", error="您没有管理员权限，无法登录后台", saved_username=username)
+
+		# 验证用户是否具有管理员角色（支持 super_admin 和 admin 角色）
+		user_id = user.get("id")
+		if user_id:
+			has_admin_role = UserRepository.has_role_code(user_id, "super_admin") or UserRepository.has_role_code(user_id, "admin")
+			if not has_admin_role:
+				return self.render("admin_login.html", title="管理后台登录", error="您没有权限访问管理后台", saved_username=username)
 
 		if remember:
 			self.set_cookie("remember_admin_username", username, expires_days=30)

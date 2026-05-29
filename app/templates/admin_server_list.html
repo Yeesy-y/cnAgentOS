@@ -25,6 +25,12 @@
                         <div style="font-size:14px; opacity:0.9;">离线服务器</div>
                     </div>
                 </div>
+                <div class="layui-col-md4">
+                    <div class="layuiadmin-card-box" style="background:#5FB878; color:#fff; padding:20px; border-radius:8px; text-align:center;">
+                        <div style="font-size:36px; font-weight:600;">{{ healthy_count }}</div>
+                        <div style="font-size:14px; opacity:0.9;">健康服务器</div>
+                    </div>
+                </div>
             </div>
 
             <div style="margin-bottom:15px;">
@@ -42,8 +48,9 @@
                         <th style="width:80px;">权重</th>
                         <th style="width:100px;">最大连接</th>
                         <th style="width:80px;">状态</th>
+                        <th style="width:120px;">健康状态</th>
                         <th style="width:200px;">描述</th>
-                        <th style="width:200px;">操作</th>
+                        <th style="width:220px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -54,6 +61,9 @@
                             <td>
                                 <i class="layui-icon layui-icon-server" style="color:#1E9FFF;"></i>
                                 <strong>{{ s['name'] }}</strong>
+                                {% if s['is_current'] %}
+                                    <span class="layui-badge layui-bg-blue" style="margin-left:5px;">当前</span>
+                                {% end %}
                             </td>
                             <td>
                                 <code>{{ s['host'] }}:{{ s['port'] }}</code>
@@ -69,12 +79,28 @@
                                     <span class="layui-badge layui-bg-red">离线</span>
                                 {% end %}
                             </td>
+                            <td>
+                                {% if s['status'] == 'active' %}
+                                    {% if s['healthy'] %}
+                                        <span class="layui-badge layui-bg-green" title="延迟: {{ s['latency'] }}ms">健康</span>
+                                    {% else %}
+                                        <span class="layui-badge layui-bg-red" title="{{ s['health_message'] }}">异常</span>
+                                    {% end %}
+                                {% else %}
+                                    <span class="layui-badge layui-bg-gray">未检测</span>
+                                {% end %}
+                            </td>
                             <td style="color:#666; font-size:12px;">{{ s['description'] }}</td>
                             <td>
                                 <button type="button" class="layui-btn layui-btn-xs layui-btn-warm" onclick="editServer('{{ s['id'] }}', '{{ s['name'] }}', '{{ s['host'] }}', '{{ s['port'] }}', '{{ s['weight'] }}', '{{ s['max_connections'] }}', '{{ s['description'] }}')">
                                     <i class="layui-icon layui-icon-edit"></i> 编辑
                                 </button>
                                 {% if s['status'] == 'active' %}
+                                    {% if not s['is_current'] %}
+                                        <button type="button" class="layui-btn layui-btn-xs layui-btn-blue" onclick="switchToServer('{{ s['id'] }}', '{{ s['name'] }}')">
+                                            <i class="layui-icon layui-icon-switch"></i> 切换
+                                        </button>
+                                    {% end %}
                                     <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="toggleServer('{{ s['id'] }}', 'inactive')">
                                         <i class="layui-icon layui-icon-close-fill"></i> 禁用
                                     </button>
@@ -239,6 +265,35 @@ layui.use(['layer', 'form', 'jquery'], function(){
             '</div>'+
         '</div>';
     }
+
+    window.switchToServer = function(id, name){
+        layer.confirm('确认切换到服务器 "<strong>'+name+'</strong>" 吗？', {
+            icon: 3,
+            title: '切换服务器',
+            btn: ['确认切换', '取消']
+        }, function(index){
+            $.ajax({
+                url: '/admin/api/server/switch',
+                type: 'POST',
+                data: {
+                    server_id: id
+                },
+                success: function(res){
+                    if(res.success){
+                        layer.msg('切换成功', {icon: 1});
+                        setTimeout(function(){
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        layer.msg(res.message || '切换失败', {icon: 2});
+                    }
+                },
+                error: function(){
+                    layer.msg('切换失败', {icon: 2});
+                }
+            });
+        });
+    };
 
     window.toggleServer = function(id, status){
         var action = status === 'active' ? '启用' : '禁用';

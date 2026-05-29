@@ -54,8 +54,8 @@ class AdminGroupListHandler(AdminBaseHandler):
 				"creator_name": row["creator_name"] or "未知",
 				"member_count": row["member_count"],
 				"employee_count": row["employee_count"],
-				"status": row["status"] if "status" in row else "normal",
-				"created_at": row["created_at"][:19] if "created_at" in row and row["created_at"] else ""
+				"status": row.get("status", "normal"),
+				"created_at": row["created_at"][:19] if row.get("created_at") else ""
 			})
 		
 		self.render(
@@ -145,7 +145,7 @@ class AdminGroupDetailHandler(AdminBaseHandler):
 				"id": row["id"],
 				"name": row["username"],
 				"type": "user",
-				"joined_at": row["joined_at"][:19] if "joined_at" in row and row["joined_at"] else ""
+				"joined_at": row["joined_at"][:19] if row.get("joined_at") else ""
 			})
 		
 		employees = []
@@ -155,7 +155,7 @@ class AdminGroupDetailHandler(AdminBaseHandler):
 				"name": row["employee_name"],
 				"at_alias": row["at_alias"],
 				"type": "employee",
-				"added_at": row["added_at"][:19] if "added_at" in row and row["added_at"] else ""
+				"added_at": row["added_at"][:19] if row.get("added_at") else ""
 			})
 		
 		self.render(
@@ -166,9 +166,9 @@ class AdminGroupDetailHandler(AdminBaseHandler):
 			group={
 				"id": group["id"],
 				"name": group["name"],
-				"status": group["status"] if "status" in group else "normal",
-				"notice": group["notice"] if "notice" in group else "",
-				"created_at": group["created_at"][:19] if "created_at" in group and group["created_at"] else ""
+				"status": group.get("status", "normal"),
+				"notice": group.get("notice", ""),
+				"created_at": group["created_at"][:19] if group.get("created_at") else ""
 			},
 			members=members,
 			employees=employees
@@ -185,7 +185,7 @@ class AdminGroupMembersHandler(AdminBaseHandler):
 		
 		with get_connection() as conn:
 			user_rows = conn.execute("""
-				SELECT u.id, u.username, gm.joined_at
+				SELECT u.id, u.username, gm.joined_at, gm.status
 				FROM group_members gm
 				JOIN users u ON gm.user_id = u.id
 				WHERE gm.group_id = ?
@@ -204,7 +204,8 @@ class AdminGroupMembersHandler(AdminBaseHandler):
 				"id": row["id"],
 				"name": row["username"],
 				"type": "user",
-				"joined_at": row["joined_at"][:19] if "joined_at" in row and row["joined_at"] else ""
+				"status": row.get("status", "normal"),
+				"joined_at": row["joined_at"][:19] if row.get("joined_at") else ""
 			})
 		
 		for row in employee_rows:
@@ -213,7 +214,7 @@ class AdminGroupMembersHandler(AdminBaseHandler):
 				"name": row["employee_name"],
 				"at_alias": row["at_alias"],
 				"type": "employee",
-				"added_at": row["added_at"][:19] if "added_at" in row and row["added_at"] else ""
+				"added_at": row["added_at"][:19] if row.get("added_at") else ""
 			})
 		
 		return self.write(json.dumps({"success": True, "members": members}))
@@ -235,5 +236,90 @@ class AdminGroupMembersHandler(AdminBaseHandler):
 					conn.execute("DELETE FROM group_employees WHERE group_id = ? AND employee_id = ?", (group_id, member_id))
 				conn.commit()
 				return self.write(json.dumps({"success": True, "message": "移除成功"}))
+			elif action == "ban_member":
+				if member_type == "user":
+					conn.execute("UPDATE group_members SET status = 'banned' WHERE group_id = ? AND user_id = ?", (group_id, member_id))
+					conn.commit()
+					return self.write(json.dumps({"success": True, "message": "封禁成功"}))
+			elif action == "unban_member":
+				if member_type == "user":
+					conn.execute("UPDATE group_members SET status = 'normal' WHERE group_id = ? AND user_id = ?", (group_id, member_id))
+					conn.commit()
+					return self.write(json.dumps({"success": True, "message": "解封成功"}))
+		
+		return self.write(json.dumps({"success": False, "message": "未知操作"}))
+
+
+class AdminGroupMessagesHandler(AdminBaseHandler):
+	@tornado.web.authenticated
+	def get(self):
+		group_id = int(self.get_argument("group_id", "0"))
+		page = int(self.get_argument("page", "1"))
+		page_size = 20
+		
+		if not group_id:
+			return self.write(json.dumps({"success": False, "message": "缺少群ID"}))
+		
+		with get_connection() as conn:
+			count_row = conn.execute(
+				"SELECT COUNT(*) as cnt FROM group_messages WHERE group_id = ?",
+				(group_id,)
+			).fetchone()
+			total = count_row["cnt"] if count_row else 0
+			
+			offset = (page - 1) * page_size
+			rows = conn.execute("""
+				SELECT gm.*, u.username as sender_name
+				FROM group_messages gm
+				LEFT JOIN users u ON gm.sender_id = u.id
+				WHERE gm.group_id = ?
+				ORDER BY gm.created_at DESC
+				LIMIT ? OFFSET ?
+			""", (group_id, page_size, offset)).fetchall()
+		
+		messages = []
+		for row in rows:
+			content = row["content"]
+			try:
+				parsed = json.loads(content)
+				if isinstance(parsed, dict):
+					content = f"[消息对象: {parsed.get('type', 'unknown')}]"
+			except:
+				pass
+			
+			messages.append({
+				"id": row["id"],
+				"sender_name": row["sender_name"] or "系统",
+				"content": content[:100] + "..." if len(content) > 100 else content,
+				"content_type": row.get("message_type", "text"),
+				"created_at": row["created_at"][:19] if row.get("created_at") else ""
+			})
+		
+		return self.write(json.dumps({
+			"success": True,
+			"messages": messages,
+			"total": total,
+			"page": page,
+			"page_size": page_size
+		}))
+	
+	def post(self):
+		action = self.get_body_argument("action", "")
+		group_id = int(self.get_body_argument("group_id", "0"))
+		message_id = int(self.get_body_argument("message_id", "0"))
+		
+		if not group_id:
+			return self.write(json.dumps({"success": False, "message": "缺少群ID"}))
+		
+		with get_connection() as conn:
+			if action == "clear":
+				conn.execute("DELETE FROM group_messages WHERE group_id = ?", (group_id,))
+				conn.commit()
+				return self.write(json.dumps({"success": True, "message": "清空成功"}))
+			elif action == "delete":
+				if message_id:
+					conn.execute("DELETE FROM group_messages WHERE id = ? AND group_id = ?", (message_id, group_id))
+					conn.commit()
+					return self.write(json.dumps({"success": True, "message": "删除成功"}))
 		
 		return self.write(json.dumps({"success": False, "message": "未知操作"}))

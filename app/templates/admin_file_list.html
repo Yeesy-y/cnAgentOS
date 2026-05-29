@@ -11,6 +11,13 @@
                     <div class="layui-inline">
                         <form method="get" action="/admin/file/list" style="display:inline-flex;">
                             <input type="text" name="keyword" value="{{ keyword }}" placeholder="搜索文件名" class="layui-input" style="width:200px; margin-right:10px;">
+                            <select name="file_type" class="layui-input" style="width:120px; margin-right:10px;">
+                                <option value="">全部类型</option>
+                                <option value="image" {% if file_type == 'image' %}selected{% end %}>图片</option>
+                                <option value="video" {% if file_type == 'video' %}selected{% end %}>视频</option>
+                                <option value="audio" {% if file_type == 'audio' %}selected{% end %}>音频</option>
+                                <option value="other" {% if file_type == 'other' %}selected{% end %}>其他</option>
+                            </select>
                             <button type="submit" class="layui-btn"><i class="layui-icon layui-icon-search"></i> 搜索</button>
                             <a href="/admin/file/list" class="layui-btn layui-btn-primary" style="margin-left:5px;">重置</a>
                         </form>
@@ -43,6 +50,12 @@
                             <div style="font-size:12px; opacity:0.8;">去重后数量</div>
                         </div>
                     </div>
+                    <div class="layui-col-md3">
+                        <div class="layuiadmin-card-box" style="background:#5FB878; color:#fff; padding:15px; border-radius:8px;">
+                            <div style="font-size:24px; font-weight:600;">{{ saved_space }}</div>
+                            <div style="font-size:12px; opacity:0.8;">已节省空间</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -71,15 +84,17 @@
                             <tr>
                                 <td><input type="checkbox" name="file" value="{{ f['id'] }}" lay-skin="primary" class="rowCheck"></td>
                                 <td>
-                                    <i class="layui-icon layui-icon-file" style="color:#1E9FFF;"></i>
+                                    {% if f['content_type'] and 'image' in f['content_type'] and f['file_path'] %}
+                                        <img src="{{ f['file_path'] }}" style="width:40px; height:40px; border-radius:4px; margin-right:8px; float:left; cursor:pointer;" onclick="previewFile('{{ f['file_path'] }}')" title="点击预览">
+                                    {% else %}
+                                        <i class="layui-icon layui-icon-file" style="color:#1E9FFF; margin-right:8px;"></i>
+                                    {% end %}
                                     <span title="{{ f['original_name'] }}">{{ f['original_name'] }}</span>
-                                    {% if f['file_hash'] %}
-                                        <span style="color:#999; font-size:11px;" title="MD5: {{ f['file_hash'] }}">
-                                            <i class="layui-icon layui-icon-refresh"></i>
-                                        </span>
+                                    {% if f['is_duplicate'] %}
+                                        <span class="layui-badge layui-bg-orange" style="margin-left:5px;">重复</span>
                                     {% end %}
                                 </td>
-                                <td>{{ f['file_size'] }} B</td>
+                                <td>{{ f['file_size'] }}</td>
                                 <td>
                                     {% if f['content_type'] and 'image' in f['content_type'] %}
                                         <span class="layui-badge layui-bg-green">图片</span>
@@ -102,6 +117,11 @@
                                 </td>
                                 <td>
                                     {% if f['file_path'] %}
+                                        {% if f['content_type'] and 'image' in f['content_type'] %}
+                                            <button type="button" class="layui-btn layui-btn-xs layui-btn-normal" onclick="previewFile('{{ f['file_path'] }}')">
+                                                <i class="layui-icon layui-icon-search"></i> 预览
+                                            </button>
+                                        {% end %}
                                         <a href="{{ f['file_path'] }}" target="_blank" class="layui-btn layui-btn-xs layui-btn-normal">
                                             <i class="layui-icon layui-icon-download-circle"></i> 下载
                                         </a>
@@ -136,6 +156,20 @@ function formatSize(bytes) {
     var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     var i = Math.floor(Math.log(bytes) / Math.log(k));
     return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+}
+
+function previewFile(url) {
+    layui.use('layer', function(){
+        var layer = layui.layer;
+        layer.open({
+            type: 2,
+            title: '图片预览',
+            shadeClose: true,
+            shade: 0.8,
+            area: ['80%', '80%'],
+            content: url
+        });
+    });
 }
 
 layui.use(['layer', 'form', 'jquery'], function(){

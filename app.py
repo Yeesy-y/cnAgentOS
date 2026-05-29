@@ -26,14 +26,17 @@ from app.controllers.user_chat import (
     UserFriendAcceptHandler,
     UserFriendRejectHandler,
     UserFriendPendingHandler,
+    UserFriendClearHandler,
     UserGroupCreateHandler,
 	UserGroupInviteHandler,
 	UserGroupMembersHandler,
+	UserGroupClearHandler,
 	UserFriendsHandler,
 	UserGroupsHandler,
 	UserEmployeesHandler,
     UserFileUploadHandler,
     UserMessageHistoryHandler,
+    UserInfoHandler,
     UserUnreadCountHandler,
     UserMarkReadHandler,
     UserMessageSearchHandler,
@@ -51,9 +54,9 @@ from app.controllers.admin_rbac import AdminPermissionListHandler,AdminPermissio
 from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,AdminRoleEditHandler
 from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandler,AdminModelEditHandler,AdminModelTestHandler
 from app.controllers.admin_employee import AdminEmployeeListHandler,AdminEmployeeAddHandler,AdminEmployeeEditHandler
-from app.controllers.admin_group import AdminGroupListHandler,AdminGroupDetailHandler,AdminGroupMembersHandler
+from app.controllers.admin_group import AdminGroupListHandler,AdminGroupDetailHandler,AdminGroupMembersHandler,AdminGroupMessagesHandler
 from app.controllers.admin_file import AdminFileListHandler,AdminFileStatsHandler
-from app.controllers.admin_server import AdminServerListHandler,AdminServerStatusHandler
+from app.controllers.admin_server import AdminServerListHandler,AdminServerStatusHandler,AdminServerSwitchHandler
 from app.controllers.admin_tool import AdminToolListHandler,AdminToolBindHandler
 from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSourceAddHandler,AdminWatchSourceEditHandler
 from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler,AdminWatchDeepCollectHandler
@@ -144,6 +147,8 @@ def make_app():
 		(r"/user/api/search", UserSearchHandler),
 		(r"/user/api/conversations",UserConversationsHandler),
 		(r"/user/api/messages",UserMessagesHandler),
+		(r"/user/api/messages/history", UserMessageHistoryHandler),
+		(r"/user/api/info", UserInfoHandler),
 		(r"/user/api/send",UserSendHandler),
 		(r"/user/api/conversation/action",UserConversationActionHandler),
 		(r"/user/api/stream",UserStreamHandler),
@@ -155,6 +160,8 @@ def make_app():
 		(r"/user/api/group/create", UserGroupCreateHandler),
 		(r"/user/api/group/invite", UserGroupInviteHandler),
 		(r"/user/api/group/members", UserGroupMembersHandler),
+		(r"/user/api/group/clear", UserGroupClearHandler),
+		(r"/user/api/friend/clear", UserFriendClearHandler),
 		(r"/user/api/file/upload", UserFileUploadHandler),
 		(r"/user/api/message/history", UserMessageHistoryHandler),
 		(r"/user/api/unread/count", UserUnreadCountHandler),
@@ -185,10 +192,12 @@ def make_app():
 		(r"/admin/group/list",AdminGroupListHandler),
 		(r"/admin/group/detail",AdminGroupDetailHandler),
 		(r"/admin/api/group/members",AdminGroupMembersHandler),
+		(r"/admin/api/group/messages",AdminGroupMessagesHandler),
 		(r"/admin/file/list",AdminFileListHandler),
 		(r"/admin/api/file/stats",AdminFileStatsHandler),
 		(r"/admin/server/list",AdminServerListHandler),
 		(r"/admin/api/server/status",AdminServerStatusHandler),
+		(r"/admin/api/server/switch",AdminServerSwitchHandler),
 		(r"/admin/tool/list",AdminToolListHandler),
 		(r"/admin/api/tool/bind",AdminToolBindHandler),
 		# 瞭望管理路由

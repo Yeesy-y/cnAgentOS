@@ -1,10 +1,20 @@
 import os
 import json
 import hashlib
+import math
 import tornado.web
 
 from app.controllers.admin_base import AdminBaseHandler
 from app.models.db import get_connection
+
+
+def format_size(bytes):
+	if bytes == 0:
+		return '0 B'
+	k = 1024
+	sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+	i = min(int(math.log(bytes, k)) if bytes > 0 else 0, len(sizes) - 1)
+	return f"{bytes / k**i:.2f} {sizes[i]}"
 
 
 class AdminFileListHandler(AdminBaseHandler):
@@ -12,44 +22,59 @@ class AdminFileListHandler(AdminBaseHandler):
 	def get(self):
 		page = int(self.get_argument("page", "1"))
 		keyword = (self.get_argument("keyword", "") or "").strip()
+		file_type = (self.get_argument("file_type", "") or "").strip()
 		page_size = 20
 		
 		upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "uploads")
 		
 		with get_connection() as conn:
+			query = """
+				SELECT cf.*, u.username as uploader_name
+				FROM chat_files cf
+				LEFT JOIN users u ON cf.uploader_id = u.id
+				WHERE 1=1
+			"""
+			params = []
+			
 			if keyword:
-				count_row = conn.execute(
-					"SELECT COUNT(*) as cnt FROM chat_files WHERE original_name LIKE ?",
-					(f"%{keyword}%",)
-				).fetchone()
-				total = count_row["cnt"] if count_row else 0
-				
-				offset = (page - 1) * page_size
-				rows = conn.execute("""
-					SELECT cf.*, u.username as uploader_name
-					FROM chat_files cf
-					LEFT JOIN users u ON cf.uploader_id = u.id
-					WHERE cf.original_name LIKE ?
-					ORDER BY cf.created_at DESC
-					LIMIT ? OFFSET ?
-				""", (f"%{keyword}%", page_size, offset)).fetchall()
-			else:
-				count_row = conn.execute("SELECT COUNT(*) as cnt FROM chat_files").fetchone()
-				total = count_row["cnt"] if count_row else 0
-				
-				offset = (page - 1) * page_size
-				rows = conn.execute("""
-					SELECT cf.*, u.username as uploader_name
-					FROM chat_files cf
-					LEFT JOIN users u ON cf.uploader_id = u.id
-					ORDER BY cf.created_at DESC
-					LIMIT ? OFFSET ?
-				""", (page_size, offset)).fetchall()
+				query += " AND cf.original_name LIKE ?"
+				params.append(f"%{keyword}%")
+			
+			if file_type:
+				if file_type == "image":
+					query += " AND cf.content_type LIKE ?"
+					params.append("%image%")
+				elif file_type == "video":
+					query += " AND cf.content_type LIKE ?"
+					params.append("%video%")
+				elif file_type == "audio":
+					query += " AND cf.content_type LIKE ?"
+					params.append("%audio%")
+				else:
+					query += " AND (cf.content_type IS NULL OR cf.content_type NOT LIKE ? AND cf.content_type NOT LIKE ? AND cf.content_type NOT LIKE ?)"
+					params.extend(["%image%", "%video%", "%audio%"])
+			
+			count_query = query.replace("SELECT cf.*, u.username as uploader_name", "SELECT COUNT(*) as cnt")
+			count_row = conn.execute(count_query, tuple(params)).fetchone()
+			total = count_row["cnt"] if count_row else 0
+			
+			offset = (page - 1) * page_size
+			query += " ORDER BY cf.created_at DESC LIMIT ? OFFSET ?"
+			params.extend([page_size, offset])
+			
+			rows = conn.execute(query, tuple(params)).fetchall()
+		
+		all_hashes = {}
+		all_rows = conn.execute("SELECT file_hash, COUNT(*) as cnt FROM chat_files WHERE file_hash IS NOT NULL AND file_hash != '' GROUP BY file_hash").fetchall()
+		for r in all_rows:
+			all_hashes[r["file_hash"]] = r["cnt"]
 		
 		files = []
 		for row in rows:
 			file_path = os.path.join(upload_dir, row["stored_name"]) if row["stored_name"] else ""
 			file_exists = os.path.exists(file_path) if file_path else False
+			file_hash = row.get("file_hash", "")
+			is_duplicate = file_hash and all_hashes.get(file_hash, 0) > 1
 			
 			files.append({
 				"id": row["id"],
@@ -58,14 +83,28 @@ class AdminFileListHandler(AdminBaseHandler):
 				"file_path": "/static/uploads/" + row["stored_name"] if row["stored_name"] and file_exists else "",
 				"file_size": row["file_size"],
 				"content_type": row["content_type"],
-				"file_hash": row.get("file_hash", ""),
+				"file_hash": file_hash,
 				"uploader_name": row["uploader_name"] or "未知",
 				"created_at": row["created_at"][:19] if row.get("created_at") else "",
-				"exists": file_exists
+				"exists": file_exists,
+				"is_duplicate": is_duplicate
 			})
 		
-		total_size = sum(f["file_size"] for f in files)
-		unique_hashes = len(set(f["file_hash"] for f in files if f["file_hash"]))
+		total_size_result = conn.execute("SELECT COALESCE(SUM(file_size), 0) as total FROM chat_files").fetchone()
+		total_size = total_size_result["total"]
+		
+		unique_hashes_result = conn.execute("SELECT COUNT(DISTINCT file_hash) as cnt FROM chat_files WHERE file_hash IS NOT NULL AND file_hash != ''").fetchone()
+		unique_hashes = unique_hashes_result["cnt"]
+		
+		unique_size_result = conn.execute("""
+			SELECT COALESCE(SUM(file_size), 0) as total FROM (
+				SELECT file_hash, MAX(file_size) as file_size FROM chat_files 
+				WHERE file_hash IS NOT NULL AND file_hash != '' 
+				GROUP BY file_hash
+			)
+		""").fetchone()
+		unique_size = unique_size_result["total"]
+		saved_space = total_size - unique_size
 		
 		self.render(
 			"admin_file_list.html",
@@ -77,8 +116,10 @@ class AdminFileListHandler(AdminBaseHandler):
 			page=page,
 			page_size=page_size,
 			keyword=keyword,
-			total_size=total_size,
-			unique_hashes=unique_hashes
+			file_type=file_type,
+			total_size=format_size(total_size),
+			unique_hashes=unique_hashes,
+			saved_space=format_size(saved_space)
 		)
 	
 	def post(self):

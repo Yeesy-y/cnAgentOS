@@ -253,6 +253,7 @@ def init_db():
 			)
 			"""
 		)
+		_ensure_chat_messages_content_type(conn)
 		_ensure_chat_conversation_columns_exist(conn)
 		# 瞭望数据详情表
 		conn.execute(
@@ -417,24 +418,44 @@ def init_db():
 			)
 			"""
 		)
-		# 数字员工消息表
-		conn.execute(
-			"""
-			CREATE TABLE IF NOT EXISTS employee_messages(
-				id integer PRIMARY KEY AUTOINCREMENT,
-				user_id INTEGER NOT NULL,
-				employee_id INTEGER NOT NULL,
-				content TEXT NOT NULL,
-				is_user INTEGER NOT NULL DEFAULT 0,
-				created_at TEXT DEFAULT (datetime('now')),
-				FOREIGN KEY(user_id) REFERENCES users(id),
-				FOREIGN KEY(employee_id) REFERENCES digital_employees(id)
-			)
-			"""
-		)
 		# ==========================================================
 		
 		init_default_data(conn)
+
+def _ensure_chat_messages_content_type(conn):
+	try:
+		cursor = conn.execute("PRAGMA table_info(chat_messages)")
+		rows = cursor.fetchall()
+		for row in rows:
+			col_name = row[1]
+			col_type = row[2].upper()
+			if col_name == "content" and col_type != "TEXT":
+				try:
+					conn.execute("ALTER TABLE chat_messages RENAME TO chat_messages_old")
+					conn.execute("""
+						CREATE TABLE chat_messages(
+							id integer PRIMARY KEY AUTOINCREMENT,
+							conversation_id INTEGER NOT NULL,
+							role TEXT NOT NULL,
+							content TEXT NOT NULL,
+							create_at TEXT NOT NULL DEFAULT(datetime('now')),
+							FOREIGN KEY(conversation_id) REFERENCES chat_conversations(id)
+						)
+					""")
+					conn.execute("""
+						INSERT INTO chat_messages(id, conversation_id, role, content, create_at)
+						SELECT id, conversation_id, role, content, create_at FROM chat_messages_old
+					""")
+					conn.execute("DROP TABLE chat_messages_old")
+					conn.commit()
+				except Exception as e:
+					try:
+						conn.execute("ALTER TABLE chat_messages_old RENAME TO chat_messages")
+					except:
+						pass
+				break
+	except Exception:
+		pass
 
 def _ensure_chat_conversation_columns_exist(conn):
 	try:

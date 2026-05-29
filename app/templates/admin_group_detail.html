@@ -70,9 +70,10 @@
                         <th style="width:40px;"><input type="checkbox" lay-filter="checkAll" lay-skin="primary"></th>
                         <th style="width:60px;">ID</th>
                         <th>名称</th>
-                        <th style="width:100px;">类型</th>
+                        <th style="width:80px;">类型</th>
+                        <th style="width:80px;">状态</th>
                         <th style="width:180px;">加入时间</th>
-                        <th style="width:80px;">操作</th>
+                        <th style="width:160px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -82,11 +83,27 @@
                         <td>{{ m['id'] }}</td>
                         <td><i class="layui-icon layui-icon-user" style="color:#07C160;"></i> {{ m['name'] }}</td>
                         <td><span class="layui-badge layui-bg-green">用户</span></td>
+                        <td>
+                            {% if m.get('status') == 'banned' %}
+                                <span class="layui-badge layui-bg-red">已封禁</span>
+                            {% else %}
+                                <span class="layui-badge layui-bg-green">正常</span>
+                            {% end %}
+                        </td>
                         <td>{{ m['joined_at'] }}</td>
                         <td>
                             <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="removeMember('{{ group['id'] }}', '{{ m['id'] }}', 'user', '{{ m['name'] }}')">
                                 <i class="layui-icon layui-icon-delete"></i> 移除
                             </button>
+                            {% if m.get('status') == 'banned' %}
+                                <button type="button" class="layui-btn layui-btn-xs layui-btn-normal" onclick="banMember('{{ group['id'] }}', '{{ m['id'] }}', 'user', '{{ m['name'] }}', 'unban')">
+                                    <i class="layui-icon layui-icon-ok"></i> 解封
+                                </button>
+                            {% else %}
+                                <button type="button" class="layui-btn layui-btn-xs layui-btn-warm" onclick="banMember('{{ group['id'] }}', '{{ m['id'] }}', 'user', '{{ m['name'] }}', 'ban')">
+                                    <i class="layui-icon layui-icon-fire"></i> 封禁
+                                </button>
+                            {% end %}
                         </td>
                     </tr>
                     {% end %}
@@ -96,6 +113,7 @@
                         <td>{{ e['id'] }}</td>
                         <td><i class="layui-icon layui-icon-star" style="color:#F59E0B;"></i> {{ e['name'] }} <span style="color:#999; font-size:11px;">@{{ e['at_alias'] }}</span></td>
                         <td><span class="layui-badge layui-bg-orange">数字员工</span></td>
+                        <td><span class="layui-badge layui-bg-green">正常</span></td>
                         <td>{{ e['added_at'] }}</td>
                         <td>
                             <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="removeMember('{{ group['id'] }}', '{{ e['id'] }}', 'employee', '{{ e['name'] }}')">
@@ -106,7 +124,7 @@
                     {% end %}
                     {% if not members and not employees %}
                     <tr>
-                        <td colspan="6" style="text-align:center; color:#999; padding:30px;">
+                        <td colspan="7" style="text-align:center; color:#999; padding:30px;">
                             <i class="layui-icon layui-icon-user" style="font-size:40px;"></i>
                             <p style="margin-top:10px;">暂无成员</p>
                         </td>
@@ -114,6 +132,39 @@
                     {% end %}
                 </tbody>
             </table>
+
+            <fieldset class="layui-elem-field layui-field-title" style="margin-top:30px;">
+                <legend>群消息管理</legend>
+            </fieldset>
+            
+            <div style="margin-bottom:20px;">
+                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" id="clearMessagesBtn">
+                    <i class="layui-icon layui-icon-delete"></i> 清空所有消息
+                </button>
+            </div>
+
+            <div id="messageList" style="max-height:400px; overflow-y:auto;">
+                <table class="layui-table" lay-skin="line">
+                    <thead>
+                        <tr>
+                            <th style="width:80px;">发送者</th>
+                            <th>内容</th>
+                            <th style="width:180px;">时间</th>
+                            <th style="width:80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="messageTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align:center; color:#999; padding:20px;">
+                                <i class="layui-icon layui-icon-loading" style="font-size:20px;"></i> 加载中...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="messagePager" style="text-align:center; margin-top:10px;">
+            </div>
         </div>
     </div>
 </div>
@@ -122,6 +173,7 @@
 {% block js %}
 <script>
 var groupId = '{{ group['id'] }}';
+var currentPage = 1;
 
 layui.use(['layer', 'form', 'jquery'], function(){
     var layer = layui.layer;
@@ -182,6 +234,40 @@ layui.use(['layer', 'form', 'jquery'], function(){
         });
     };
 
+    window.banMember = function(gid, mid, type, name, action) {
+        var msg = action === 'ban' ? '封禁' : '解封';
+        layer.confirm('确认' + msg + ' "<strong>' + name + '</strong>" 吗？', {
+            icon: 3,
+            title: msg + '成员',
+            btn: ['确认', '取消']
+        }, function(index){
+            $.ajax({
+                url: '/admin/api/group/members',
+                type: 'POST',
+                data: {
+                    action: action === 'ban' ? 'ban_member' : 'unban_member',
+                    group_id: gid,
+                    member_id: mid,
+                    member_type: type
+                },
+                success: function(res) {
+                    if(res.success) {
+                        layer.msg(msg + '成功', {icon: 1});
+                        setTimeout(function(){
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        layer.msg(res.message || msg + '失败', {icon: 2});
+                    }
+                },
+                error: function() {
+                    layer.msg('请求失败', {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    };
+
     $('#removeMemberBtn').on('click', function(){
         var checked = $('input[name="member"]:checked');
         if(checked.length === 0) return;
@@ -212,6 +298,145 @@ layui.use(['layer', 'form', 'jquery'], function(){
             layer.close(index);
         });
     });
+
+    // 加载消息列表
+    function loadMessages(page) {
+        $.ajax({
+            url: '/admin/api/group/messages',
+            type: 'GET',
+            data: {
+                group_id: groupId,
+                page: page
+            },
+            success: function(res) {
+                if(res.success) {
+                    renderMessages(res.messages, res.total, res.page, res.page_size);
+                } else {
+                    $('#messageTableBody').html('<tr><td colspan="4" style="text-align:center; color:#999; padding:20px;">加载失败</td></tr>');
+                }
+            },
+            error: function() {
+                $('#messageTableBody').html('<tr><td colspan="4" style="text-align:center; color:#999; padding:20px;">加载失败</td></tr>');
+            }
+        });
+    }
+
+    function renderMessages(messages, total, page, pageSize) {
+        currentPage = page;
+        var html = '';
+        
+        if(messages.length === 0) {
+            html = '<tr><td colspan="4" style="text-align:center; color:#999; padding:20px;">暂无消息</td></tr>';
+        } else {
+            $.each(messages, function(index, msg) {
+                html += '<tr>';
+                html += '<td><i class="layui-icon layui-icon-user" style="color:#07C160;"></i> ' + msg.sender_name + '</td>';
+                html += '<td>' + msg.content + '</td>';
+                html += '<td>' + msg.created_at + '</td>';
+                html += '<td><button type="button" class="layui-btn layui-btn-xs layui-btn-danger" onclick="deleteMessage(' + msg.id + ')">删除</button></td>';
+                html += '</tr>';
+            });
+        }
+        
+        $('#messageTableBody').html(html);
+        
+        // 渲染分页
+        renderPager(total, page, pageSize);
+    }
+
+    function renderPager(total, page, pageSize) {
+        var totalPages = Math.ceil(total / pageSize);
+        var html = '';
+        
+        if(totalPages <= 1) {
+            $('#messagePager').html('');
+            return;
+        }
+        
+        html += '<div class="layui-box layui-laypage layui-laypage-default">';
+        
+        if(page > 1) {
+            html += '<a href="javascript:loadMessages(' + (page - 1) + ')" class="layui-laypage-prev">上一页</a>';
+        }
+        
+        for(var i = 1; i <= totalPages; i++) {
+            if(i === page) {
+                html += '<span class="layui-laypage-curr"><em>' + i + '</em></span>';
+            } else {
+                html += '<a href="javascript:loadMessages(' + i + ')">' + i + '</a>';
+            }
+        }
+        
+        if(page < totalPages) {
+            html += '<a href="javascript:loadMessages(' + (page + 1) + ')" class="layui-laypage-next">下一页</a>';
+        }
+        
+        html += '</div>';
+        
+        $('#messagePager').html(html);
+    }
+
+    window.deleteMessage = function(msgId) {
+        layer.confirm('确认删除这条消息吗？', {
+            icon: 3,
+            title: '删除消息',
+            btn: ['确认', '取消']
+        }, function(index){
+            $.ajax({
+                url: '/admin/api/group/messages',
+                type: 'POST',
+                data: {
+                    action: 'delete',
+                    group_id: groupId,
+                    message_id: msgId
+                },
+                success: function(res) {
+                    if(res.success) {
+                        layer.msg('删除成功', {icon: 1});
+                        loadMessages(currentPage);
+                    } else {
+                        layer.msg(res.message || '删除失败', {icon: 2});
+                    }
+                },
+                error: function() {
+                    layer.msg('请求失败', {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    };
+
+    $('#clearMessagesBtn').on('click', function(){
+        layer.confirm('确认清空该群的所有消息吗？此操作不可恢复！', {
+            icon: 3,
+            title: '清空消息',
+            btn: ['确认清空', '取消']
+        }, function(index){
+            $.ajax({
+                url: '/admin/api/group/messages',
+                type: 'POST',
+                data: {
+                    action: 'clear',
+                    group_id: groupId
+                },
+                success: function(res) {
+                    if(res.success) {
+                        layer.msg('清空成功', {icon: 1});
+                        loadMessages(1);
+                    } else {
+                        layer.msg(res.message || '清空失败', {icon: 2});
+                    }
+                },
+                error: function() {
+                    layer.msg('请求失败', {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    });
+
+    // 页面加载时加载消息列表
+    loadMessages(1);
 });
 </script>
 {% end %}
