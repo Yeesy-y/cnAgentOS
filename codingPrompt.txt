@@ -5,9 +5,23 @@ admin/admin888)
 -后台主页：预留页面，后期开发完所有模块后再实现，本次任务不动代码。
 用户管理：实现用户新增/删除/批量删除/修改/分页(20条)等功能。
 
+已实现功能（对应路由/页面）：
+-后台登录：/admin/login（默认 admin/admin888，支持记住用户名；登录校验需具备 super_admin/admin 角色）
+-后台主页：/admin/index（基础管理首页已实现）
+-用户管理：/admin/user/list（20条/页）、/admin/user/add、/admin/user/edit
+--支持新增/编辑/删除/批量删除
+--admin 为系统用户：不可删除、不可编辑基础信息，仅可改密码
+--列表展示用户角色徽章（用户-角色关系来自 user_roles）
+-个人资料：/admin/user/profile（基本资料维护）
+-安全设置：/admin/user/security（修改当前管理员密码）
+
 完成后台管理框架的前端界面开发
 -通过layui开发后台经典管理界面，左侧为菜单/右侧为工作区。
 -其他组件根据任务需求自行完善补充。
+
+已实现功能（管理端框架）：
+-管理后台统一布局：layui 左侧菜单 + 右侧工作区（admin_base.html）
+-菜单已包含：系统管理、模型引擎、智能服务、瞭望管理、接口管理、数智大屏、智能舆情等模块入口
 
 任务二:
 
@@ -19,6 +33,17 @@ admin/admin888)
 开发限制:
 遵循前置任务开发成果及要求完成功能模块的实现,保证开发的一致性。
 
+已实现功能（RBAC）：
+-权限管理：/admin/perm/list、/admin/perm/add、/admin/perm/edit
+--支持父级/子级权限（二级联动）、排序字段 sort_order、删除权限
+-角色管理：/admin/role/list、/admin/role/add、/admin/role/edit
+--支持勾选权限树进行分配（role_permissions）
+--超级管理员角色（id=1）不可修改/删除
+-初始化数据：启动时 init_db() 会自动写入默认角色、默认权限，并给 admin 账号绑定超级管理员角色
+
+当前实现说明：
+-“菜单侧功能化/动态菜单渲染”目前仍以静态菜单模板为主（admin_base.html），但权限/角色/映射关系已落库，可作为后续动态菜单渲染的数据基础
+
 
 任务三:
 继续后端-管理侧功能模块的开发
@@ -26,6 +51,11 @@ admin/admin888)
 -用户管理列表:增加列显示角色信息
 开发限制:
 遵循前置任务开发成果及要求完成功能模块的实现,保证开发的一致性。
+
+已实现功能（用户管理优化）：
+-用户新增/编辑支持角色勾选与保存（user_roles）
+-用户列表展示角色信息（徽章展示）
+-admin 用户限制已落实：不可删除、不可改基础信息，仅可修改密码
 
 任务四:
 继续后端-管理侧功能模块的开发
@@ -53,7 +83,20 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 以下为APIkey：
-apikey=sk-aigc-f833a78051838cb709373ff911e01f165ce42bc9
+apikey=YOUR_API_KEY（已脱敏：请使用你自己的 Key，且不要把真实 Key 写入仓库）
+
+已实现功能（模型引擎）：
+-模型服务管理：/admin/model/list、/admin/model/add、/admin/model/edit
+--橱窗卡片风格列表：3列网格展示，6条/页
+--支持新增/编辑/删除、启用/禁用、设置默认模型（is_default）
+--记录 token_used（模型测试与深度采集会累计 token）
+-模型对话测试：/admin/model/test
+--支持同步调用返回
+--支持 SSE 流式测试（text/event-stream）
+
+用户侧对话能力（与模型引擎联动）：
+-用户侧模型列表：/user/api/models
+-用户侧聊天：/user/api/send 创建流式任务，/user/api/stream 以 SSE 返回模型输出并落库（chat_conversations/chat_messages）
 
 
 任务五:
@@ -93,6 +136,25 @@ sec-ch-ua-platform: "Windows"
 -- 删除/批量删除
 -- AI深度采集(后续单独任务完成)
 
+已实现功能（瞭望管理）：
+-采集源管理：/admin/watch/source/list、/admin/watch/source/add、/admin/watch/source/edit
+--支持新增/编辑/删除、启用/禁用
+--支持 URL 模板 + headers_json + cookie 的可视化配置（可动态替换 {keyword}/{pn} 等参数）
+--默认内置：百度新闻采集源（init_default_data 自动初始化）
+-瞭望采集：/admin/watch/collect
+--独立炫酷风格页面（不与 layui 同步）
+--关键词输入 + 采集源开关选择 + 采集数量/页数参数
+--采集结果写入 watch_data（SQLite）
+-数据仓库：/admin/watch/data/list
+--按20条/页展示采集数据
+--支持删除/批量删除
+-AI深度采集：/admin/watch/deep/collect（SSE 推送进度）
+--抓取原文网页 + 默认模型深度解析
+--结果写入 watch_data_detail，并统计 tokens_used
+-自动采集任务：/admin/watch/auto-task（JSON API）
+--支持创建任务、启停任务、手动触发、记录 last_run_at/next_run_at/last_result
+--服务启动后每60秒轮询执行到期任务（app.py 中 PeriodicCallback）
+
 任务六:
 继续后端-管理侧功能模块的开发:
 接口管理: 完成一个可以新增/修改/删除/分页的接口URL管理模块, 该模块支持将互联网上搜集到的API放置于此模块集中管理, 并对系统其他模块提供API接口服务。
@@ -128,6 +190,12 @@ sec-ch-ua-platform: "Windows"
 开发限制:
 - 遵循前置任务开发成果及要求完成功能模块的实现, 保证开发的一致性。
 
+已实现功能（接口管理）：
+-接口管理页面：/admin/api/list、/admin/api/add、/admin/api/edit
+--支持分页（20条/页）、关键字搜索、启用/禁用、删除
+-接口测试：/admin/api/test（可输入 params_json，后端发起请求并返回结果）
+-默认内置接口：网易云随机音乐、三日天气查询、毒鸡汤（init_default_data 自动初始化到 api_endpoints）
+
 任务七:
 继续后端 - 管理侧功能模块的开发:
 -创建新菜单：智能服务。然后把数字员工模块放到该新菜单下
@@ -144,6 +212,47 @@ sec-ch-ua-platform: "Windows"
 -功能实现后，需要将对应的数字员工川小农、天气、音乐一下新增到数据库表中
 -保持与原来UI界面风格一致
 
+已实现功能（数字员工体系）：
+-后台菜单：已新增“智能服务”菜单，并包含数字员工/群聊管理/文件管理/服务器管理/工具管理等入口
+-数字员工管理：/admin/employee/list、/admin/employee/add、/admin/employee/edit
+--支持员工分类 category（AI/普通）、服务类型 service_type（LLM/API）
+--LLM 员工：支持 prompt + 指定模型（model_code）或使用默认模型（config_json.use_default_model）
+--API 员工：绑定接口管理 api_code，并支持从 config_json 读取参数映射（如 city_param）
+-用户侧 @调用：/user/api/send + /user/api/stream（SSE）
+--@别名匹配 digital_employees.at_alias，自动走 LLM 或 API 分支
+-预置员工（启动时自动写入 digital_employees）：
+--川农小助手（LLM，使用默认模型 + Prompt）
+--天气小助手（API，默认 query_tian，参数 city）
+--毒鸡汤助手（API）
+说明：音乐员工未默认预置，可在后台新增“API类型员工”，绑定 api_code=music_wy_rand，并设置 @别名为“音乐”
+
+附录：当前系统主要入口（便于联调）
+用户侧：
+-登录/注册：/login、/register
+-主页：/home
+-智能聊天（会话）：/chat（流式：/user/api/send + /user/api/stream）
+-即时通讯：/chat/ws（WebSocket），以及 /user/api/friends、/user/api/groups、/user/api/file/upload 等接口
+-个人资料：/profile
+
+管理后台：
+-登录：/admin/login
+-首页：/admin/index
+-用户：/admin/user/list
+-权限/角色：/admin/perm/list、/admin/role/list
+-模型引擎：/admin/model/list
+-智能服务：/admin/employee/list、/admin/group/list、/admin/file/list、/admin/server/list、/admin/tool/list
+-瞭望管理：/admin/watch/source/list、/admin/watch/collect、/admin/watch/data/list、/admin/watch/auto-task
+-接口管理：/admin/api/list
+-数智大屏：/admin/dashboard（数据接口：/api/dashboard/data）
+-智能舆情：/admin/public-sentiment（分析接口：/api/public-sentiment/*）
+
+附录：数据库（SQLite，database/app.db）核心表
+-账号与权限：users、roles、permissions、role_permissions、user_roles、admin_sessions
+-模型与对话：model_services、chat_conversations、chat_messages
+-瞭望采集：watch_sources、watch_data、watch_data_detail、watch_auto_tasks
+-接口与数字员工：api_endpoints、digital_employees、ai_tools、employee_tools
+-即时通讯与文件：friends、groups、group_members、group_employees、private_messages、employee_private_messages、group_messages、group_message_reads、chat_files、chat_servers
+-风控与舆情：risk_records
 
 
 
