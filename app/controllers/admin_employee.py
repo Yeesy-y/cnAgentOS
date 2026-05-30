@@ -1,10 +1,24 @@
 import json
 import tornado.web
+from datetime import date, datetime
 
 from app.controllers.admin_base import AdminBaseHandler
 from app.models.digital_employee import DigitalEmployeeRepository
 from app.models.model_service import ModelServiceRepository
 from app.models.api_service import ApiEndpointRepository
+
+def _format_datetime_value(value):
+	if value is None:
+		return ""
+	if isinstance(value, (datetime, date)):
+		try:
+			return value.strftime("%Y-%m-%d %H:%M:%S")
+		except Exception:
+			return str(value)
+	s = str(value)
+	if len(s) >= 19:
+		return s[:19]
+	return s
 
 
 class AdminEmployeeListHandler(AdminBaseHandler):
@@ -14,9 +28,8 @@ class AdminEmployeeListHandler(AdminBaseHandler):
 		keyword = (self.get_argument("keyword", "") or "").strip()
 		result = DigitalEmployeeRepository.list_employees(page, 20, keyword)
 		for e in result["data"]:
-			ca = e.get("create_at") or ""
-			if ca and len(ca) > 10:
-				e["create_at"] = ca[:10] + " " + ca[11:19]
+			if "create_at" in e and e.get("create_at"):
+				e["create_at"] = _format_datetime_value(e.get("create_at"))
 		self.render(
 			"admin_employee_list.html",
 			title="数字员工",

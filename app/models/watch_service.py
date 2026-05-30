@@ -238,3 +238,75 @@ class WatchDataRepository:
 				except sqlite3.IntegrityError:
 					pass
 		return count
+
+
+class WatchDataDetailRepository:
+	@staticmethod
+	def create_detail(
+		data_id: int,
+		source_id: int,
+		detail_title: str = None,
+		detail_content: str = None,
+		detail_summary: str = None,
+		detail_keywords: str = None,
+		source_url: str = None,
+		ai_model: str = None,
+		tokens_used: int = 0,
+		deep_status: int = 0,
+		error_msg: str = None,
+	) -> int:
+		try:
+			with get_connection() as conn:
+				cursor = conn.execute(
+					"""
+					INSERT INTO watch_data_detail(
+						data_id, source_id, detail_title, detail_content, detail_summary,
+						detail_keywords, source_url, ai_model, tokens_used, deep_status, error_msg
+					) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+					""",
+					(
+						data_id,
+						source_id,
+						detail_title,
+						detail_content,
+						detail_summary,
+						detail_keywords,
+						source_url,
+						ai_model,
+						tokens_used or 0,
+						deep_status or 0,
+						error_msg,
+					),
+				)
+				return cursor.lastrowid or 0
+		except sqlite3.IntegrityError:
+			return 0
+		except Exception:
+			return 0
+
+	@staticmethod
+	def update_detail(detail_id: int, **fields) -> bool:
+		allowed = {
+			"detail_title",
+			"detail_content",
+			"detail_summary",
+			"detail_keywords",
+			"source_url",
+			"ai_model",
+			"tokens_used",
+			"deep_status",
+			"error_msg",
+		}
+		sets = []
+		values = []
+		for k, v in (fields or {}).items():
+			if k not in allowed:
+				continue
+			sets.append(f"{k}=?")
+			values.append(v)
+		if not sets:
+			return False
+		values.append(detail_id)
+		with get_connection() as conn:
+			conn.execute(f"UPDATE watch_data_detail SET {', '.join(sets)} WHERE id=?", values)
+		return True

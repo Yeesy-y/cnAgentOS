@@ -10,15 +10,17 @@ from tornado.httpserver import HTTPServer
 #引入admin-controller层
 from app.controllers.admin_auth import AdminLoginHandler,AdminLogoutHandler
 from app.controllers.admin_home import AdminIndexHandler
-from app.controllers.admin_user import AdminUserListHandler,AdminUserAddHandler,AdminUserEditHandler
+from app.controllers.admin_user import AdminUserListHandler,AdminUserAddHandler,AdminUserEditHandler,AdminProfileHandler,AdminSecurityHandler
 from app.controllers.admin_rbac import AdminPermissionListHandler,AdminPermissionAddHandler,AdminPermissionEditHandler
 from app.controllers.admin_rbac import AdminRoleListHandler,AdminRoleAddHandler,AdminRoleEditHandler
 from app.controllers.admin_model import AdminModelListHandler,AdminModelAddHandler,AdminModelEditHandler,AdminModelTestHandler
 from app.controllers.admin_employee import AdminEmployeeListHandler,AdminEmployeeAddHandler,AdminEmployeeEditHandler
+from app.controllers.admin_file import AdminFileListHandler,AdminFileStatsHandler
+from app.controllers.admin_server import AdminServerListHandler,AdminServerStatusHandler,AdminServerSwitchHandler, AdminDbConfigHandler
 from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSourceAddHandler,AdminWatchSourceEditHandler
-from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler
+from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler,AdminWatchDeepCollectHandler
 from app.controllers.admin_api import AdminApiListHandler,AdminApiAddHandler,AdminApiEditHandler,AdminApiTestHandler
-#引入db-model层
+#引入 db-model 层
 from app.models.db import init_db
 
 
@@ -76,19 +78,22 @@ def make_app():
 		template_path=os.path.join(base_url,"app","templates"),
 		static_path=os.path.join(base_url,"app","static"),
 		cookie_secret="demo-cookie-secret-change-me",
-		login_url="/auth/login",
+		login_url="/admin/login",
 		xsrf_cookies=True,
 		debug=True,
 		autoreload=True
 	)
 	return tornado.web.Application([
 		# admin后台路由
+		(r"/",AdminLoginHandler),
 		(r"/admin/login",AdminLoginHandler),
 		(r"/admin/logout",AdminLogoutHandler),
 		(r"/admin/index",AdminIndexHandler),
 		(r"/admin/user/list",AdminUserListHandler),
 		(r"/admin/user/add",AdminUserAddHandler),
 		(r"/admin/user/edit",AdminUserEditHandler),
+		(r"/admin/user/profile",AdminProfileHandler),
+		(r"/admin/user/security",AdminSecurityHandler),
 		# 模型引擎路由
 		(r"/admin/model/list",AdminModelListHandler),
 		(r"/admin/model/add",AdminModelAddHandler),
@@ -98,12 +103,19 @@ def make_app():
 		(r"/admin/employee/list",AdminEmployeeListHandler),
 		(r"/admin/employee/add",AdminEmployeeAddHandler),
 		(r"/admin/employee/edit",AdminEmployeeEditHandler),
+		(r"/admin/file/list",AdminFileListHandler),
+		(r"/admin/api/file/stats",AdminFileStatsHandler),
+		(r"/admin/server/list",AdminServerListHandler),
+		(r"/admin/api/server/status",AdminServerStatusHandler),
+		(r"/admin/api/server/switch",AdminServerSwitchHandler),
+		(r"/admin/api/db/config", AdminDbConfigHandler),
 		# 瞭望管理路由
 		(r"/admin/watch/source/list",AdminWatchSourceListHandler),
 		(r"/admin/watch/source/add",AdminWatchSourceAddHandler),
 		(r"/admin/watch/source/edit",AdminWatchSourceEditHandler),
 		(r"/admin/watch/collect",AdminWatchCollectHandler),
 		(r"/admin/watch/data/list",AdminWatchDataListHandler),
+		(r"/admin/watch/deep/collect",AdminWatchDeepCollectHandler),
 		# RBAC路由
 		(r"/admin/perm/list",AdminPermissionListHandler),
 		(r"/admin/perm/add",AdminPermissionAddHandler),
@@ -112,14 +124,12 @@ def make_app():
 		(r"/admin/role/add",AdminRoleAddHandler),
 		(r"/admin/role/edit",AdminRoleEditHandler),
 		# 接口管理路由
-		(r"/admin/api/list",AdminApiListHandler),
-		(r"/admin/api/add",AdminApiAddHandler),
-		(r"/admin/api/edit",AdminApiEditHandler),
-		(r"/admin/api/test",AdminApiTestHandler)
-
-		],
-		**settings
-		)
+		(r"/admin/api/list", AdminApiListHandler),
+		(r"/admin/api/add", AdminApiAddHandler),
+		(r"/admin/api/edit", AdminApiEditHandler),
+		(r"/admin/api/test", AdminApiTestHandler),
+], **settings
+)
 
 
 
@@ -137,4 +147,3 @@ if __name__=="__main__":
 
 	print("===== Server 启动成功 ======= 端口：10086 ======",flush=True)
 	tornado.ioloop.IOLoop.current().start()
-

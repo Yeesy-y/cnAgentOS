@@ -1,8 +1,22 @@
 import tornado.web
+from datetime import date, datetime
 
 from app.controllers.admin_base import AdminBaseHandler
 from app.models.admin_user import AdminUserRepository
 from app.models.rbac import RoleRepository
+
+def _format_datetime_value(value):
+	if value is None:
+		return ""
+	if isinstance(value, (datetime, date)):
+		try:
+			return value.strftime("%Y-%m-%d %H:%M:%S")
+		except Exception:
+			return str(value)
+	s = str(value)
+	if len(s) >= 19:
+		return s[:19]
+	return s
 
 class AdminUserListHandler(AdminBaseHandler):
 	@tornado.web.authenticated
@@ -10,9 +24,7 @@ class AdminUserListHandler(AdminBaseHandler):
 		result = AdminUserRepository.list_users(1, 20)
 		for u in result["data"]:
 			if "create_at" in u and u["create_at"]:
-				ca = u["create_at"]
-				if len(ca) > 10:
-					u["create_at"] = ca[:10] + " " + ca[11:19]
+				u["create_at"] = _format_datetime_value(u["create_at"])
 		self.render("admin_user_list.html",
 			title="用户管理",
 			username=self.current_user,
@@ -115,3 +127,59 @@ class AdminUserEditHandler(AdminBaseHandler):
 			AdminUserRepository.assign_roles(user_id, role_ids)
 		
 		return self.redirect("/admin/user/list")
+
+
+class AdminProfileHandler(AdminBaseHandler):
+	@tornado.web.authenticated
+	def get(self):
+		user = AdminUserRepository.get_user_by_username(self.current_user)
+		if not user:
+			return self.redirect("/admin/login")
+		self.render(
+			"admin_profile.html",
+			title="基本资料",
+			username=self.current_user,
+			active_menu="",
+			user=dict(user)
+		)
+
+	@tornado.web.authenticated
+	def post(self):
+		user = AdminUserRepository.get_user_by_username(self.current_user)
+		if not user:
+			return self.redirect("/admin/login")
+		real_name = (self.get_body_argument("real_name", "") or "").strip()
+		email = (self.get_body_argument("email", "") or "").strip()
+		phone = (self.get_body_argument("phone", "") or "").strip()
+		AdminUserRepository.update_user(user["id"], real_name=real_name, email=email, phone=phone)
+		return self.redirect("/admin/user/profile")
+
+
+class AdminSecurityHandler(AdminBaseHandler):
+	@tornado.web.authenticated
+	def get(self):
+		self.render(
+			"admin_security.html",
+			title="安全设置",
+			username=self.current_user,
+			active_menu=""
+		)
+
+	@tornado.web.authenticated
+	def post(self):
+		current_password = self.get_body_argument("current_password", "")
+		new_password = self.get_body_argument("new_password", "")
+		confirm_password = self.get_body_argument("confirm_password", "")
+
+		if not AdminUserRepository.verify_user(self.current_user, current_password):
+			return self.redirect("/admin/user/security?error=1")
+		if len(new_password) < 6:
+			return self.redirect("/admin/user/security?error=2")
+		if new_password != confirm_password:
+			return self.redirect("/admin/user/security?error=3")
+
+		user = AdminUserRepository.get_user_by_username(self.current_user)
+		if not user:
+			return self.redirect("/admin/login")
+		AdminUserRepository.update_user(user["id"], password=new_password)
+		return self.redirect("/admin/user/security?success=1")
