@@ -244,6 +244,53 @@ class WatchDataRepository:
 		return count
 
 
+class WatchAutoTaskRepository:
+	@staticmethod
+	def list_tasks() -> list:
+		with get_connection() as conn:
+			rows = conn.execute("SELECT * FROM watch_auto_tasks ORDER BY id DESC").fetchall()
+		return [dict(row) for row in rows]
+
+	@staticmethod
+	def create_task(task_name: str, keyword: str, source_ids: list, count_per_page: int = 10, pages: int = 1, interval_minutes: int = 60) -> int:
+		source_ids_json = json.dumps(source_ids, ensure_ascii=False)
+		with get_connection() as conn:
+			cursor = conn.execute(
+				"INSERT INTO watch_auto_tasks(task_name, keyword, source_ids_json, count_per_page, pages, interval_minutes, status, next_run_at) VALUES(?,?,?,?,?,?,1,datetime('now', ?))",
+				(task_name, keyword, source_ids_json, count_per_page, pages, interval_minutes, f"+{interval_minutes} minutes")
+			)
+			return cursor.lastrowid
+
+	@staticmethod
+	def update_status(task_id: int, status: int) -> bool:
+		with get_connection() as conn:
+			conn.execute("UPDATE watch_auto_tasks SET status=?, update_at=datetime('now') WHERE id=?", (status, task_id))
+		return True
+
+	@staticmethod
+	def delete_task(task_id: int) -> bool:
+		with get_connection() as conn:
+			conn.execute("DELETE FROM watch_auto_tasks WHERE id=?", (task_id,))
+		return True
+
+	@staticmethod
+	def list_due_tasks() -> list:
+		with get_connection() as conn:
+			rows = conn.execute(
+				"SELECT * FROM watch_auto_tasks WHERE status=1 AND (next_run_at IS NULL OR datetime(next_run_at) <= datetime('now')) ORDER BY id"
+			).fetchall()
+		return [dict(row) for row in rows]
+
+	@staticmethod
+	def mark_run_result(task_id: int, interval_minutes: int, result_text: str) -> bool:
+		with get_connection() as conn:
+			conn.execute(
+				"UPDATE watch_auto_tasks SET last_run_at=datetime('now'), next_run_at=datetime('now', ?), last_result=?, update_at=datetime('now') WHERE id=?",
+				(f"+{interval_minutes} minutes", result_text[:500], task_id)
+			)
+		return True
+
+
 class WatchDataDetailRepository:
 	@staticmethod
 	def create_detail(data_id: int, source_id: int, detail_title: str = None, detail_content: str = None,

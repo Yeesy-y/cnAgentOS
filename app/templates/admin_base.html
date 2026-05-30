@@ -521,6 +521,439 @@
                 bar1: false,
                 css: { right: 50, bottom: 100 }
             });
+
+            var voiceEnabled = localStorage.getItem('admin_voice_enabled');
+            if (voiceEnabled === null) {
+                voiceEnabled = '1';
+                localStorage.setItem('admin_voice_enabled', '1');
+            }
+
+            var voiceBtn = document.createElement('div');
+            voiceBtn.style.cssText = 'position:fixed;right:16px;bottom:18px;z-index:999;background:rgba(255,255,255,.88);border:1px solid rgba(95,95,95,.12);border-radius:22px;padding:8px 12px;color:#5f5f5f;font-size:12px;cursor:pointer;box-shadow:0 6px 18px rgba(95,95,95,.12);';
+            document.body.appendChild(voiceBtn);
+
+            function updateVoiceBtn() {
+                voiceBtn.innerText = localStorage.getItem('admin_voice_enabled') === '1' ? '🔊 语音开' : '🔈 语音关';
+            }
+            updateVoiceBtn();
+
+            window.appSpeak = function (text) {
+                if (localStorage.getItem('admin_voice_enabled') !== '1') return;
+                if (!window.speechSynthesis || !text) return;
+                var utter = new SpeechSynthesisUtterance(String(text));
+                utter.lang = 'zh-CN';
+                utter.rate = 1.0;
+                utter.pitch = 1.0;
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.speak(utter);
+            };
+
+            voiceBtn.onclick = function () {
+                var now = localStorage.getItem('admin_voice_enabled') === '1' ? '0' : '1';
+                localStorage.setItem('admin_voice_enabled', now);
+                updateVoiceBtn();
+                layer.msg(now === '1' ? '语音播报已开启' : '语音播报已关闭');
+            };
+
+            var oldMsg = layer.msg;
+            layer.msg = function (content, options, end) {
+                try {
+                    var txt = '';
+                    if (typeof content === 'string') txt = content;
+                    if (txt && /(成功|完成|失败|错误|开始)/.test(txt)) {
+                        window.appSpeak(txt);
+                    }
+                } catch (e) {}
+                return oldMsg.call(layer, content, options, end);
+            };
+
+            var gesturePanelOpenedAt = 0;
+            function openGestureQuickPanel() {
+                layer.open({
+                    type: 1,
+                    title: '快捷操作',
+                    area: ['320px', 'auto'],
+                    content: '<div style="padding:16px;display:grid;gap:10px;">'
+                        + '<a class="layui-btn layui-btn-fluid" href="/admin/index">首页</a>'
+                        + '<a class="layui-btn layui-btn-fluid" href="/admin/model/list">模型服务</a>'
+                        + '<a class="layui-btn layui-btn-fluid" href="/admin/watch/collect">瞭望采集</a>'
+                        + '<a class="layui-btn layui-btn-fluid" href="/admin/watch/data/list">数据仓库</a>'
+                        + '</div>'
+                });
+                gesturePanelOpenedAt = Date.now();
+            }
+
+            function normalizePath(path) {
+                if (!path) return '/admin/index';
+                return path.split('?')[0].replace(/\/$/, '') || '/admin/index';
+            }
+
+            function jumpByMenuOrder(direction) {
+                var current = normalizePath(window.location.pathname);
+                var idx = menuOrder.indexOf(current);
+                if (idx < 0) idx = 0;
+                var targetIdx = direction === 'next' ? idx + 1 : idx - 1;
+                if (targetIdx < 0 || targetIdx >= menuOrder.length) {
+                    layer.msg(direction === 'next' ? '已是最后一个菜单页面' : '已是第一个菜单页面');
+                    return;
+                }
+                window.location.href = menuOrder[targetIdx];
+            }
+
+            var visualBtn = document.createElement('div');
+            visualBtn.style.cssText = 'position:fixed;right:16px;bottom:58px;z-index:999;background:rgba(255,255,255,.88);border:1px solid rgba(95,95,95,.12);border-radius:22px;padding:8px 12px;color:#5f5f5f;font-size:12px;cursor:pointer;box-shadow:0 6px 18px rgba(95,95,95,.12);';
+            visualBtn.innerText = '🎥 视觉手势';
+            document.body.appendChild(visualBtn);
+
+            var visualWrap = document.createElement('div');
+            visualWrap.style.cssText = 'position:fixed;right:16px;bottom:98px;z-index:999;display:none;background:rgba(255,255,255,.9);border:1px solid rgba(95,95,95,.12);border-radius:12px;padding:8px;box-shadow:0 6px 18px rgba(95,95,95,.12);';
+            visualWrap.innerHTML = '<video id="gestureVideo" autoplay muted playsinline style="width:180px;height:120px;border-radius:8px;background:#ddd;transform:scaleX(-1);"></video><div id="gestureTip" style="margin-top:6px;font-size:11px;color:#666;">等待手势...</div>';
+            document.body.appendChild(visualWrap);
+
+            var gestureEnabled = false;
+            var gestureWanted = localStorage.getItem('admin_visual_gesture_enabled') === '1';
+            var menuOrder = [
+                '/admin/index',
+                '/admin/user/list',
+                '/admin/perm/list',
+                '/admin/role/list',
+                '/admin/model/list',
+                '/admin/watch/source/list',
+                '/admin/watch/collect',
+                '/admin/watch/data/list'
+            ];
+            var mediaStream = null;
+            var detectTimer = null;
+            var prevFrame = null;
+            var trail = [];
+            var shakeHits = 0;
+            var lastGestureTs = 0;
+            var handLandmarks = null;
+            var handModelLoading = false;
+            var handModelReady = false;
+            var handLastActionTs = 0;
+            var poseHistory = [];
+            var lastPoseLabel = null;
+            var lastPoseStableTs = 0;
+
+            function updateVisualBtn() {
+                visualBtn.innerText = gestureEnabled ? '🎥 关闭手势' : '🎥 开启手势';
+            }
+
+            function setGestureTip(text) {
+                var tip = document.getElementById('gestureTip');
+                if (tip) tip.innerText = text;
+            }
+
+            function loadScript(src) {
+                return new Promise(function (resolve, reject) {
+                    var s = document.createElement('script');
+                    s.src = src;
+                    s.onload = resolve;
+                    s.onerror = reject;
+                    document.head.appendChild(s);
+                });
+            }
+
+            async function ensureHandModel() {
+                if (handModelReady && window.Hands && handLandmarks) return true;
+                if (handModelLoading) return false;
+                handModelLoading = true;
+                try {
+                    if (!window.Hands) {
+                        await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js');
+                    }
+                    if (!window.Camera) {
+                        try { await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js'); } catch (e) {}
+                    }
+                    var HandsCtor = window.Hands;
+                    if (!HandsCtor) throw new Error('Hands not loaded');
+                    handLandmarks = new HandsCtor({
+                        locateFile: function (file) { return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/' + file; }
+                    });
+                    handLandmarks.setOptions({
+                        maxNumHands: 1,
+                        modelComplexity: 0,
+                        minDetectionConfidence: 0.55,
+                        minTrackingConfidence: 0.55
+                    });
+                    handModelReady = true;
+                    setGestureTip('手势模型就绪');
+                    return true;
+                } catch (e) {
+                    setGestureTip('手势模型加载失败，保留挥手模式');
+                    handModelReady = false;
+                    return false;
+                } finally {
+                    handModelLoading = false;
+                }
+            }
+
+            function classifyFingerPose(points) {
+                if (!points || points.length < 21) return { pose: null, conf: 0 };
+
+                function dist(a, b) {
+                    var dx = a.x - b.x;
+                    var dy = a.y - b.y;
+                    return Math.sqrt(dx * dx + dy * dy);
+                }
+
+                var indexTip = points[8], indexPip = points[6], indexMcp = points[5];
+                var middleTip = points[12], middlePip = points[10], middleMcp = points[9];
+                var ringTip = points[16], ringPip = points[14], ringMcp = points[13];
+                var pinkyTip = points[20], pinkyPip = points[18], pinkyMcp = points[17];
+                var thumbTip = points[4], thumbIp = points[3], thumbMcp = points[2];
+
+                var palmScale = dist(points[0], points[9]) + 1e-6;
+
+                function upScore(tip, pip, mcp) {
+                    var ext = dist(tip, mcp) - dist(pip, mcp);
+                    var yScore = (pip.y - tip.y) / 0.08;
+                    return Math.max(0, ext / (palmScale * 0.22)) + Math.max(0, yScore);
+                }
+
+                function downScore(tip, pip, mcp) {
+                    var ext = dist(pip, mcp) - dist(tip, mcp);
+                    var yScore = (tip.y - pip.y) / 0.08;
+                    return Math.max(0, ext / (palmScale * 0.22)) + Math.max(0, yScore);
+                }
+
+                var iu = upScore(indexTip, indexPip, indexMcp);
+                var mu = upScore(middleTip, middlePip, middleMcp);
+                var ru = upScore(ringTip, ringPip, ringMcp);
+                var pu = upScore(pinkyTip, pinkyPip, pinkyMcp);
+                var tu = upScore(thumbTip, thumbIp, thumbMcp);
+
+                var id = downScore(indexTip, indexPip, indexMcp);
+                var md = downScore(middleTip, middlePip, middleMcp);
+                var rd = downScore(ringTip, ringPip, ringMcp);
+                var pd = downScore(pinkyTip, pinkyPip, pinkyMcp);
+                var td = downScore(thumbTip, thumbIp, thumbMcp);
+
+                var oneConf = (iu * 1.0 + md * 0.8 + rd * 0.9 + pd * 0.9) / 4;
+                var twoGap = Math.abs(indexTip.x - middleTip.x) / 0.03;
+                var twoConf = (iu * 1.0 + mu * 1.0 + rd * 1.1 + pd * 1.1 + Math.min(2.0, twoGap)) / 5;
+                var thumbConf = (tu * 1.2 + id * 1.0 + md * 1.0 + rd * 1.0 + pd * 1.0) / 5;
+
+                var bestPose = null;
+                var bestConf = 0;
+                if (oneConf > bestConf) { bestConf = oneConf; bestPose = 'one'; }
+                if (twoConf > bestConf) { bestConf = twoConf; bestPose = 'two'; }
+                if (thumbConf > bestConf) { bestConf = thumbConf; bestPose = 'thumb'; }
+
+                if (bestPose === 'one' && !((iu > 0.95) && (mu < 0.8) && (rd > 0.35) && (pd > 0.35))) return { pose: null, conf: bestConf };
+                if (bestPose === 'two' && !((iu > 0.95) && (mu > 0.95) && (rd > 0.35) && (pd > 0.35) && (twoGap > 0.95))) return { pose: null, conf: bestConf };
+                if (bestPose === 'thumb' && !((tu > 0.85) && (id > 0.45) && (md > 0.45) && (rd > 0.45) && (pd > 0.45))) return { pose: null, conf: bestConf };
+
+                if (bestConf < 0.95) return { pose: null, conf: bestConf };
+                return { pose: bestPose, conf: bestConf };
+            }
+
+            function getStablePose(rawPose) {
+                if (!rawPose) {
+                    poseHistory.push('_');
+                } else {
+                    poseHistory.push(rawPose);
+                }
+                if (poseHistory.length > 8) poseHistory.shift();
+                var counts = {};
+                for (var i = 0; i < poseHistory.length; i++) {
+                    counts[poseHistory[i]] = (counts[poseHistory[i]] || 0) + 1;
+                }
+                var best = null;
+                var bestCount = 0;
+                for (var k in counts) {
+                    if (k === '_') continue;
+                    if (counts[k] > bestCount) { bestCount = counts[k]; best = k; }
+                }
+                if (!best || bestCount < 5) return null;
+                return best;
+            }
+
+            function handlePoseAction(pose) {
+                var now = Date.now();
+                if (now - handLastActionTs < 1400) return;
+                if (pose === lastPoseLabel && now - lastPoseStableTs < 2200) return;
+                lastPoseLabel = pose;
+                lastPoseStableTs = now;
+                handLastActionTs = now;
+
+                if (pose === 'one') {
+                    triggerGesture('back', '数字一');
+                } else if (pose === 'two') {
+                    triggerGesture('forward', '比耶');
+                } else if (pose === 'thumb') {
+                    triggerGesture('home', '大拇指');
+                }
+            }
+
+            function triggerGesture(action, text) {
+                var now = Date.now();
+                if (now - lastGestureTs < 900) return;
+                lastGestureTs = now;
+                setGestureTip('识别: ' + text);
+                var scroller = document.querySelector('.layui-body') || document.scrollingElement || document.documentElement || document.body;
+                if (action === 'back') jumpByMenuOrder('prev');
+                if (action === 'forward') jumpByMenuOrder('next');
+                if (action === 'top') {
+                    if (scroller && typeof scroller.scrollTo === 'function') scroller.scrollTo({ top: 0, behavior: 'smooth' });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                if (action === 'bottom') {
+                    var h = scroller && scroller.scrollHeight ? scroller.scrollHeight : document.body.scrollHeight;
+                    if (scroller && typeof scroller.scrollTo === 'function') scroller.scrollTo({ top: h, behavior: 'smooth' });
+                    window.scrollTo({ top: h, behavior: 'smooth' });
+                }
+                if (action === 'panel') openGestureQuickPanel();
+                if (action === 'home') window.location.href = '/admin/index';
+                window.appSpeak('手势' + text);
+            }
+
+            function detectVisualGesture() {
+                var video = document.getElementById('gestureVideo');
+                if (!video || video.videoWidth < 20) return;
+
+                if (handModelReady && handLandmarks) {
+                    handLandmarks.send({ image: video }).catch(function () {});
+                }
+
+                var canvas = document.createElement('canvas');
+                canvas.width = 96;
+                canvas.height = 72;
+                var ctx = canvas.getContext('2d', { willReadFrequently: true });
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                var frame = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+                if (!prevFrame) {
+                    prevFrame = new Uint8ClampedArray(frame);
+                    return;
+                }
+
+                var sumX = 0, sumY = 0, cnt = 0;
+                for (var i = 0; i < frame.length; i += 4) {
+                    var d = Math.abs(frame[i] - prevFrame[i]) + Math.abs(frame[i + 1] - prevFrame[i + 1]) + Math.abs(frame[i + 2] - prevFrame[i + 2]);
+                    if (d > 55) {
+                        var p = i / 4;
+                        var x = p % canvas.width;
+                        var y = Math.floor(p / canvas.width);
+                        sumX += x;
+                        sumY += y;
+                        cnt++;
+                    }
+                }
+                prevFrame = new Uint8ClampedArray(frame);
+
+                if (cnt < 50) return;
+                var cx = sumX / cnt;
+                var cy = sumY / cnt;
+                trail.push({ x: cx, y: cy, t: Date.now() });
+                if (trail.length > 8) trail.shift();
+                if (trail.length < 4) return;
+
+                var first = trail[0];
+                var last = trail[trail.length - 1];
+                var dx = last.x - first.x;
+                var dy = last.y - first.y;
+                var adx = Math.abs(dx);
+                var ady = Math.abs(dy);
+
+                if (ady > 10 && ady > adx * 1.05) {
+                    triggerGesture(dy > 0 ? 'top' : 'bottom', dy > 0 ? '向下挥手' : '向上挥手');
+                    trail = [];
+                    shakeHits = 0;
+                    return;
+                }
+            }
+
+            async function enableVisualGesture() {
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 360 }, audio: false });
+                    var video = document.getElementById('gestureVideo');
+                    video.srcObject = mediaStream;
+                    visualWrap.style.display = 'block';
+                    gestureEnabled = true;
+                    localStorage.setItem('admin_visual_gesture_enabled', '1');
+                    updateVisualBtn();
+                    setGestureTip('已开启，挥手试试');
+                    prevFrame = null;
+                    trail = [];
+                    shakeHits = 0;
+                    if (detectTimer) clearInterval(detectTimer);
+
+                    await ensureHandModel();
+                    if (handLandmarks) {
+                        handLandmarks.onResults(function (results) {
+                            try {
+                                if (!results || !results.multiHandLandmarks || !results.multiHandLandmarks.length) {
+                                    poseHistory.push('_');
+                                    if (poseHistory.length > 8) poseHistory.shift();
+                                    return;
+                                }
+                                var cls = classifyFingerPose(results.multiHandLandmarks[0]);
+                                var stable = getStablePose(cls.pose);
+                                if (!stable) {
+                                    if (cls.pose) setGestureTip('识别中: ' + cls.pose + ' (' + (cls.conf || 0).toFixed(2) + ')');
+                                    return;
+                                }
+                                if (stable === 'one') setGestureTip('识别: 数字一');
+                                if (stable === 'two') setGestureTip('识别: 比耶');
+                                if (stable === 'thumb') setGestureTip('识别: 大拇指');
+                                handlePoseAction(stable);
+                            } catch (e) {}
+                        });
+                    }
+
+                    detectTimer = setInterval(detectVisualGesture, 160);
+                    layer.msg('已获取摄像头权限，视觉手势已开启');
+                } catch (e) {
+                    localStorage.setItem('admin_visual_gesture_enabled', '0');
+                    layer.msg('无法获取摄像头权限，请在浏览器中允许访问');
+                }
+            }
+
+            function disableVisualGesture() {
+                gestureEnabled = false;
+                gestureWanted = false;
+                localStorage.setItem('admin_visual_gesture_enabled', '0');
+                updateVisualBtn();
+                visualWrap.style.display = 'none';
+                if (detectTimer) { clearInterval(detectTimer); detectTimer = null; }
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(function (t) { t.stop(); });
+                    mediaStream = null;
+                }
+                prevFrame = null;
+                trail = [];
+                poseHistory = [];
+                setGestureTip('等待手势...');
+            }
+
+            async function tryAutoRestoreGesture() {
+                if (!gestureWanted) {
+                    updateVisualBtn();
+                    return;
+                }
+                if (gestureEnabled) return;
+                await enableVisualGesture();
+            }
+
+            visualBtn.onclick = function () {
+                if (!gestureEnabled) {
+                    gestureWanted = true;
+                    localStorage.setItem('admin_visual_gesture_enabled', '1');
+                    enableVisualGesture();
+                } else {
+                    disableVisualGesture();
+                }
+            };
+
+            gestureWanted = localStorage.getItem('admin_visual_gesture_enabled') === '1';
+            updateVisualBtn();
+            setTimeout(function () { tryAutoRestoreGesture(); }, 200);
+            window.addEventListener('pageshow', function () { setTimeout(function () { tryAutoRestoreGesture(); }, 120); });
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden) setTimeout(function () { tryAutoRestoreGesture(); }, 120);
+            });
         });
     </script>
 </body>

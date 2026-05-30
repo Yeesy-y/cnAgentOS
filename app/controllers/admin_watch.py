@@ -2,9 +2,10 @@ import tornado.web
 import json
 import requests
 import re
+from bs4 import BeautifulSoup
 from urllib.parse import quote
 from app.controllers.admin_base import AdminBaseHandler
-from app.models.watch_service import WatchSourceRepository, WatchDataRepository, WatchDataDetailRepository
+from app.models.watch_service import WatchSourceRepository, WatchDataRepository, WatchDataDetailRepository, WatchAutoTaskRepository
 
 ABNORMAL_PAGE_MARKERS = ["问题反馈", "安全验证", "请输入验证码", "访问受限", "百度安全验证", "network-error"]
 DEFAULT_SOURCE_HEADERS = {
@@ -87,62 +88,58 @@ def parse_baidu_news(html_content):
     if is_abnormal_page(html_content):
         return []
 
+    def clean_text(text):
+        if not text:
+            return ""
+        text = re.sub(r'\s+', ' ', text).strip()
+        text = text.replace('\u3000', ' ')
+        return text
+
+    def is_garbled(text):
+        if not text:
+            return True
+        bad_markers = ['\ufffd', '锟', '鈥', '�']
+        bad = sum(text.count(m) for m in bad_markers)
+        ratio = bad / max(1, len(text))
+        return ratio > 0.03
+
     try:
-        block_pattern = re.compile(r'<div[^>]*class="[^"]*(result|news-item)[^"]*"[^>]*>(.*?)</div>\s*</div>', re.DOTALL | re.IGNORECASE)
-        blocks = block_pattern.findall(html_content)
-        if not blocks:
-            blocks = [("", html_content)]
+        soup = BeautifulSoup(html_content, "lxml")
+        cards = soup.select("div.result, div.news-item")
+        if not cards:
+            cards = soup.select("article, div")[:120]
 
-        for _, block in blocks[:30]:
-            title = ""
-            url = ""
+        for card in cards[:60]:
+            a = card.select_one("h3 a") or card.select_one("a")
+            if not a:
+                continue
+            title = clean_text(a.get_text(" ", strip=True))
+            url = (a.get("href") or "").strip()
+
+            if not title or len(title) < 4:
+                continue
+            if is_garbled(title):
+                continue
+
             content = ""
+            abs_node = card.select_one(".c-abstract") or card.select_one(".content") or card.select_one(".summary") or card.select_one("p")
+            if abs_node:
+                content = clean_text(abs_node.get_text(" ", strip=True))
+                if is_garbled(content):
+                    content = ""
+
             publish_time = ""
+            txt = clean_text(card.get_text(" ", strip=True))
+            tm = re.search(r'(\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{1,2}:\d{1,2})?)', txt)
+            if tm:
+                publish_time = tm.group(1)
 
-            h3_match = re.search(r'<h3[^>]*>(.*?)</h3>', block, re.DOTALL | re.IGNORECASE)
-            if h3_match:
-                h3_html = h3_match.group(1)
-                link_match = re.search(r'href="([^"]+)"', h3_html, re.IGNORECASE)
-                if link_match:
-                    url = link_match.group(1).strip()
-                title_text = re.sub(r'<[^>]+>', ' ', h3_html)
-                title_text = re.sub(r'\s+', ' ', title_text).strip()
-                title = title_text
-
-            if not title:
-                a_match = re.search(r'<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', block, re.DOTALL | re.IGNORECASE)
-                if a_match:
-                    url = a_match.group(1).strip()
-                    title_text = re.sub(r'<[^>]+>', ' ', a_match.group(2))
-                    title_text = re.sub(r'\s+', ' ', title_text).strip()
-                    title = title_text
-
-            abs_match = re.search(r'<div[^>]*class="[^"]*(c-abstract|content|summary)[^"]*"[^>]*>(.*?)</div>', block, re.DOTALL | re.IGNORECASE)
-            if abs_match:
-                content = re.sub(r'<[^>]+>', ' ', abs_match.group(2))
-                content = re.sub(r'\s+', ' ', content).strip()
-
-            if not content:
-                p_match = re.search(r'<p[^>]*>(.*?)</p>', block, re.DOTALL | re.IGNORECASE)
-                if p_match:
-                    content = re.sub(r'<[^>]+>', ' ', p_match.group(1))
-                    content = re.sub(r'\s+', ' ', content).strip()
-
-            if not publish_time:
-                time_match = re.search(r'(\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{1,2}:\d{1,2})?)', block)
-                if time_match:
-                    publish_time = time_match.group(1)
-
-            if not title and content:
-                title = content[:50]
-
-            if title and len(title) >= 4:
-                news_items.append({
-                    "title": title[:200],
-                    "url": url,
-                    "content": content[:800],
-                    "time": publish_time
-                })
+            news_items.append({
+                "title": title[:200],
+                "url": url,
+                "content": content[:800],
+                "time": publish_time
+            })
 
         dedup = []
         seen = set()
@@ -161,10 +158,9 @@ def parse_baidu_news(html_content):
         try:
             pattern = re.compile(r'<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', re.DOTALL)
             matches = pattern.findall(html_content)
-            for url, text in matches[:20]:
-                text = re.sub(r'<[^>]+>', ' ', text)
-                text = re.sub(r'\s+', ' ', text).strip()
-                if len(text) > 5 and len(text) < 120 and 'http' not in text:
+            for url, text in matches[:40]:
+                text = clean_text(re.sub(r'<[^>]+>', ' ', text))
+                if len(text) > 5 and len(text) < 120 and 'http' not in text and not is_garbled(text):
                     news_items.append({
                         "title": text,
                         "url": url if url.startswith('http') else "",
@@ -651,6 +647,158 @@ class AdminWatchDeepCollectHandler(AdminBaseHandler):
 			return {"success": False, "message": f"网络请求失败: {str(e)}"}
 		except Exception as e:
 			return {"success": False, "message": str(e)}
+
+
+class AdminWatchAutoTaskHandler(AdminBaseHandler):
+	@tornado.web.authenticated
+	def get(self):
+		self.set_header("Content-Type", "application/json")
+		tasks = WatchAutoTaskRepository.list_tasks()
+		self.write(json.dumps({"success": True, "tasks": tasks}, ensure_ascii=False))
+
+	@tornado.web.authenticated
+	def post(self):
+		self.set_header("Content-Type", "application/json")
+		action = (self.get_body_argument("action", "") or "").strip()
+		try:
+			if action == "create":
+				task_name = (self.get_body_argument("task_name", "") or "").strip()
+				keyword = (self.get_body_argument("keyword", "") or "").strip()
+				source_ids = [int(x) for x in self.get_body_arguments("source_ids") if str(x).isdigit()]
+				count_per_page = int(self.get_body_argument("count_per_page", "10"))
+				pages = int(self.get_body_argument("pages", "1"))
+				interval_minutes = int(self.get_body_argument("interval_minutes", "60"))
+				if not task_name or not keyword or not source_ids:
+					self.write(json.dumps({"success": False, "message": "参数不完整"}, ensure_ascii=False))
+					return
+				tid = WatchAutoTaskRepository.create_task(task_name, keyword, source_ids, count_per_page, pages, interval_minutes)
+				self.write(json.dumps({"success": True, "task_id": tid}, ensure_ascii=False))
+				return
+			if action == "toggle":
+				task_id = int(self.get_body_argument("task_id", "0"))
+				status = int(self.get_body_argument("status", "1"))
+				WatchAutoTaskRepository.update_status(task_id, status)
+				self.write(json.dumps({"success": True}, ensure_ascii=False))
+				return
+			if action == "delete":
+				task_id = int(self.get_body_argument("task_id", "0"))
+				WatchAutoTaskRepository.delete_task(task_id)
+				self.write(json.dumps({"success": True}, ensure_ascii=False))
+				return
+			if action == "run_now":
+				task_id = int(self.get_body_argument("task_id", "0"))
+				tasks = [t for t in WatchAutoTaskRepository.list_tasks() if t.get("id") == task_id]
+				if not tasks:
+					self.write(json.dumps({"success": False, "message": "任务不存在"}, ensure_ascii=False))
+					return
+				result = execute_auto_task(tasks[0])
+				self.write(json.dumps({"success": True, "message": result}, ensure_ascii=False))
+				return
+		except Exception as e:
+			self.write(json.dumps({"success": False, "message": str(e)}, ensure_ascii=False))
+			return
+		self.write(json.dumps({"success": False, "message": "未知操作"}, ensure_ascii=False))
+
+
+def execute_auto_task(task: dict) -> str:
+	keyword = (task.get("keyword", "") or "").strip()
+	if not keyword:
+		return "任务缺少关键词"
+	try:
+		source_ids = json.loads(task.get("source_ids_json", "[]") or "[]")
+	except Exception:
+		source_ids = []
+	if not isinstance(source_ids, list) or not source_ids:
+		return "任务缺少采集源"
+	count_per_page = int(task.get("count_per_page") or 10)
+	pages = int(task.get("pages") or 1)
+	saved_count = 0
+	error_count = 0
+
+	for source_id in source_ids:
+		source = WatchSourceRepository.get_source_by_id(int(source_id))
+		if not source:
+			error_count += 1
+			continue
+		for page in range(max(1, pages)):
+			pn = page * 10
+			context = {
+				"keyword": quote(keyword),
+				"keyword_raw": keyword,
+				"pn": pn,
+				"page": page + 1
+			}
+			url = render_with_context(source["url_template"], context)
+			page_saved = 0
+			last_html = ""
+			ok = False
+			for attempt in range(3):
+				try:
+					headers = dict(DEFAULT_SOURCE_HEADERS)
+					if source.get("headers_json"):
+						try:
+							custom_headers = json.loads(source["headers_json"])
+							if isinstance(custom_headers, dict):
+								headers.update(render_with_context(custom_headers, context))
+						except Exception:
+							pass
+					if source.get("cookie"):
+						headers["Cookie"] = render_with_context(source["cookie"], context)
+					response = requests.get(url, headers=headers, timeout=30)
+					response.raise_for_status()
+					html_content = decode_html_response(response, keyword)
+					last_html = html_content
+					if is_abnormal_page(html_content):
+						if attempt < 2:
+							continue
+						error_count += 1
+						break
+					news_items = parse_baidu_news(html_content)
+					if count_per_page > 0:
+						news_items = news_items[:count_per_page]
+					if not news_items and attempt < 2:
+						continue
+					for item in news_items:
+						title = (item.get("title", "") or "").strip()
+						content = (item.get("content", "") or "").strip()
+						if not title and not content:
+							continue
+						WatchDataRepository.create_data(
+							source_id=int(source_id),
+							keyword=keyword,
+							title=title[:200],
+							content=content[:1000],
+							url=(item.get("url", "") or "")[:500],
+							publish_time=(item.get("time", "") or "")[:50]
+						)
+						page_saved += 1
+					ok = True
+					break
+				except Exception:
+					if attempt >= 2:
+						error_count += 1
+			if not ok and page_saved == 0 and last_html:
+				try:
+					soup = BeautifulSoup(last_html, "lxml")
+					title = (soup.title.get_text(" ", strip=True) if soup.title else "") or f"{keyword} 自动采集结果"
+					text = re.sub(r"\s+", " ", soup.get_text(" ", strip=True))[:700]
+					if text:
+						WatchDataRepository.create_data(
+							source_id=int(source_id),
+							keyword=keyword,
+							title=title[:200],
+							content=text,
+							url=url[:500],
+							publish_time=""
+						)
+						page_saved += 1
+				except Exception:
+					pass
+			saved_count += page_saved
+
+	result = f"自动采集完成：成功入库 {saved_count} 条，异常 {error_count} 次"
+	WatchAutoTaskRepository.mark_run_result(int(task.get("id")), int(task.get("interval_minutes") or 60), result)
+	return result
 
 
 class AdminWatchDataListHandler(AdminBaseHandler):

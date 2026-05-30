@@ -153,6 +153,27 @@ def init_db():
 			)
 			"""
 		)
+		# 瞭望自动任务表
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS watch_auto_tasks(
+				id integer PRIMARY KEY AUTOINCREMENT,
+				task_name TEXT NOT NULL,
+				keyword TEXT NOT NULL,
+				source_ids_json TEXT NOT NULL,
+				count_per_page INTEGER DEFAULT 10,
+				pages INTEGER DEFAULT 1,
+				interval_minutes INTEGER DEFAULT 60,
+				status INTEGER DEFAULT 1,
+				last_run_at TEXT,
+				next_run_at TEXT,
+				last_result TEXT,
+				create_at TEXT NOT NULL DEFAULT(datetime('now')),
+				update_at TEXT NOT NULL DEFAULT(datetime('now'))
+			)
+			"""
+		)
+		
 		# API端点表
 		conn.execute(
 			"""

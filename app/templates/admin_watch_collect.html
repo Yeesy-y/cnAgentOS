@@ -373,6 +373,18 @@
             <div class="results-title">📊 采集结果</div>
             <div id="resultsList"></div>
         </div>
+
+        <div class="results-box show" id="autoTaskBox" style="margin-top:20px;display:block;">
+            <div class="results-title">⏱ 自动采集任务</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;margin-bottom:14px;">
+                <input type="text" id="taskName" class="param-input" placeholder="任务名称">
+                <input type="text" id="taskKeyword" class="param-input" placeholder="关键词">
+                <input type="number" id="taskInterval" class="param-input" value="60" min="1" placeholder="间隔(分钟)">
+                <input type="number" id="taskPages" class="param-input" value="1" min="1" max="10" placeholder="页数">
+                <button class="collect-btn" style="padding:10px 14px;min-width:110px;" onclick="createAutoTask()">新增任务</button>
+            </div>
+            <div id="taskList"></div>
+        </div>
     </div>
 </div>
 {% end %}
@@ -491,5 +503,134 @@ document.getElementById('keywordInput').addEventListener('keypress', function(e)
 });
 
 document.getElementById('searchBtn').addEventListener('click', startCollect);
+
+async function loadAutoTasks() {
+    try {
+        const response = await fetch('/admin/watch/auto-task');
+        const result = await response.json();
+        if (result.success) renderTaskList(result.tasks || []);
+    } catch (e) {}
+}
+
+function renderTaskList(tasks) {
+    const box = document.getElementById('taskList');
+    if (!tasks || tasks.length === 0) {
+        box.innerHTML = '<div style="color:rgba(95,95,95,.6);font-size:13px;">暂无自动任务</div>';
+        return;
+    }
+    box.innerHTML = tasks.map(t => {
+        const statusText = Number(t.status) === 1 ? '运行中' : '已暂停';
+        const statusColor = Number(t.status) === 1 ? 'success' : 'error';
+        return `
+        <div class="result-item">
+            <div class="result-info">
+                <div class="result-source">${t.task_name} · 关键词：${t.keyword}</div>
+                <div class="result-page">间隔 ${t.interval_minutes} 分钟 · 下次执行：${t.next_run_at || '-'}</div>
+                <div style="font-size:12px;color:rgba(95,95,95,.6);margin-top:3px;">最近结果：${t.last_result || '暂无'}</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+                <span class="result-status ${statusColor}">${statusText}</span>
+                <button class="layui-btn layui-btn-xs" onclick="toggleAutoTask(${t.id}, ${Number(t.status) === 1 ? 0 : 1})">${Number(t.status) === 1 ? '暂停' : '启动'}</button>
+                <button class="layui-btn layui-btn-xs" onclick="runAutoTask(${t.id})">立即执行</button>
+                <button class="layui-btn layui-btn-danger layui-btn-xs" onclick="deleteAutoTask(${t.id})">删除</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function getSelectedSourceIdsForTask() {
+    const ids = getSelectedSources();
+    return ids;
+}
+
+async function createAutoTask() {
+    const taskName = document.getElementById('taskName').value.trim();
+    const keyword = document.getElementById('taskKeyword').value.trim();
+    const interval = document.getElementById('taskInterval').value;
+    const pages = document.getElementById('taskPages').value;
+    const sourceIds = getSelectedSourceIdsForTask();
+    const countPerPage = document.getElementById('countPerPage').value;
+
+    if (!taskName || !keyword) {
+        layer.msg('请填写任务名称和关键词');
+        return;
+    }
+    if (!sourceIds.length) {
+        layer.msg('请先选择至少一个采集源');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('action', 'create');
+    formData.append('task_name', taskName);
+    formData.append('keyword', keyword);
+    formData.append('interval_minutes', interval);
+    formData.append('pages', pages);
+    formData.append('count_per_page', countPerPage);
+    sourceIds.forEach(id => formData.append('source_ids', id));
+    const xsrfInput = document.querySelector('input[name="_xsrf"]');
+    if (xsrfInput) formData.append('_xsrf', xsrfInput.value);
+
+    const resp = await fetch('/admin/watch/auto-task', { method: 'POST', body: formData });
+    const json = await resp.json();
+    if (json.success) {
+        layer.msg('自动任务创建成功');
+        if (window.appSpeak) window.appSpeak('自动采集任务创建成功');
+        loadAutoTasks();
+    } else {
+        layer.msg(json.message || '创建失败');
+    }
+}
+
+async function toggleAutoTask(taskId, status) {
+    const formData = new FormData();
+    formData.append('action', 'toggle');
+    formData.append('task_id', String(taskId));
+    formData.append('status', String(status));
+    const xsrfInput = document.querySelector('input[name="_xsrf"]');
+    if (xsrfInput) formData.append('_xsrf', xsrfInput.value);
+    const resp = await fetch('/admin/watch/auto-task', { method: 'POST', body: formData });
+    const json = await resp.json();
+    if (json.success) {
+        layer.msg(status === 1 ? '任务已启动' : '任务已暂停');
+        loadAutoTasks();
+    }
+}
+
+async function runAutoTask(taskId) {
+    const formData = new FormData();
+    formData.append('action', 'run_now');
+    formData.append('task_id', String(taskId));
+    const xsrfInput = document.querySelector('input[name="_xsrf"]');
+    if (xsrfInput) formData.append('_xsrf', xsrfInput.value);
+    const resp = await fetch('/admin/watch/auto-task', { method: 'POST', body: formData });
+    const json = await resp.json();
+    if (json.success) {
+        layer.msg(json.message || '执行成功');
+        if (window.appSpeak) window.appSpeak('自动采集任务执行完成');
+        loadAutoTasks();
+    } else {
+        layer.msg(json.message || '执行失败');
+    }
+}
+
+async function deleteAutoTask(taskId) {
+    layer.confirm('确认删除该自动任务吗？', {icon:3, title:'删除确认'}, async function(index){
+        layer.close(index);
+        const formData = new FormData();
+        formData.append('action', 'delete');
+        formData.append('task_id', String(taskId));
+        const xsrfInput = document.querySelector('input[name="_xsrf"]');
+        if (xsrfInput) formData.append('_xsrf', xsrfInput.value);
+        const resp = await fetch('/admin/watch/auto-task', { method: 'POST', body: formData });
+        const json = await resp.json();
+        if (json.success) {
+            layer.msg('任务已删除');
+            loadAutoTasks();
+        }
+    });
+}
+
+loadAutoTasks();
 </script>
 {% end %}

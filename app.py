@@ -2,10 +2,13 @@
 #承担服务器容器+程序作用
 #服务器容器:提供http容器服务,程序放置于该容器中运行
 #程序:本体-智能瞭望与智能问数系统 B/s架构
+from tornado.options import define, options
 import os
 import tornado.ioloop
 import tornado.web
+import logging
 from tornado.httpserver import HTTPServer
+from tornado.ioloop import PeriodicCallback
 
 # 导入 user_profile
 from app.controllers.user_profile import UserProfileHandler, UserProfileSaveHandler, UserProfileAvatarHandler
@@ -59,7 +62,7 @@ from app.controllers.admin_file import AdminFileListHandler,AdminFileStatsHandle
 from app.controllers.admin_server import AdminServerListHandler,AdminServerStatusHandler,AdminServerSwitchHandler
 from app.controllers.admin_tool import AdminToolListHandler,AdminToolBindHandler
 from app.controllers.admin_watch import AdminWatchSourceListHandler,AdminWatchSourceAddHandler,AdminWatchSourceEditHandler
-from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler,AdminWatchDeepCollectHandler
+from app.controllers.admin_watch import AdminWatchCollectHandler,AdminWatchDataListHandler,AdminWatchDeepCollectHandler,AdminWatchAutoTaskHandler
 from app.controllers.admin_api import AdminApiListHandler,AdminApiAddHandler,AdminApiEditHandler,AdminApiTestHandler
 from app.controllers.user_auth import UserLoginHandler,UserLogoutHandler,UserRegisterHandler
 from app.controllers.user_api import UserModelsHandler,UserConversationsHandler,UserMessagesHandler,UserSendHandler,UserStreamHandler,UserConversationActionHandler,UserMediaProxyHandler
@@ -68,8 +71,10 @@ from app.controllers.user_api import UserModelsHandler,UserConversationsHandler,
 from app.controllers.admin_dashboard import DashboardIndexHandler,DashboardDataHandler
 #智能舆情相关导入
 from app.controllers.admin_public_sentiment import PublicSentimentIndexHandler,SentimentAnalysisHandler,WatchDataSentimentHandler,ChatDataSentimentHandler,RiskStatsHandler
+from app.controllers.admin_watch import execute_auto_task
 #引入 db-model 层
 from app.models.db import init_db
+from app.models.watch_service import WatchAutoTaskRepository
 
 
 
@@ -101,6 +106,24 @@ from app.models.db import init_db
 
 
 
+
+def run_auto_tasks():
+	try:
+		tasks = WatchAutoTaskRepository.list_due_tasks()
+		if not tasks:
+			return
+		for task in tasks:
+			try:
+				result = execute_auto_task(task)
+				logging.info("[AUTO_TASK] id=%s name=%s result=%s", task.get("id"), task.get("task_name"), result)
+			except Exception as e:
+				logging.exception("[AUTO_TASK] 执行异常 id=%s err=%s", task.get("id"), e)
+				try:
+					WatchAutoTaskRepository.mark_run_result(int(task.get("id")), int(task.get("interval_minutes") or 60), f"执行异常: {e}")
+				except Exception:
+					pass
+	except Exception as e:
+		logging.exception("[AUTO_TASK] 轮询异常: %s", e)
 
 
 def make_app():
@@ -213,6 +236,7 @@ def make_app():
 		(r"/admin/watch/collect",AdminWatchCollectHandler),
 		(r"/admin/watch/data/list",AdminWatchDataListHandler),
 		(r"/admin/watch/deep/collect",AdminWatchDeepCollectHandler),
+		(r"/admin/watch/auto-task",AdminWatchAutoTaskHandler),
 		# RBAC路由
 		(r"/admin/perm/list",AdminPermissionListHandler),
 		(r"/admin/perm/add",AdminPermissionAddHandler),
@@ -252,4 +276,8 @@ if __name__=="__main__":
 	server.start()
 
 	print("===== Server 启动成功 ======= 端口：10086 ======",flush=True)
+	# 自动任务轮询：每60秒检查一次
+	auto_task_timer = PeriodicCallback(run_auto_tasks, 60 * 1000)
+	auto_task_timer.start()
+	run_auto_tasks()
 	tornado.ioloop.IOLoop.current().start()
